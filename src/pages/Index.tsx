@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import CaseSlider from "@/components/CaseSlider/CaseSlider";
 import { SliderItem, CaseSelection } from "@/types/slider";
@@ -806,4 +807,751 @@ const Index = () => {
                         
                         <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
                           {selectedCases.map((selection, index) => (
-                            <div key={index} className="flex items-center gap-2 p-2
+                            <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-black/70 border border-primary/20">
+                              <div className="flex-grow">
+                                <Select 
+                                  value={selection.caseId}
+                                  onValueChange={(value) => updateCaseSelection(index, value)}
+                                >
+                                  <SelectTrigger className="bg-black/90 border-primary/30 text-white">
+                                    <SelectValue placeholder="Select a case" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-[#1A1F2C] border-primary/40">
+                                    {availableCases.map(caseItem => (
+                                      <SelectItem key={caseItem.id} value={caseItem.id}>
+                                        {caseItem.name} - {caseItem.price} gems
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              <div className="flex items-center h-10 rounded-md overflow-hidden border border-primary/30">
+                                <Button 
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-full rounded-none bg-black/90 text-white hover:bg-[#1EAEDB]/20"
+                                  onClick={() => updateCaseQuantity(index, selection.quantity - 1)}
+                                  disabled={selection.quantity <= 1}
+                                >
+                                  <Minus size={14} />
+                                </Button>
+                                <div className="h-full w-8 flex items-center justify-center bg-black/90 text-white">
+                                  {selection.quantity}
+                                </div>
+                                <Button 
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-full rounded-none bg-black/90 text-white hover:bg-[#1EAEDB]/20"
+                                  onClick={() => updateCaseQuantity(index, selection.quantity + 1)}
+                                  disabled={selection.quantity >= 5}
+                                >
+                                  <PlusCircle size={14} />
+                                </Button>
+                              </div>
+                              
+                              {selectedCases.length > 1 && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeCase(index)}
+                                  className="h-8 w-8 bg-black/90 hover:bg-red-500/20 hover:text-red-400 border border-primary/30 text-gray-400"
+                                >
+                                  <X size={14} />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300">Total Cost:</span>
+                        <span className="flex items-center text-white">
+                          <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                          <span className="font-semibold">{calculateTotalCost()}</span>
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300">Your Balance:</span>
+                        <span className="flex items-center text-white">
+                          <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                          <span className="font-semibold">{user?.balance || 0}</span>
+                        </span>
+                      </div>
+                      
+                      <Button 
+                        onClick={createBattle}
+                        disabled={!user || (user.balance < calculateTotalCost())}
+                        className="w-full bg-gradient-to-r from-[#1EAEDB] to-[#33C3F0] hover:from-[#33C3F0] hover:to-[#1EAEDB]"
+                      >
+                        Create Battle
+                      </Button>
+                    </div>
+                    
+                    <div className="border-t border-primary/20 pt-4">
+                      <h3 className="text-sm text-gray-300 mb-2">Active Battles</h3>
+                      <div className="space-y-2">
+                        {battles.length === 0 ? (
+                          <div className="text-sm text-center text-gray-400 py-2">
+                            No active battles
+                          </div>
+                        ) : (
+                          battles.map(battle => (
+                            <Button 
+                              key={battle.id} 
+                              variant="outline" 
+                              className={`w-full justify-between ${selectedBattle?.id === battle.id ? 'border-cyan-500' : 'border-primary/40'} bg-black/90 text-white`}
+                              onClick={() => setSelectedBattle(battle)}
+                            >
+                              <span>Battle {battle.id.slice(-4)}</span>
+                              <div className="flex items-center text-xs">
+                                {battle.mode === 'solo' && <Trophy className="h-3 w-3 mr-1" />}
+                                {battle.mode === '1v1' && <Bot className="h-3 w-3 mr-1" />}
+                                {battle.mode === '2v2' && <Users className="h-3 w-3 mr-1" />}
+                                {battle.mode === '4-player' && <Shield className="h-3 w-3 mr-1" />}
+                                <span>{battle.mode}</span>
+                                <ChevronRight className="h-4 w-4 ml-1" />
+                              </div>
+                            </Button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Last won item */}
+                {lastWon && (
+                  <Card className="bg-black/90 border-primary/30 backdrop-blur-sm shadow-lg">
+                    <CardContent className="p-4">
+                      <h2 className="text-lg font-semibold mb-2 text-white">Last Item Won:</h2>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-16 h-16 rounded bg-gradient-to-b p-2 ${getRarityColorClass(lastWon.rarity)}`}>
+                          <img 
+                            src={lastWon.image || '/placeholder.svg'} 
+                            alt={lastWon.name} 
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.onerror = null;
+                              target.src = '/placeholder.svg';
+                            }} 
+                          />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white">{lastWon.name}</h3>
+                          <p className={`text-sm font-bold capitalize ${getRarityTextColor(lastWon.rarity)}`}>
+                            {lastWon.rarity}
+                          </p>
+                          <div className="flex items-center mt-1">
+                            <Gem className="h-3.5 w-3.5 text-cyan-400 mr-1" />
+                            <span className="text-sm text-white">{lastWon.price}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+              
+              {/* Battle area - 3 columns */}
+              <div className="md:col-span-3">
+                {selectedBattle ? (
+                  <div>
+                    <Card className="mb-6 bg-black/90 border border-primary/30 shadow-lg">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-6">
+                          <div>
+                            <h2 className="text-2xl font-semibold text-white">
+                              Case Battle
+                              <span className="ml-2 text-sm bg-primary/20 px-2 py-1 rounded-full text-primary">
+                                {selectedBattle.mode.toUpperCase()}
+                              </span>
+                            </h2>
+                            <p className="text-gray-300 flex items-center">
+                              <span className="mr-2">Total cases: {selectedBattle.cases.length}</span>
+                              <span className="mr-2">|</span>
+                              <span>
+                                Current case: {selectedBattle.currentCaseIndex + 1} / {selectedBattle.cases.length}
+                              </span>
+                            </p>
+                          </div>
+                          
+                          <div className="px-4 py-2 rounded-full bg-primary/20 border border-primary/30 flex items-center text-white">
+                            {selectedBattle.status === 'waiting' && 'Waiting'}
+                            {selectedBattle.status === 'active' && (
+                              <div className="flex items-center">
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin text-cyan-400" />
+                                <span>Active</span>
+                              </div>
+                            )}
+                            {selectedBattle.status === 'completed' && (
+                              <div className="flex items-center">
+                                <Trophy className="h-4 w-4 mr-2 text-cyan-400" />
+                                <span>Completed</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Battle area layout based on mode */}
+                        {(selectedBattle.mode === 'solo') ? (
+                          // SOLO MODE - Full screen spinner
+                          <div className="mb-6">
+                            <div className="flex flex-col items-center justify-center mb-4">
+                              <div className={`h-14 w-14 rounded-full flex items-center justify-center mb-2
+                                ${selectedBattle.participants[0].id === user?.id ? 'bg-[#1EAEDB]/40 border-2 border-[#1EAEDB]' : 'bg-black/90 border border-primary/40'}`}
+                              >
+                                {selectedBattle.participants[0].avatar ? (
+                                  <img 
+                                    src={selectedBattle.participants[0].avatar} 
+                                    alt={selectedBattle.participants[0].name} 
+                                    className="h-12 w-12 rounded-full"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.onerror = null;
+                                      target.src = '/placeholder.svg';
+                                    }}
+                                  />
+                                ) : (
+                                  selectedBattle.participants[0].name.charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              <div className="text-lg font-medium text-white">
+                                {selectedBattle.participants[0].name}
+                                {selectedBattle.participants[0].id === user?.id && " (You)"}
+                              </div>
+                            </div>
+                            
+                            <div className="py-4">
+                              {selectedBattle.participants[0].displaySlider && selectedBattle.participants[0].isSpinning ? (
+                                <CaseSlider
+                                  items={availableCases.find(c => c.id === selectedBattle.cases[selectedBattle.currentCaseIndex].caseId)?.items || []}
+                                  onComplete={(item) => handleComplete(item, selectedBattle.participants[0].id, selectedBattle.id)}
+                                  autoSpin={true}
+                                  isCompact={false}
+                                  highlightPlayer={true}
+                                  options={{ 
+                                    duration: 7000,
+                                    itemSize: 'large' 
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center">
+                                  {selectedBattle.participants[0].items[selectedBattle.currentCaseIndex]?.item ? (
+                                    <div className="p-6 rounded-lg bg-black/70 border border-primary/20 max-w-sm mx-auto text-center">
+                                      <div className={`w-32 h-32 rounded bg-gradient-to-b p-3 mx-auto mb-4
+                                        ${getRarityColorClass(selectedBattle.participants[0].items[selectedBattle.currentCaseIndex].item!.rarity)}`}
+                                      >
+                                        <img 
+                                          src={selectedBattle.participants[0].items[selectedBattle.currentCaseIndex].item!.image || '/placeholder.svg'} 
+                                          alt={selectedBattle.participants[0].items[selectedBattle.currentCaseIndex].item!.name} 
+                                          className="w-full h-full object-contain"
+                                          onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.onerror = null;
+                                            target.src = '/placeholder.svg';
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="text-xl font-medium text-white mb-1">
+                                        {selectedBattle.participants[0].items[selectedBattle.currentCaseIndex].item!.name}
+                                      </div>
+                                      <p className={`text-sm font-bold capitalize mb-2 ${getRarityTextColor(selectedBattle.participants[0].items[selectedBattle.currentCaseIndex].item!.rarity)}`}>
+                                        {selectedBattle.participants[0].items[selectedBattle.currentCaseIndex].item!.rarity}
+                                      </p>
+                                      <div className="flex items-center justify-center">
+                                        <Gem className="h-5 w-5 text-cyan-400 mr-1" />
+                                        <span className="text-lg text-white">{selectedBattle.participants[0].items[selectedBattle.currentCaseIndex].item!.price}</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="h-[240px] border-2 border-dashed border-primary/40 rounded-lg flex flex-col items-center justify-center bg-black/70 w-full">
+                                      <ShieldAlert className="text-primary/40 h-16 w-16 mb-2" />
+                                      <div className="text-primary/40">Waiting for spin...</div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : selectedBattle.mode === '1v1' ? (
+                          // 1V1 MODE - Two players side by side
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            {selectedBattle.participants.map((participant, index) => (
+                              <div key={participant.id} className="flex flex-col">
+                                {/* Player header with name and avatar */}
+                                <div className="flex items-center mb-3">
+                                  <div className={`h-12 w-12 rounded-full flex items-center justify-center mr-2
+                                    ${participant.id === user?.id ? 'bg-[#1EAEDB]/40 border-2 border-[#1EAEDB]' : 'bg-black/80 border border-primary/40'} 
+                                    ${participant.isSpinning ? 'animate-pulse' : ''}`}
+                                  >
+                                    {participant.avatar ? (
+                                      <img 
+                                        src={participant.avatar} 
+                                        alt={participant.name} 
+                                        className="h-10 w-10 rounded-full"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.onerror = null;
+                                          target.src = '/placeholder.svg';
+                                        }}
+                                      />
+                                    ) : (
+                                      participant.isBot ? <Bot className="h-6 w-6 text-white" /> : participant.name.charAt(0).toUpperCase()
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <div className="text-lg font-medium text-white flex items-center">
+                                      {participant.name}
+                                      {participant.id === user?.id && " (You)"}
+                                      
+                                      {/* Winner/Loser indicator */}
+                                      {selectedBattle.status === 'completed' && (
+                                        selectedBattle.winner === participant.id ? (
+                                          <span className="ml-2 px-2 py-0.5 bg-green-700/50 border border-green-600 rounded-full text-xs font-medium text-green-400 flex items-center">
+                                            <Check size={12} className="mr-1" /> Winner
+                                          </span>
+                                        ) : (
+                                          <span className="ml-2 px-2 py-0.5 bg-red-900/50 border border-red-800 rounded-full text-xs font-medium text-red-400 flex items-center">
+                                            <CircleX size={12} className="mr-1" /> Loser
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+                                    
+                                    {/* Total value for completed battles */}
+                                    {selectedBattle.status === 'completed' && (
+                                      <div className="flex items-center text-sm">
+                                        <Gem className="h-3.5 w-3.5 text-cyan-400 mr-1" />
+                                        <span className={selectedBattle.winner === participant.id ? "text-green-400" : "text-white"}>
+                                          {participant.totalValue}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Case slider */}
+                                {participant.displaySlider && participant.isSpinning ? (
+                                  <CaseSlider
+                                    items={availableCases.find(c => c.id === selectedBattle.cases[selectedBattle.currentCaseIndex].caseId)?.items || []}
+                                    onComplete={(item) => handleComplete(item, participant.id, selectedBattle.id)}
+                                    autoSpin={true}
+                                    isCompact={false}
+                                    playerName={participant.name}
+                                    highlightPlayer={participant.id === user?.id}
+                                    options={{ 
+                                      duration: 6000 + (index * 1000) // Stagger animation times
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="bg-black/70 rounded-lg border border-primary/20 p-4">
+                                    {participant.items[selectedBattle.currentCaseIndex]?.item ? (
+                                      <div className="flex flex-col items-center">
+                                        <div className={`w-24 h-24 rounded bg-gradient-to-b p-2 mb-3 ${getRarityColorClass(participant.items[selectedBattle.currentCaseIndex].item!.rarity)}`}>
+                                          <img 
+                                            src={participant.items[selectedBattle.currentCaseIndex].item!.image || '/placeholder.svg'} 
+                                            alt={participant.items[selectedBattle.currentCaseIndex].item!.name} 
+                                            className="w-full h-full object-contain"
+                                            onError={(e) => {
+                                              const target = e.target as HTMLImageElement;
+                                              target.onerror = null;
+                                              target.src = '/placeholder.svg';
+                                            }}
+                                          />
+                                        </div>
+                                        <div className="text-lg font-medium text-white">
+                                          {participant.items[selectedBattle.currentCaseIndex].item!.name}
+                                        </div>
+                                        <p className={`text-sm font-bold capitalize ${getRarityTextColor(participant.items[selectedBattle.currentCaseIndex].item!.rarity)}`}>
+                                          {participant.items[selectedBattle.currentCaseIndex].item!.rarity}
+                                        </p>
+                                        <div className="flex items-center mt-2">
+                                          <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                                          <span className="text-white">{participant.items[selectedBattle.currentCaseIndex].item!.price}</span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="h-[200px] border-2 border-dashed border-primary/40 rounded-lg flex flex-col items-center justify-center">
+                                        <ShieldAlert className="text-primary/40 h-12 w-12 mb-2" />
+                                        <div className="text-primary/40">Waiting for spin...</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Show all previously won items */}
+                                {selectedBattle.currentCaseIndex > 0 || selectedBattle.status === 'completed' ? (
+                                  <div className="mt-4">
+                                    <div className="text-sm text-gray-400 mb-2">Previous items:</div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      {participant.items.map((itemSlot, caseIndex) => (
+                                        // Only show previous items
+                                        (caseIndex !== selectedBattle.currentCaseIndex || selectedBattle.status === 'completed') && 
+                                        itemSlot.item && (
+                                          <div 
+                                            key={`${participant.id}-case-${caseIndex}`}
+                                            className={`p-2 rounded bg-black/80 border ${caseIndex === selectedBattle.currentCaseIndex ? 'border-cyan-500' : 'border-primary/20'}`}
+                                          >
+                                            <div className={`w-full aspect-square rounded bg-gradient-to-b p-1 ${getRarityColorClass(itemSlot.item.rarity)}`}>
+                                              <img 
+                                                src={itemSlot.item.image || '/placeholder.svg'} 
+                                                alt={itemSlot.item.name} 
+                                                className="w-full h-full object-contain"
+                                                onError={(e) => {
+                                                  const target = e.target as HTMLImageElement;
+                                                  target.onerror = null;
+                                                  target.src = '/placeholder.svg';
+                                                }}
+                                              />
+                                            </div>
+                                            <div className="mt-1 flex items-center justify-between">
+                                              <span className={`text-xs ${getRarityTextColor(itemSlot.item.rarity)}`}>
+                                                {itemSlot.item.rarity.slice(0, 3)}
+                                              </span>
+                                              <span className="text-xs text-white flex items-center">
+                                                <Gem className="h-3 w-3 text-cyan-400 mr-0.5" />
+                                                {itemSlot.item.price}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          // 2V2 and 4-PLAYER MODES - Grid layout
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                            {selectedBattle.participants.map((participant, index) => (
+                              <div key={participant.id} className="flex flex-col">
+                                {/* Player header with name and avatar */}
+                                <div className="flex items-center mb-3">
+                                  <div className={`h-10 w-10 rounded-full flex items-center justify-center mr-2
+                                    ${participant.id === user?.id ? 'bg-[#1EAEDB]/40 border-2 border-[#1EAEDB]' : 
+                                      participant.team === 1 ? 'bg-blue-900/60 border border-blue-700' :
+                                      participant.team === 2 ? 'bg-red-900/60 border border-red-700' : 
+                                      'bg-black/80 border border-primary/40'} 
+                                    ${participant.isSpinning ? 'animate-pulse' : ''}`}
+                                  >
+                                    {participant.avatar ? (
+                                      <img 
+                                        src={participant.avatar} 
+                                        alt={participant.name} 
+                                        className="h-8 w-8 rounded-full"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.onerror = null;
+                                          target.src = '/placeholder.svg';
+                                        }}
+                                      />
+                                    ) : (
+                                      participant.isBot ? <Bot className="h-5 w-5 text-white" /> : participant.name.charAt(0).toUpperCase()
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <div className="text-sm font-medium text-white flex items-center">
+                                      {participant.name}
+                                      {participant.id === user?.id && " (You)"}
+                                      
+                                      {/* Team indicator for 2v2 */}
+                                      {selectedBattle.mode === '2v2' && (
+                                        <span className={`ml-1 px-2 py-0.5 text-xs rounded-full
+                                          ${participant.team === 1 ? 'bg-blue-900/50 border border-blue-800 text-blue-400' : 
+                                          'bg-red-900/50 border border-red-800 text-red-400'}`}>
+                                          Team {participant.team}
+                                        </span>
+                                      )}
+                                      
+                                      {/* Winner/Loser indicator */}
+                                      {selectedBattle.status === 'completed' && (
+                                        selectedBattle.mode === '2v2' ? (
+                                          selectedBattle.winningTeam === participant.team ? (
+                                            <span className="ml-1 px-1.5 py-0.5 bg-green-700/50 border border-green-600 rounded-full text-xs font-medium text-green-400 flex items-center">
+                                              <Check size={10} className="mr-0.5" /> Win
+                                            </span>
+                                          ) : (
+                                            <span className="ml-1 px-1.5 py-0.5 bg-red-900/50 border border-red-800 rounded-full text-xs font-medium text-red-400 flex items-center">
+                                              <CircleX size={10} className="mr-0.5" /> Loss
+                                            </span>
+                                          )
+                                        ) : (
+                                          selectedBattle.winner === participant.id ? (
+                                            <span className="ml-1 px-1.5 py-0.5 bg-green-700/50 border border-green-600 rounded-full text-xs font-medium text-green-400 flex items-center">
+                                              <Check size={10} className="mr-0.5" /> Win
+                                            </span>
+                                          ) : (
+                                            <span className="ml-1 px-1.5 py-0.5 bg-red-900/50 border border-red-800 rounded-full text-xs font-medium text-red-400 flex items-center">
+                                              <CircleX size={10} className="mr-0.5" /> Loss
+                                            </span>
+                                          )
+                                        )
+                                      )}
+                                    </div>
+                                    
+                                    {/* Total value for completed battles */}
+                                    {selectedBattle.status === 'completed' && (
+                                      <div className="flex items-center text-xs">
+                                        <Gem className="h-3 w-3 text-cyan-400 mr-0.5" />
+                                        <span className={(selectedBattle.mode === '2v2' && selectedBattle.winningTeam === participant.team) || 
+                                                       (selectedBattle.mode !== '2v2' && selectedBattle.winner === participant.id) ? 
+                                                       "text-green-400" : "text-white"}>
+                                          {participant.totalValue}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Case slider */}
+                                {participant.displaySlider && participant.isSpinning ? (
+                                  <CaseSlider
+                                    items={availableCases.find(c => c.id === selectedBattle.cases[selectedBattle.currentCaseIndex].caseId)?.items || []}
+                                    onComplete={(item) => handleComplete(item, participant.id, selectedBattle.id)}
+                                    autoSpin={true}
+                                    isCompact={true}
+                                    playerName={participant.name}
+                                    highlightPlayer={participant.id === user?.id}
+                                    options={{ 
+                                      duration: 6000 + (index * 800) // Stagger animation times
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="bg-black/70 rounded-lg border border-primary/20 p-3">
+                                    {participant.items[selectedBattle.currentCaseIndex]?.item ? (
+                                      <div className="flex items-center space-x-3">
+                                        <div className={`w-16 h-16 rounded bg-gradient-to-b p-1.5 ${getRarityColorClass(participant.items[selectedBattle.currentCaseIndex].item!.rarity)}`}>
+                                          <img 
+                                            src={participant.items[selectedBattle.currentCaseIndex].item!.image || '/placeholder.svg'} 
+                                            alt={participant.items[selectedBattle.currentCaseIndex].item!.name} 
+                                            className="w-full h-full object-contain"
+                                            onError={(e) => {
+                                              const target = e.target as HTMLImageElement;
+                                              target.onerror = null;
+                                              target.src = '/placeholder.svg';
+                                            }}
+                                          />
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-medium text-white">
+                                            {participant.items[selectedBattle.currentCaseIndex].item!.name}
+                                          </div>
+                                          <p className={`text-xs font-bold capitalize ${getRarityTextColor(participant.items[selectedBattle.currentCaseIndex].item!.rarity)}`}>
+                                            {participant.items[selectedBattle.currentCaseIndex].item!.rarity}
+                                          </p>
+                                          <div className="flex items-center mt-1">
+                                            <Gem className="h-3 w-3 text-cyan-400 mr-0.5" />
+                                            <span className="text-xs text-white">{participant.items[selectedBattle.currentCaseIndex].item!.price}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="h-[120px] border-2 border-dashed border-primary/40 rounded-lg flex flex-col items-center justify-center">
+                                        <ShieldAlert className="text-primary/40 h-10 w-10 mb-1" />
+                                        <div className="text-primary/40 text-sm">Waiting for spin...</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Show all previously won items */}
+                                {selectedBattle.currentCaseIndex > 0 || selectedBattle.status === 'completed' ? (
+                                  <div className="mt-2">
+                                    <div className="text-xs text-gray-400 mb-1">Previous items:</div>
+                                    <div className="grid grid-cols-3 gap-1">
+                                      {participant.items.map((itemSlot, caseIndex) => (
+                                        // Only show previous items
+                                        (caseIndex !== selectedBattle.currentCaseIndex || selectedBattle.status === 'completed') && 
+                                        itemSlot.item && (
+                                          <div 
+                                            key={`${participant.id}-case-${caseIndex}`}
+                                            className={`p-1 rounded bg-black/80 border ${caseIndex === selectedBattle.currentCaseIndex ? 'border-cyan-500' : 'border-primary/20'}`}
+                                          >
+                                            <div className={`w-full aspect-square rounded bg-gradient-to-b p-1 ${getRarityColorClass(itemSlot.item.rarity)}`}>
+                                              <img 
+                                                src={itemSlot.item.image || '/placeholder.svg'} 
+                                                alt={itemSlot.item.name} 
+                                                className="w-full h-full object-contain"
+                                                onError={(e) => {
+                                                  const target = e.target as HTMLImageElement;
+                                                  target.onerror = null;
+                                                  target.src = '/placeholder.svg';
+                                                }}
+                                              />
+                                            </div>
+                                            <div className="mt-1 flex items-center justify-between">
+                                              <span className="text-xs flex items-center">
+                                                <Gem className="h-2.5 w-2.5 text-cyan-400 mr-0.5" />
+                                                {itemSlot.item.price}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Case indicator (which case is spinning) */}
+                        {selectedBattle.cases.length > 1 && (
+                          <div className="flex justify-center mb-4">
+                            <div className="flex items-center space-x-2">
+                              {selectedBattle.cases.map((caseSelection, index) => {
+                                const caseDetails = availableCases.find(c => c.id === caseSelection.caseId);
+                                return (
+                                  <div 
+                                    key={`case-${index}`} 
+                                    className={`flex flex-col items-center ${index === selectedBattle.currentCaseIndex ? 'opacity-100' : 'opacity-50'}`}
+                                  >
+                                    <div 
+                                      className={`p-1 rounded-full ${index === selectedBattle.currentCaseIndex 
+                                        ? 'bg-[#1EAEDB]/50 border-2 border-[#1EAEDB]' 
+                                        : index < selectedBattle.currentCaseIndex 
+                                          ? 'bg-green-900/50 border border-green-700'
+                                          : 'bg-black/70 border border-primary/30'}`}
+                                    >
+                                      <img 
+                                        src={caseDetails?.image || '/placeholder.svg'} 
+                                        alt={caseDetails?.name || 'Case'} 
+                                        className="w-8 h-8 rounded-full object-contain"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.onerror = null;
+                                          target.src = '/placeholder.svg';
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-white mt-1">{caseDetails?.name || `Case ${index + 1}`}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Battle result */}
+                        {selectedBattle.status === 'completed' && (
+                          <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-black/90 to-primary/10 border border-primary/30">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="text-sm text-gray-300">Total Battle Value</div>
+                                <div className="flex items-center gap-1.5">
+                                  <Gem className="h-4 w-4 text-cyan-400" />
+                                  <span className="text-xl font-bold text-white">{selectedBattle.totalValue}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="text-right">
+                                <div className="text-sm text-gray-300">Winner</div>
+                                {selectedBattle.mode === '2v2' ? (
+                                  <div className="font-semibold text-white">
+                                    {selectedBattle.winningTeam === 1 && user?.id === selectedBattle.participants.find(p => p.team === 1)?.id
+                                      ? 'Your team won!' 
+                                      : selectedBattle.winningTeam === 1 
+                                        ? 'Team 1 won'
+                                        : 'Team 2 won'
+                                    }
+                                  </div>
+                                ) : (
+                                  <div className="font-semibold text-white">
+                                    {selectedBattle.winner === user?.id 
+                                      ? 'You won the battle!' 
+                                      : `${selectedBattle.participants.find(p => p.id === selectedBattle.winner)?.name || 'Unknown'} won`
+                                    }
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="mt-4 flex justify-end">
+                              <Button 
+                                variant="outline"
+                                className="border-primary/40 bg-black/70 text-white"
+                                onClick={() => setSelectedBattle(null)}
+                              >
+                                Close Battle
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-[400px] bg-black/90 border border-primary/30 rounded-xl">
+                    <div className="text-center p-8">
+                      <Trophy className="h-16 w-16 text-primary/50 mx-auto mb-4" />
+                      <h3 className="text-2xl font-semibold mb-4 text-white">No Battle Selected</h3>
+                      <p className="text-gray-300 max-w-md mx-auto mb-6">
+                        Create a new battle or select an existing one to start competing!
+                      </p>
+                      <Button 
+                        onClick={createBattle} 
+                        disabled={!user}
+                        className="bg-gradient-to-r from-[#1EAEDB] to-[#33C3F0] hover:from-[#33C3F0] hover:to-[#1EAEDB]"
+                      >
+                        Create New Battle
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="open" className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {availableCases.map(caseItem => (
+                <Card key={caseItem.id} className="bg-black/80 border border-primary/30 overflow-hidden hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/20">
+                  <div className="aspect-square flex items-center justify-center p-4 border-b border-primary/20">
+                    <div className="w-40 h-40 bg-gradient-to-b from-primary/30 to-primary/10 rounded-lg border border-primary/30 flex items-center justify-center">
+                      <img 
+                        src={caseItem.image || '/placeholder.svg'} 
+                        alt={caseItem.name} 
+                        className="w-3/4 h-3/4 object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/placeholder.svg';
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <CardContent className="p-4">
+                    <h3 className="text-center font-semibold text-lg mb-1 text-white">{caseItem.name}</h3>
+                    <div className="flex items-center justify-center mb-4 text-white">
+                      <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                      <span>{caseItem.price}</span>
+                    </div>
+                    <Button 
+                      className="w-full bg-gradient-to-r from-[#1EAEDB] to-[#33C3F0] hover:from-[#33C3F0] hover:to-[#1EAEDB]"
+                      onClick={() => {
+                        setActiveCase(caseItem.id);
+                        openCase();
+                      }}
+                    >
+                      Open Case
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+export default Index;
