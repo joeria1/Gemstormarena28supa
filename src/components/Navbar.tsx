@@ -1,13 +1,26 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { Button } from './ui/button';
-import { Menu } from 'lucide-react';
+import { Menu, Coins } from 'lucide-react';
 import { RocketLogo } from './RocketLogo';
+import { useUser } from '../context/UserContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useUser();
+  const [balance, setBalance] = useState<number>(0);
+
+  useEffect(() => {
+    // Get user gems from localStorage or context
+    const userGems = localStorage.getItem('userGems');
+    if (userGems) {
+      setBalance(parseInt(userGems));
+    } else if (user && user.balance) {
+      setBalance(user.balance);
+    }
+  }, [user]);
 
   const closeMenu = () => setIsOpen(false);
 
@@ -17,7 +30,8 @@ const Navbar = () => {
     { label: 'Mines', path: '/mines' },
     { label: 'Blackjack', path: '/blackjack' },
     { label: 'Tower', path: '/tower' },
-    { label: 'Rewards', path: '/rewards' }
+    { label: 'Rewards', path: '/rewards' },
+    { label: 'Crash', path: '/crash' }
   ];
 
   return (
@@ -42,7 +56,13 @@ const Navbar = () => {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* User Balance Display */}
+          <div className="hidden md:flex items-center gap-1 bg-black/40 rounded-full px-3 py-1.5 border border-violet-800/30">
+            <Coins className="h-4 w-4 text-yellow-500" />
+            <span className="font-medium text-white">{balance.toLocaleString()}</span>
+          </div>
+
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild className="block md:hidden">
               <Button size="icon" variant="outline" className="md:hidden">

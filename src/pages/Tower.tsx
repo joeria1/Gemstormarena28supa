@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { SOUNDS, playSound } from '../utils/soundEffects';
 import { showGameResult } from '../components/GameResultNotification';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { useSound } from '../components/SoundManager';
 
 enum DifficultyLevel {
   EASY = 'easy',
@@ -34,6 +35,8 @@ const Tower: React.FC = () => {
   const [currentLevel, setCurrentLevel] = useState<number>(0);
   const [multiplier, setMultiplier] = useState<number>(1);
   const [maxLevel, setMaxLevel] = useState<number>(10);
+  const [lastBombHit, setLastBombHit] = useState<{ level: number, tileIndex: number } | null>(null);
+  const { playSound } = useSound();
 
   const diffSettings = difficultySettings[difficulty];
   const totalTiles = diffSettings.bombs + diffSettings.safe;
@@ -72,7 +75,9 @@ const Tower: React.FC = () => {
     setGameActive(true);
     setCurrentLevel(0);
     setMultiplier(1);
+    setLastBombHit(null);
     generateTower();
+    playSound('/sounds/button-click.mp3');
   };
   
   const handleTileClick = (tileIndex: number) => {
@@ -95,7 +100,9 @@ const Tower: React.FC = () => {
     // Check if bomb hit
     if (currentTowerLevel.bombs.includes(tileIndex)) {
       // Game over
-      playSound(SOUNDS.TOWER_WRONG);
+      playSound('/sounds/wrong.mp3');
+      setLastBombHit({ level: currentLevel, tileIndex });
+      
       showGameResult({
         success: false,
         message: "You hit a bomb!",
@@ -105,18 +112,15 @@ const Tower: React.FC = () => {
       setGameActive(false);
     } else {
       // Safe tile
-      playSound(SOUNDS.TOWER_CORRECT);
+      playSound('/sounds/correct.mp3');
       
-      // Check if all safe tiles for this level are clicked
-      const allSafeClicked = currentTowerLevel.safe.every(safeIndex => 
-        [...currentTowerLevel.clicked, tileIndex].includes(safeIndex)
-      );
-      
-      if (allSafeClicked) {
+      // In Easy mode, proceed to the next level after hitting ANY safe tile
+      if (difficulty === DifficultyLevel.EASY) {
         // Level completed
         if (currentLevel + 1 >= maxLevel) {
           // Game won
           const finalMultiplier = calculateMultiplier(currentLevel + 1);
+          playSound('/sounds/big-win.mp3');
           showGameResult({
             success: true,
             message: "Tower conquered!",
@@ -129,6 +133,32 @@ const Tower: React.FC = () => {
           const newMultiplier = calculateMultiplier(currentLevel + 1);
           setMultiplier(newMultiplier);
           setCurrentLevel(currentLevel + 1);
+        }
+      } else {
+        // For Medium and Hard modes, check if all safe tiles for this level are clicked
+        const allSafeClicked = currentTowerLevel.safe.every(safeIndex => 
+          [...currentTowerLevel.clicked, tileIndex].includes(safeIndex)
+        );
+        
+        if (allSafeClicked) {
+          // Level completed
+          if (currentLevel + 1 >= maxLevel) {
+            // Game won
+            const finalMultiplier = calculateMultiplier(currentLevel + 1);
+            playSound('/sounds/big-win.mp3');
+            showGameResult({
+              success: true,
+              message: "Tower conquered!",
+              multiplier: finalMultiplier,
+              amount: bet * finalMultiplier
+            });
+            setGameActive(false);
+          } else {
+            // Next level
+            const newMultiplier = calculateMultiplier(currentLevel + 1);
+            setMultiplier(newMultiplier);
+            setCurrentLevel(currentLevel + 1);
+          }
         }
       }
     }
@@ -144,7 +174,7 @@ const Tower: React.FC = () => {
     if (!gameActive || currentLevel === 0) return;
     
     const winAmount = bet * multiplier;
-    playSound(SOUNDS.CASH_OUT);
+    playSound('/sounds/cashout.mp3');
     showGameResult({
       success: true,
       message: `Cashed out at level ${currentLevel + 1}!`,
@@ -160,6 +190,7 @@ const Tower: React.FC = () => {
       const isCurrentLevel = levelIndex === currentLevel;
       const isPastLevel = levelIndex < currentLevel;
       const isDisabled = !isCurrentLevel || !gameActive;
+      const isGameOver = lastBombHit && !gameActive;
       
       return (
         <div 
@@ -178,6 +209,7 @@ const Tower: React.FC = () => {
               const isClicked = level.clicked.includes(tileIndex);
               const isBomb = level.bombs.includes(tileIndex);
               const isSafe = level.safe.includes(tileIndex);
+              const isLastBombHit = isGameOver && lastBombHit?.level === levelIndex && lastBombHit?.tileIndex === tileIndex;
               
               return (
                 <Button 
@@ -186,6 +218,7 @@ const Tower: React.FC = () => {
                   onClick={() => handleTileClick(tileIndex)}
                   variant={isPastLevel ? "default" : "outline"}
                   className={`w-12 h-12 ${
+                    isLastBombHit ? 'bg-red-500 hover:bg-red-600 border-white border-2 animate-pulse' :
                     isPastLevel && isBomb ? 'bg-red-500 hover:bg-red-600' :
                     isPastLevel && isSafe ? 'bg-green-500 hover:bg-green-600' :
                     isClicked && isBomb ? 'bg-red-500 hover:bg-red-600' :
@@ -193,7 +226,7 @@ const Tower: React.FC = () => {
                     'bg-muted hover:bg-muted/70'
                   }`}
                 >
-                  {isPastLevel && isBomb && '💣'}
+                  {(isPastLevel || isLastBombHit) && isBomb && '💣'}
                   {isPastLevel && isSafe && '✓'}
                   {isCurrentLevel && isClicked && isBomb && '💣'}
                   {isCurrentLevel && isClicked && isSafe && '✓'}
@@ -280,7 +313,7 @@ const Tower: React.FC = () => {
             <div className="w-full bg-muted rounded-md p-2">
               <div className="text-sm font-medium">Difficulty Info</div>
               <div className="text-xs text-muted-foreground">
-                <p>Easy: 1 bomb, 2 safe spots</p>
+                <p>Easy: 1 bomb, 2 safe spots (only 1 needed)</p>
                 <p>Medium: 1 bomb, 1 safe spot</p>
                 <p>Hard: 2 bombs, 1 safe spot</p>
               </div>
@@ -291,7 +324,7 @@ const Tower: React.FC = () => {
         <Card className="lg:col-span-2">
           <CardContent className="pt-6 pb-6 h-[600px] overflow-y-auto">
             <div className="flex flex-col items-center space-y-2">
-              {gameActive ? renderTower() : (
+              {gameActive || lastBombHit ? renderTower() : (
                 <div className="flex flex-col items-center justify-center h-full">
                   <div className="text-center p-8">
                     <h3 className="text-xl font-bold mb-2">How to Play</h3>

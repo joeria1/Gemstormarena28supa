@@ -11,12 +11,12 @@ import Blackjack from './pages/Blackjack';
 import NotFound from './pages/NotFound';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import { SoundManager } from './components/SoundManager';
-import { ChatProvider } from './context/ChatContext';
+import SoundManager from './components/SoundManager';
 import ChatContainer from './components/Chat/ChatContainer';
 import DepositButton from './components/DepositButton';
 import Tower from './pages/Tower';
 import Rewards from './pages/Rewards';
+import Crash from './pages/Crash';
 
 function App() {
   const queryClient = new QueryClient();
@@ -25,7 +25,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen flex-col">
         <Navbar />
-        <div className="flex-1">
+        <div className="flex-1 pt-16">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/cases" element={<Cases />} />
@@ -33,6 +33,7 @@ function App() {
             <Route path="/blackjack" element={<Blackjack />} />
             <Route path="/tower" element={<Tower />} />
             <Route path="/rewards" element={<Rewards />} />
+            <Route path="/crash" element={<Crash />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

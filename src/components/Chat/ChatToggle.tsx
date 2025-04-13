@@ -13,12 +13,19 @@ const ChatToggle: React.FC<ChatToggleProps> = ({ isOpen, onToggle }) => {
     <Button 
       onClick={onToggle} 
       variant="outline" 
-      className="fixed right-4 bottom-4 z-50 bg-background/80 backdrop-blur-sm border-primary/20 hover:bg-background/90"
+      className="fixed right-4 bottom-4 z-50 bg-primary/90 backdrop-blur-sm border-primary shadow-lg hover:bg-primary/80 animate-pulse"
+      size="lg"
     >
       {isOpen ? (
-        <MessageSquareOff className="h-5 w-5 text-primary" />
+        <MessageSquareOff className="h-6 w-6 text-background" />
       ) : (
-        <MessageSquare className="h-5 w-5 text-primary" />
+        <>
+          <MessageSquare className="h-6 w-6 text-background" />
+          <span className="sr-only">Open Chat</span>
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+            !
+          </span>
+        </>
       )}
     </Button>
   );

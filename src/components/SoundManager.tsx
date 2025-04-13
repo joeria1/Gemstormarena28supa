@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useSound } from './ui/sound-context';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Button } from './ui/button';
 
-const SoundManager: React.FC = () => {
+export const SoundManager: React.FC = () => {
   const { isMuted, toggleMute } = useSound();
   
   return (

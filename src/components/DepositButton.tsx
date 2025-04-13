@@ -9,10 +9,11 @@ import {
   DialogTrigger,
 } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { CircleDollarSign, Bitcoin, Coins } from 'lucide-react';
+import { CircleDollarSign, Bitcoin, Coins, Info } from 'lucide-react';
 import { playSound } from '../utils/soundEffects';
 import { SOUNDS } from '../utils/soundEffects';
 import { toast } from '../hooks/use-toast';
+import { useSound } from './ui/sound-context';
 
 const cryptoOptions = [
   { name: 'Bitcoin', symbol: 'BTC', icon: Bitcoin, address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' },
@@ -55,9 +56,10 @@ const getFreeDailyGems = () => {
 
 const DepositButton: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const { playSound } = useSound();
 
   const handleDeposit = () => {
-    playSound(SOUNDS.DEPOSIT);
+    playSound('/sounds/deposit.mp3');
     setOpen(false);
     toast({
       title: 'Deposit Initiated',
@@ -71,7 +73,7 @@ const DepositButton: React.FC = () => {
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className="bg-primary text-background hover:bg-primary/90"
+          className="bg-primary text-background hover:bg-primary/90 shadow-lg"
         >
           <CircleDollarSign className="mr-2 h-4 w-4" />
           <span>Deposit</span>
@@ -81,6 +83,15 @@ const DepositButton: React.FC = () => {
         <DialogHeader>
           <DialogTitle>Deposit Funds</DialogTitle>
         </DialogHeader>
+        
+        {/* Conversion Rate Banner */}
+        <div className="bg-amber-500/20 border border-amber-500/30 rounded-md p-3 mb-4 flex items-center gap-2">
+          <Info className="h-5 w-5 text-amber-500" />
+          <p className="text-sm">
+            <strong>Conversion Rate:</strong> 5.2 euros = 1,000 gems
+          </p>
+        </div>
+        
         <Tabs defaultValue="crypto" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="crypto">Cryptocurrency</TabsTrigger>
