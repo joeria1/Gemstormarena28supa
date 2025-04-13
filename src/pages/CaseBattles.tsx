@@ -8,7 +8,7 @@ import { useSound } from '../components/SoundManager';
 import { showGameResult } from '../components/GameResultNotification';
 import { Users, ArrowRight, TrendingUp, Clock } from 'lucide-react';
 import { SOUNDS } from '../utils/soundEffects';
-import { CaseSlider } from '../components/CaseSlider/CaseSlider';
+import CaseSlider from '../components/CaseSlider/CaseSlider';
 
 interface Player {
   id: string;
@@ -32,7 +32,7 @@ interface CaseItem {
   name: string;
   image: string;
   value: number;
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
 }
 
 const CaseBattles: React.FC = () => {
@@ -49,7 +49,7 @@ const CaseBattles: React.FC = () => {
   const { playSound } = useSound();
   const sliderRef = useRef<HTMLDivElement>(null);
 
-  // Sample cases data
+  // Sample cases data with properly typed rarities
   const availableCases = [
     {
       id: "case1",
@@ -57,11 +57,11 @@ const CaseBattles: React.FC = () => {
       image: "/placeholder.svg",
       price: 10,
       items: [
-        { id: "item1", name: "Common Item", image: "/placeholder.svg", value: 5, rarity: "common" },
-        { id: "item2", name: "Uncommon Item", image: "/placeholder.svg", value: 15, rarity: "uncommon" },
-        { id: "item3", name: "Rare Item", image: "/placeholder.svg", value: 30, rarity: "rare" },
-        { id: "item4", name: "Epic Item", image: "/placeholder.svg", value: 50, rarity: "epic" },
-        { id: "item5", name: "Legendary Item", image: "/placeholder.svg", value: 100, rarity: "legendary" }
+        { id: "item1", name: "Common Item", image: "/placeholder.svg", value: 5, rarity: "common" as const },
+        { id: "item2", name: "Uncommon Item", image: "/placeholder.svg", value: 15, rarity: "uncommon" as const },
+        { id: "item3", name: "Rare Item", image: "/placeholder.svg", value: 30, rarity: "rare" as const },
+        { id: "item4", name: "Epic Item", image: "/placeholder.svg", value: 50, rarity: "epic" as const },
+        { id: "item5", name: "Legendary Item", image: "/placeholder.svg", value: 100, rarity: "legendary" as const }
       ]
     },
     {
@@ -70,11 +70,11 @@ const CaseBattles: React.FC = () => {
       image: "/placeholder.svg",
       price: 25,
       items: [
-        { id: "item6", name: "Pro Common", image: "/placeholder.svg", value: 15, rarity: "common" },
-        { id: "item7", name: "Pro Uncommon", image: "/placeholder.svg", value: 30, rarity: "uncommon" },
-        { id: "item8", name: "Pro Rare", image: "/placeholder.svg", value: 60, rarity: "rare" },
-        { id: "item9", name: "Pro Epic", image: "/placeholder.svg", value: 100, rarity: "epic" },
-        { id: "item10", name: "Pro Legendary", image: "/placeholder.svg", value: 200, rarity: "legendary" }
+        { id: "item6", name: "Pro Common", image: "/placeholder.svg", value: 15, rarity: "common" as const },
+        { id: "item7", name: "Pro Uncommon", image: "/placeholder.svg", value: 30, rarity: "uncommon" as const },
+        { id: "item8", name: "Pro Rare", image: "/placeholder.svg", value: 60, rarity: "rare" as const },
+        { id: "item9", name: "Pro Epic", image: "/placeholder.svg", value: 100, rarity: "epic" as const },
+        { id: "item10", name: "Pro Legendary", image: "/placeholder.svg", value: 200, rarity: "legendary" as const }
       ]
     }
   ];
@@ -82,7 +82,7 @@ const CaseBattles: React.FC = () => {
   useEffect(() => {
     // Set default selected case
     if (availableCases.length > 0 && !selectedCase) {
-      setSelectedCase(availableCases[0]);
+      setSelectedCase(availableCases[0] as Case);
     }
   }, []);
 

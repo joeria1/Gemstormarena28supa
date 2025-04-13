@@ -13,9 +13,11 @@ export interface User {
 }
 
 interface UserContextType {
-  user: User; // Changed to always have a user
+  user: User;
   updateBalance: (amount: number) => void;
   addBet: (amount: number) => void;
+  login: () => void;
+  logout: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -45,9 +47,35 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalBets: prev.totalBets + amount
     }));
   };
+  
+  const login = () => {
+    // Simple login function for now - could be expanded later
+    setUser({
+      id: 'logged-in-user',
+      username: 'Player',
+      balance: 5000,
+      avatar: '/placeholder.svg',
+      totalBets: 0,
+      updateBalance: (amount: number) => updateBalance(amount),
+      addBet: (amount: number) => addBet(amount),
+    });
+  };
+  
+  const logout = () => {
+    // Reset to default user
+    setUser({
+      id: 'default-user',
+      username: 'Player',
+      balance: 5000,
+      avatar: '/placeholder.svg',
+      totalBets: 0,
+      updateBalance: (amount: number) => updateBalance(amount),
+      addBet: (amount: number) => addBet(amount),
+    });
+  };
 
   return (
-    <UserContext.Provider value={{ user, updateBalance, addBet }}>
+    <UserContext.Provider value={{ user, updateBalance, addBet, login, logout }}>
       {children}
     </UserContext.Provider>
   );

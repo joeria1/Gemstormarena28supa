@@ -11,13 +11,24 @@ import {
 } from './ui/sheet';
 import { Menu, X } from 'lucide-react';
 import DepositButton from './DepositButton';
-import RocketLogo from './RocketLogo';
+import { RocketLogo } from './RocketLogo';
 import { useUser } from '../context/UserContext';
 
 const Navbar = () => {
   const { pathname } = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, login, logout } = useUser();
+  const { user, updateBalance } = useUser();
+
+  // Add login and logout functions
+  const login = () => {
+    // For now, just a placeholder login function
+    console.log('Login functionality will be implemented');
+  };
+  
+  const logout = () => {
+    // For now, just a placeholder logout function
+    console.log('Logout functionality will be implemented');
+  };
 
   const navLinks = [
     { name: 'Cases', path: '/cases' },
