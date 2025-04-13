@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../../context/UserContext';
 import { Button } from '../ui/button';
@@ -141,7 +142,9 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
     
     setWinningTeam(winner);
     
-    if (user.team === winner) {
+    // Check if the current user is on the winning team
+    const currentUserPlayer = battle.players.find(p => p.username === currentUser);
+    if (currentUserPlayer && currentUserPlayer.team === winner) {
       const winnings = battle.totalValue * 0.95;
       updateUser({
         ...user,

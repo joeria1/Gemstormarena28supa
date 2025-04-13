@@ -157,7 +157,7 @@ const HorseRacing = () => {
                   }}
                 >
                   <div className={`w-10 h-6 ${horse.color} rounded-md flex items-center justify-center relative ${isSelected ? 'ring-2 ring-yellow-500' : ''}`}>
-                    <Horse className="text-white w-4 h-4" />
+                    <HorseIcon className="text-white w-4 h-4" />
                     {isSelected && (
                       <div className="absolute -top-5 left-1/2 transform -translate-x-1/2">
                         <div className="bg-yellow-500 text-xs px-1 rounded text-black font-bold">
@@ -230,7 +230,7 @@ const HorseRacing = () => {
                     >
                       <div className="flex items-center">
                         <div className={`w-6 h-6 ${horse.color} rounded-md mr-3 flex items-center justify-center`}>
-                          <Horse className="text-white w-3 h-3" />
+                          <HorseIcon className="text-white w-3 h-3" />
                         </div>
                         <span>{horse.name}</span>
                       </div>
