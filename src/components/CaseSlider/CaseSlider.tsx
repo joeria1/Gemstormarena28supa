@@ -9,12 +9,12 @@ import { Gem } from "lucide-react";
 const CaseSlider = ({
   items,
   onComplete,
-  spinDuration = 5000,
   autoSpin = false,
   isCompact = false,
   playerName,
   highlightPlayer = false,
   options = {},
+  spinDuration = 5000,
   isSpinning: externalSpinning,
   setIsSpinning: setExternalSpinning
 }: SliderProps) => {

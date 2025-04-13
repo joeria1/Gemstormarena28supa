@@ -11,6 +11,7 @@ import Footer from "./components/Footer";
 import Index from "./pages/Index";
 import Cases from "./pages/Cases";
 import Mines from "./pages/Mines";
+import Blackjack from "./pages/Blackjack";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/cases" element={<Cases />} />
                   <Route path="/mines" element={<Mines />} />
+                  <Route path="/blackjack" element={<Blackjack />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

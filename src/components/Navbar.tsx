@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '@/context/UserContext';
 import { useSound } from '@/components/SoundManager';
 import { Button } from '@/components/ui/button';
-import { Gem, Menu, User, Volume2, VolumeX } from 'lucide-react';
+import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
+import { Gem, Menu, User, Volume2, VolumeX, CreditCard, Bomb, MessageSquare } from 'lucide-react';
 import { RocketLogo } from './RocketLogo';
 
 const Navbar: React.FC = () => {
@@ -29,11 +30,11 @@ const Navbar: React.FC = () => {
           <Link to="/mines" className="text-white hover:text-primary transition-colors">
             Mines
           </Link>
+          <Link to="/blackjack" className="text-white hover:text-primary transition-colors">
+            Blackjack
+          </Link>
           <Link to="/rainbot" className="text-white hover:text-primary transition-colors">
             Rain Bot
-          </Link>
-          <Link to="/affiliates" className="text-white hover:text-primary transition-colors">
-            Affiliates
           </Link>
         </div>
         
@@ -50,7 +51,7 @@ const Navbar: React.FC = () => {
           {user ? (
             <>
               <div className="bg-black/40 px-3 py-1.5 rounded-md flex items-center gap-2 border border-primary/30">
-                <Gem className="h-4 w-4 text-gem" />
+                <Gem className="h-4 w-4 text-cyan-400" />
                 <span className="font-semibold text-white">{user.balance}</span>
               </div>
               
@@ -73,9 +74,95 @@ const Navbar: React.FC = () => {
             </Button>
           )}
           
-          <Button variant="outline" size="icon" className="md:hidden bg-black/40 border-primary/30">
-            <Menu size={18} />
-          </Button>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="md:hidden bg-black/40 border-primary/30">
+                <Menu size={18} />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="bg-black/90 border-primary/30">
+              <div className="flex flex-col h-full">
+                <div className="py-6">
+                  <Link to="/" className="flex items-center mb-10">
+                    <RocketLogo className="h-8 w-auto mr-2" />
+                    <span className="font-bold text-2xl">
+                      <span className="text-white">DUMP</span>
+                      <span className="text-primary">.FUN</span>
+                    </span>
+                  </Link>
+                  
+                  <nav className="flex flex-col space-y-4">
+                    <SheetClose asChild>
+                      <Link to="/cases" className="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-primary/10">
+                        <CreditCard size={18} className="text-primary" />
+                        <span>Case Battles</span>
+                      </Link>
+                    </SheetClose>
+                    
+                    <SheetClose asChild>
+                      <Link to="/mines" className="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-primary/10">
+                        <Bomb size={18} className="text-primary" />
+                        <span>Mines</span>
+                      </Link>
+                    </SheetClose>
+                    
+                    <SheetClose asChild>
+                      <Link to="/blackjack" className="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-primary/10">
+                        <CreditCard size={18} className="text-primary" />
+                        <span>Blackjack</span>
+                      </Link>
+                    </SheetClose>
+                    
+                    <SheetClose asChild>
+                      <Link to="/rainbot" className="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-primary/10">
+                        <MessageSquare size={18} className="text-primary" />
+                        <span>Rain Bot</span>
+                      </Link>
+                    </SheetClose>
+                  </nav>
+                </div>
+                
+                <div className="mt-auto mb-6">
+                  {user ? (
+                    <>
+                      <div className="bg-black/40 p-4 rounded-lg mb-4 flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/20 overflow-hidden">
+                          <img 
+                            src={user.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`}
+                            alt={user.username}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <p className="font-medium">{user.username}</p>
+                          <p className="text-sm text-muted-foreground flex items-center">
+                            <Gem className="h-3 w-3 text-cyan-400 mr-1" />
+                            {user.balance}
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        onClick={logout}
+                        className="w-full"
+                      >
+                        <User size={16} className="mr-2" />
+                        Logout
+                      </Button>
+                    </>
+                  ) : (
+                    <Button 
+                      onClick={login}
+                      className="w-full"
+                    >
+                      <User size={16} className="mr-2" />
+                      Login
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </nav>
