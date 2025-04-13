@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
 import './App.css';
@@ -28,30 +28,28 @@ function App() {
     <ThemeProvider>
       <UserProvider>
         <ChatProvider>
-          <Router>
-            <SoundManager />
-            <div className="flex flex-col min-h-screen">
-              <Navbar />
-              <main className="flex-grow">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/cases" element={<Cases />} />
-                  <Route path="/case-battles" element={<CaseBattles />} />
-                  <Route path="/crash" element={<Crash />} />
-                  <Route path="/mines" element={<Mines />} />
-                  <Route path="/tower" element={<Tower />} />
-                  <Route path="/blackjack" element={<Blackjack />} />
-                  <Route path="/rakeback" element={<RakeBack />} />
-                  <Route path="/rewards" element={<Rewards />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </main>
-              <Footer />
-            </div>
-            <ChatToggle />
-            <ChatContainer />
-            <Toaster position="top-right" />
-          </Router>
+          <SoundManager />
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-grow">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/cases" element={<Cases />} />
+                <Route path="/case-battles" element={<CaseBattles />} />
+                <Route path="/crash" element={<Crash />} />
+                <Route path="/mines" element={<Mines />} />
+                <Route path="/tower" element={<Tower />} />
+                <Route path="/blackjack" element={<Blackjack />} />
+                <Route path="/rakeback" element={<RakeBack />} />
+                <Route path="/rewards" element={<Rewards />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+          <ChatToggle />
+          <ChatContainer />
+          <Toaster position="top-right" />
         </ChatProvider>
       </UserProvider>
     </ThemeProvider>
