@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -30,6 +29,7 @@ interface CaseItem {
 interface CaseBattleGameProps {
   battleId: string;
   onClose: () => void;
+  cursedMode?: boolean;
 }
 
 const rarityColors = {
@@ -56,7 +56,6 @@ const mockItems: CaseItem[] = [
   { id: '5', name: 'Legendary Item', image: '/placeholder.svg', value: 1000, rarity: 'legendary' },
 ];
 
-// Mock case items for the case opening
 const caseItems: SliderItem[] = [
   { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50 },
   { id: '2', name: 'Forest Shield', image: '/placeholder.svg', rarity: 'uncommon', price: 150 },
@@ -66,7 +65,7 @@ const caseItems: SliderItem[] = [
   { id: '6', name: 'Void Reaver', image: '/placeholder.svg', rarity: 'mythical', price: 5000 },
 ];
 
-const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) => {
+const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose, cursedMode = false }) => {
   const { user, updateBalance } = useUser();
   const [players, setPlayers] = useState<Player[]>([]);
   const [emptySlots, setEmptySlots] = useState<number>(2);
@@ -81,10 +80,9 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
   const [showCaseOpening, setShowCaseOpening] = useState(false);
   const [activePlayer, setActivePlayer] = useState<string | null>(null);
   const [isPersonalCaseSpinning, setIsPersonalCaseSpinning] = useState(false);
-  const [cursedMode, setCursedMode] = useState(false);
+  const [cursedModeState, setCursedMode] = useState(cursedMode);
   
   useEffect(() => {
-    // Mock data - in a real app, you would fetch this from your backend
     const mockPlayers: Player[] = [
       {
         id: '1',
@@ -99,13 +97,11 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     setPlayers(mockPlayers);
     setEmptySlots(2 - mockPlayers.length);
     
-    // Calculate total potential value
-    const caseValue = 100; // Example value
-    setTotalValue(caseValue * 2); // 1v1 battle
+    const caseValue = 100;
+    setTotalValue(caseValue * 2);
     
-    // Randomly determine if this is a cursed mode battle
-    setCursedMode(Math.random() > 0.7);
-  }, []);
+    setCursedMode(cursedMode);
+  }, [cursedMode]);
 
   const handleAddBot = () => {
     if (players.length >= 2) return;
@@ -128,7 +124,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     
     toast.success(`Bot ${botName} added to the battle!`);
     
-    // If battle is full, start countdown
     if (players.length === 1) {
       toast.success('Battle is starting soon!');
       setCountdown(5);
@@ -156,17 +151,14 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     setSpinning(true);
     setCaseOpened(false);
     
-    // Start case opening animations for each player sequentially
     startPlayerCases();
   };
 
   const startPlayerCases = () => {
     if (players.length === 0) return;
     
-    // Handle players one by one
     const runPlayerSequence = (index: number) => {
       if (index >= players.length) {
-        // All players have opened their cases
         finishRound();
         return;
       }
@@ -174,35 +166,28 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
       const currentPlayer = players[index];
       setActivePlayer(currentPlayer.id);
       
-      // Show the case opening animation for this player
       setPlayers(prev => prev.map(player => 
         player.id === currentPlayer.id 
           ? { ...player, isSpinning: true } 
           : player
       ));
       
-      // Let the animation play out
       setTimeout(() => {
-        // Animation complete, set the item for this player
         openCase(currentPlayer.id);
         
-        // Move to the next player after a delay
         setTimeout(() => {
           runPlayerSequence(index + 1);
         }, 1000);
-      }, 5000); // Match your CaseSlider duration
+      }, 5000);
     };
     
-    // Start the sequence with the first player
     runPlayerSequence(0);
   };
 
   const openCase = (playerId: string) => {
-    // Random item for this round
     const randomIndex = Math.floor(Math.random() * mockItems.length);
     const newItem = { ...mockItems[randomIndex], id: `${playerId}-item-${currentRound}` };
     
-    // Convert to SliderItem for display compatibility
     const sliderItem: SliderItem = {
       id: newItem.id,
       name: newItem.name,
@@ -213,7 +198,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     
     setPlayers(prev => prev.map(player => {
       if (player.id === playerId) {
-        // Update player's items and total value
         const updatedItems = [...player.items, newItem];
         const newTotalValue = updatedItems.reduce((sum, item) => sum + item.value, 0);
         
@@ -228,7 +212,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
       return player;
     }));
     
-    // Show a toast for the player's win
     const player = players.find(p => p.id === playerId);
     if (player) {
       if (newItem.rarity === 'legendary') {
@@ -255,7 +238,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     if (currentRound >= maxRounds) {
       endBattle();
     } else {
-      // Prepare for next round
       setTimeout(() => {
         setCurrentRound(prev => prev + 1);
         startRound();
@@ -264,15 +246,12 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
   };
 
   const endBattle = () => {
-    // Determine winner based on total value (highest or lowest depending on cursed mode)
     let sortedPlayers = [...players];
     
-    if (cursedMode) {
-      // In cursed mode, lowest value wins
+    if (cursedModeState) {
       sortedPlayers = sortedPlayers.sort((a, b) => a.totalValue - b.totalValue);
       toast.info("CURSED MODE: Lowest value wins!");
     } else {
-      // Normal mode, highest value wins
       sortedPlayers = sortedPlayers.sort((a, b) => b.totalValue - a.totalValue);
     }
     
@@ -280,7 +259,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     setWinner(battleWinner);
     
     if (battleWinner.id === '1') {
-      // Player won
       const winAmount = totalValue;
       updateBalance(winAmount);
       toast.success("You won the case battle!", {
@@ -293,7 +271,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     }
   };
 
-  // Handle personal case opening
   const handleOpenPersonalCase = () => {
     if (isPersonalCaseSpinning) return;
     
@@ -302,7 +279,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
       return;
     }
     
-    const casePrice = 100; // Standard case price
+    const casePrice = 100;
     
     if (user.balance < casePrice) {
       toast.error('Insufficient balance to open this case');
@@ -353,7 +330,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
           <div className="flex items-center text-gray-300">
             <span className="mr-2">Battle ID: {battleId}</span>
             <span className="px-3 py-1 bg-gray-800 rounded-md text-sm">1v1</span>
-            {cursedMode && (
+            {cursedModeState && (
               <span className="ml-2 px-3 py-1 bg-red-900 text-red-200 rounded-md text-sm">
                 CURSED MODE
               </span>
@@ -367,7 +344,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          {/* Case opening section */}
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
             <h2 className="text-xl font-bold text-white mb-4">Open Case</h2>
             
@@ -410,7 +386,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
             )}
           </div>
           
-          {/* Battle information */}
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
             <div className="mb-4 text-center">
               <div className="text-xl font-bold text-white">
@@ -430,7 +405,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
               )}
             </div>
             
-            {/* Active player case opening animation */}
             {activePlayer && spinning && (
               <div className="mb-6">
                 <div className="text-center mb-2 text-blue-300 font-bold">
@@ -491,7 +465,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
                             </motion.div>
                           ))}
                           
-                          {/* Empty slots for future rounds */}
                           {Array(maxRounds - player.items.length).fill(0).map((_, emptyIndex) => (
                             <div 
                               key={`empty-${player.id}-${emptyIndex}`} 
@@ -509,7 +482,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
                     </div>
                   </div>
                   
-                  {/* VS indicator between players */}
                   {index === 0 && players.length > 1 && (
                     <div className="absolute -right-7 top-1/2 transform -translate-y-1/2 z-10 bg-blue-800 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
                       VS
@@ -518,7 +490,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
                 </div>
               ))}
               
-              {/* Empty slots */}
               {Array(emptySlots).fill(0).map((_, index) => (
                 <div key={`empty-${index}`} className="relative">
                   <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
@@ -541,7 +512,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
                     </div>
                   </div>
                   
-                  {/* VS indicator for empty slots */}
                   {index === 0 && players.length === 1 && (
                     <div className="absolute -left-7 top-1/2 transform -translate-y-1/2 z-10 bg-blue-800 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
                       VS
