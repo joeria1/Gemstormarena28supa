@@ -146,18 +146,18 @@ const CaseBattleCreator: React.FC<CaseBattleCreatorProps> = ({ onBattleCreate })
       <div className="space-y-6">
         <div className="space-y-3">
           <Label className="text-sm">Battle Type</Label>
-          <TabsList className="w-full grid grid-cols-4 h-auto">
+          <div className="grid grid-cols-4 gap-2">
             {BATTLE_CONFIGS.map(config => (
-              <TabsTrigger 
-                key={config.id} 
-                value={config.id}
+              <Button 
+                key={config.id}
+                variant={battleType === config.id ? "default" : "outline"}
+                className={`h-auto py-2 ${battleType === config.id ? "bg-primary" : "bg-black/60 border-white/10"}`}
                 onClick={() => setBattleType(config.id)}
-                className={battleType === config.id ? "bg-primary" : ""}
               >
                 {config.name}
-              </TabsTrigger>
+              </Button>
             ))}
-          </TabsList>
+          </div>
           <div className="text-xs text-muted-foreground">
             {currentBattleConfig.maxPlayers} players, {currentBattleConfig.rounds} rounds default
           </div>
