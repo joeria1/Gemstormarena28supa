@@ -83,10 +83,9 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentCase, setCurrentCase] = useState(0);
   const [playerResults, setPlayerResults] = useState<Record<string, CaseItem[]>>({});
+  const [playerSpinStates, setPlayerSpinStates] = useState<Record<string, boolean>>({});
   const [teamTotals, setTeamTotals] = useState<Record<number, number>>({});
   const [winningTeam, setWinningTeam] = useState<number | null>(null);
-  const [spinQueue, setSpinQueue] = useState<string[]>([]);
-  const [activeSpinner, setActiveSpinner] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number>(0);
   const { user, updateUser } = useContext(UserContext);
   
@@ -106,10 +105,13 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
   
   useEffect(() => {
     const initialResults: Record<string, CaseItem[]> = {};
+    const initialSpinStates: Record<string, boolean> = {};
     allPlayers.forEach(player => {
       initialResults[player.username] = [];
+      initialSpinStates[player.username] = false;
     });
     setPlayerResults(initialResults);
+    setPlayerSpinStates(initialSpinStates);
     
     if (battle.status === 'in-progress') {
       startBattle();
@@ -164,55 +166,66 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
     });
     setPlayerResults(updatedResults);
     
-    // Create a queue of players to spin
-    const playerQueue = allPlayers.map(player => player.username);
-    setSpinQueue(playerQueue);
+    // Start spinning for all players simultaneously
+    const updatedSpinStates = { ...playerSpinStates };
+    allPlayers.forEach(player => {
+      updatedSpinStates[player.username] = true;
+    });
+    setPlayerSpinStates(updatedSpinStates);
     
-    // Start spinning for first player
-    processNextPlayerSpin();
+    // Process results after all spins are complete
+    setTimeout(() => {
+      processRoundResults();
+    }, 5000); // Wait for all players to finish spinning
   };
   
-  const processNextPlayerSpin = () => {
-    if (spinQueue.length === 0) {
-      // All players have spun for this case
-      if (currentCase >= battle.cases - 1) {
-        // Battle is complete
-        finishBattle();
-      } else {
-        // Move to next case
-        setCurrentCase(prev => prev + 1);
-        // Create a new queue for the next case
-        const newQueue = allPlayers.map(player => player.username);
-        setSpinQueue(newQueue);
-        // Process the next case after a short delay
-        setTimeout(() => {
-          processNextPlayerSpin();
-        }, 1000);
-      }
-      return;
-    }
+  const processRoundResults = () => {
+    // Generate results for all players
+    const updatedResults = { ...playerResults };
+    const updatedSpinStates = { ...playerSpinStates };
     
-    // Get the next player in the queue
-    const nextPlayer = spinQueue[0];
-    // Remove this player from the queue
-    setSpinQueue(prev => prev.slice(1));
-    // Set as active spinner
-    setActiveSpinner(nextPlayer);
-    
-    // Simulate spinning by showing for a few seconds before revealing the result
-    setTimeout(() => {
+    allPlayers.forEach(player => {
       const caseItem = generateRandomCaseItems(1)[0];
-      setPlayerResults(prev => ({
-        ...prev,
-        [nextPlayer]: [...(prev[nextPlayer] || []), caseItem]
-      }));
-      
-      // After a short delay, move to the next player
+      updatedResults[player.username] = [...(updatedResults[player.username] || []), caseItem];
+      updatedSpinStates[player.username] = false;
+    });
+    
+    setPlayerResults(updatedResults);
+    setPlayerSpinStates(updatedSpinStates);
+    
+    // Move to next case or finish battle
+    if (currentCase >= battle.cases - 1) {
+      // Battle is complete
+      finishBattle();
+    } else {
+      // Move to next case after a delay
       setTimeout(() => {
-        setActiveSpinner(null);
-        processNextPlayerSpin();
-      }, 500);
-    }, 3000);
+        setCurrentCase(prev => prev + 1);
+        // Start next round after another delay
+        setTimeout(() => {
+          startNextRound();
+        }, 1500);
+      }, 1500);
+    }
+  };
+  
+  const startNextRound = () => {
+    // Start spinning for all players simultaneously
+    const updatedSpinStates = { ...playerSpinStates };
+    allPlayers.forEach(player => {
+      updatedSpinStates[player.username] = true;
+    });
+    setPlayerSpinStates(updatedSpinStates);
+    
+    // Process results after all spins are complete
+    setTimeout(() => {
+      processRoundResults();
+    }, 5000); // Wait for all players to finish spinning
+  };
+  
+  const handlePlayerSpinComplete = (player: string, item: SliderItem) => {
+    // This function is for animation only - actual results are set in processRoundResults
+    console.log(`${player} spin complete with item: ${item.name}`);
   };
   
   const finishBattle = () => {
@@ -312,22 +325,28 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
           </div>
         )}
         
-        {activeSpinner && (
-          <div className="p-4 mb-4">
-            <div className="text-center mb-2">
-              <div className="text-xl font-bold text-blue-400">
-                {activeSpinner}'s turn
+        {/* Show all players spinning at the same time */}
+        {isSpinning && (
+          <div className="p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {allPlayers.map((player) => (
+              <div key={player.username} className="p-2 mb-2">
+                <div className="text-center mb-2">
+                  <div className="text-md font-bold text-blue-400">
+                    {player.username}'s turn
+                  </div>
+                </div>
+                <CaseSlider 
+                  items={caseItems} 
+                  onComplete={(item) => handlePlayerSpinComplete(player.username, item)} 
+                  autoSpin={true}
+                  spinDuration={5000}
+                  isSpinning={playerSpinStates[player.username]}
+                  playerName={player.username}
+                  highlightPlayer={player.username === currentUser}
+                  isCompact={true}
+                />
               </div>
-            </div>
-            <CaseSlider 
-              items={caseItems} 
-              onComplete={() => {}} 
-              autoSpin={true}
-              spinDuration={3000}
-              isSpinning={true}
-              playerName={activeSpinner}
-              highlightPlayer={activeSpinner === currentUser}
-            />
+            ))}
           </div>
         )}
         

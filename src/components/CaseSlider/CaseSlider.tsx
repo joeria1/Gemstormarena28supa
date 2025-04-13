@@ -16,7 +16,8 @@ const CaseSlider = ({
   options = {},
   spinDuration = 5000,
   isSpinning: externalSpinning,
-  setIsSpinning: setExternalSpinning
+  setIsSpinning: setExternalSpinning,
+  caseName
 }: SliderProps) => {
   // For controlling internal spinning state if not provided externally
   const [internalSpinning, setInternalSpinning] = useState(false);
@@ -205,12 +206,22 @@ const CaseSlider = ({
         )}
         style={{ height: `${getContainerHeight()}px` }}
       >
-        {playerName && !isCompact && (
-          <div className={cn(
-            "absolute top-2 left-4 px-2 py-1 text-xs rounded-full z-10",
-            highlightPlayer ? "bg-primary/20 text-primary border border-primary/40" : "bg-white/10 text-white border border-white/20"
-          )}>
-            {playerName}
+        {(playerName || caseName) && !isCompact && (
+          <div className="flex justify-between items-center absolute top-2 left-2 right-2 z-10">
+            {playerName && (
+              <div className={cn(
+                "px-2 py-1 text-xs rounded-full",
+                highlightPlayer ? "bg-primary/20 text-primary border border-primary/40" : "bg-white/10 text-white border border-white/20"
+              )}>
+                {playerName}
+              </div>
+            )}
+            
+            {caseName && (
+              <div className="px-2 py-1 text-xs rounded-full bg-blue-600/20 text-blue-400 border border-blue-600/40">
+                {caseName}
+              </div>
+            )}
           </div>
         )}
         

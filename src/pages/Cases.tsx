@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft, Copy, Percent, DollarSign } from 'lucide-react';
+import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft, Copy, Percent, DollarSign, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SliderItem } from '@/types/slider';
 import { useUser } from '@/context/UserContext';
@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import ImprovedCaseBattleCreator from '@/components/CaseBattle/ImprovedCaseBattleCreator';
 import CaseBattlesList from '@/components/CaseBattle/CaseBattlesList';
 import ImprovedCaseBattleGame from '@/components/CaseBattle/ImprovedCaseBattleGame';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface CaseItemWithChance extends SliderItem {
   chance: number;
@@ -134,6 +135,9 @@ const Cases: React.FC = () => {
   const { toggleChat } = useChat();
   const [affiliateCode, setAffiliateCode] = useState(user?.id ? `${user.id.substring(0, 8)}` : 'NOTLOGGEDIN');
   const [affiliateInput, setAffiliateInput] = useState('');
+  const [showItemsDialog, setShowItemsDialog] = useState(false);
+  const [showWinDialog, setShowWinDialog] = useState(false);
+  const [winningItem, setWinningItem] = useState<SliderItem | null>(null);
 
   useEffect(() => {
     const demoBattles: Battle[] = [
@@ -243,7 +247,8 @@ const Cases: React.FC = () => {
       setTimeout(() => {
         setLastWon(randomBetterItem);
         updateBalance(randomBetterItem.price);
-        showWinToast(randomBetterItem);
+        setWinningItem(randomBetterItem);
+        setShowWinDialog(true);
       }, 1000);
       
       return;
@@ -251,7 +256,8 @@ const Cases: React.FC = () => {
     
     setLastWon(item);
     updateBalance(item.price);
-    showWinToast(item);
+    setWinningItem(item);
+    setShowWinDialog(true);
   };
 
   const showWinToast = (item: SliderItem) => {
@@ -407,6 +413,22 @@ const Cases: React.FC = () => {
     setAffiliateInput('');
   };
 
+  const viewCaseItems = () => {
+    setShowItemsDialog(true);
+  };
+
+  const getRarityClass = (rarity: string) => {
+    switch (rarity) {
+      case 'common': return 'bg-gray-500';
+      case 'uncommon': return 'bg-green-500';
+      case 'rare': return 'bg-blue-600';
+      case 'epic': return 'bg-purple-600';
+      case 'legendary': return 'bg-yellow-500';
+      case 'mythical': return 'bg-red-600';
+      default: return 'bg-gray-500';
+    }
+  };
+
   if (activeBattleView) {
     return (
       <div className="container py-8">
@@ -487,67 +509,44 @@ const Cases: React.FC = () => {
                     <p className="text-gray-400 mt-1">
                       Price: <span className="text-yellow-400 font-bold">${casePrices[caseType as keyof typeof casePrices]}</span>
                     </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2 text-xs"
+                      onClick={viewCaseItems}
+                    >
+                      <Percent className="h-3 w-3 mr-1" />
+                      View Drop Chances
+                    </Button>
                   </div>
                 
                   <div className="relative mb-6">
-                    <h3 className="text-lg font-bold mb-3 flex items-center">
-                      <Percent className="h-4 w-4 mr-2 text-blue-400" />
-                      Potential Drops
-                    </h3>
                     {isSpinning ? (
                       <CaseSlider 
                         items={getCaseItemsForSlider(caseType)} 
                         onComplete={handleSpinComplete}
+                        caseName={caseNames[caseType as keyof typeof caseNames]}
                       />
                     ) : (
-                      <div className="grid grid-cols-5 gap-2">
-                        {caseItems[caseType].slice(0, 10).map((item) => (
-                          <div 
-                            key={item.id} 
-                            className={`
-                              bg-gray-800 p-2 rounded flex flex-col items-center justify-between h-44
-                              ${item.rarity === 'legendary' ? 'ring-2 ring-yellow-500' : ''}
-                              ${item.rarity === 'mythical' ? 'ring-2 ring-purple-500' : ''}
-                            `}
-                          >
-                            <div className="font-bold text-xs mb-1 truncate w-full text-center">
-                              {item.name}
-                            </div>
-                            <div className="relative w-16 h-16 bg-gray-700 rounded flex items-center justify-center mb-1">
-                              <img src={item.image} alt={item.name} className="max-w-full max-h-full" />
-                              <div className="absolute -top-1 -right-1 bg-blue-600 text-xs text-white rounded-full h-5 w-5 flex items-center justify-center">
-                                {item.chance}%
-                              </div>
-                            </div>
-                            <div className={`text-xs px-2 py-0.5 rounded ${
-                              item.rarity === 'common' ? 'bg-gray-600' :
-                              item.rarity === 'uncommon' ? 'bg-blue-600' :
-                              item.rarity === 'rare' ? 'bg-purple-600' :
-                              item.rarity === 'epic' ? 'bg-yellow-600' :
-                              item.rarity === 'legendary' ? 'bg-yellow-500' :
-                              'bg-red-600'
-                            }`}>
-                              {item.rarity.toUpperCase()}
-                            </div>
-                            <div className="mt-1 text-yellow-500 font-bold text-sm flex items-center">
-                              <DollarSign className="h-3 w-3 mr-0.5" />
-                              {item.price.toFixed(2)}
-                            </div>
-                          </div>
-                        ))}
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <img 
+                          src="/placeholder.svg" 
+                          alt={caseNames[caseType as keyof typeof caseNames]} 
+                          className="w-24 h-24 mb-4"
+                        />
+                        <p className="text-gray-400 mb-8">
+                          Open this case to win awesome items!
+                        </p>
+                        <Button 
+                          size="lg" 
+                          onClick={openCase}
+                          disabled={isSpinning}
+                          className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg"
+                        >
+                          {isSpinning ? 'Opening...' : 'Open Case'}
+                        </Button>
                       </div>
                     )}
-                  </div>
-                  
-                  <div className="text-center">
-                    <Button 
-                      size="lg" 
-                      onClick={openCase}
-                      disabled={isSpinning}
-                      className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg"
-                    >
-                      {isSpinning ? 'Opening...' : 'Open Case'}
-                    </Button>
                   </div>
                 </div>
               </TabsContent>
@@ -711,6 +710,102 @@ const Cases: React.FC = () => {
           </Tabs>
         </div>
       )}
+
+      <Dialog open={showItemsDialog} onOpenChange={setShowItemsDialog}>
+        <DialogContent className="sm:max-w-[600px] bg-gray-900 border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center">
+              <Percent className="h-5 w-5 mr-2 text-blue-400" />
+              Drop Chances - {caseNames[activeCase as keyof typeof caseNames]}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              These are all possible items you can win from this case.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto py-2">
+            {caseItems[activeCase].filter(item => !item.isReroll).map(item => (
+              <div 
+                key={item.id}
+                className="bg-gray-800 rounded-lg p-3 flex flex-col items-center"
+              >
+                <div className="w-full flex justify-between items-center mb-2">
+                  <span className={`text-xs px-2 py-0.5 rounded ${getRarityClass(item.rarity)} text-white`}>
+                    {item.rarity.toUpperCase()}
+                  </span>
+                  <span className="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded">
+                    {item.chance}%
+                  </span>
+                </div>
+                <div className="bg-gray-700 w-16 h-16 rounded-md flex items-center justify-center mb-2">
+                  <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
+                </div>
+                <div className="text-sm font-medium text-center truncate w-full">{item.name}</div>
+                <div className="flex items-center mt-1 text-yellow-400 font-bold">
+                  <DollarSign className="h-3 w-3 mr-0.5" />
+                  {item.price}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showWinDialog && winningItem !== null} onOpenChange={setShowWinDialog}>
+        <DialogContent className="sm:max-w-[400px] bg-gray-900 border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">
+              Congratulations!
+            </DialogTitle>
+            <DialogDescription className="text-center text-gray-400">
+              You won an item from {caseNames[activeCase as keyof typeof caseNames]}!
+            </DialogDescription>
+          </DialogHeader>
+          
+          {winningItem && (
+            <div className="flex flex-col items-center py-6">
+              <div className={`w-32 h-32 rounded-lg bg-gradient-to-b ${
+                winningItem.rarity === 'common' ? 'from-gray-500 to-gray-400' :
+                winningItem.rarity === 'uncommon' ? 'from-green-600 to-green-500' :
+                winningItem.rarity === 'rare' ? 'from-blue-700 to-blue-600' :
+                winningItem.rarity === 'epic' ? 'from-purple-700 to-purple-600' :
+                winningItem.rarity === 'legendary' ? 'from-amber-600 to-amber-500' :
+                'from-red-700 to-red-600'
+              } flex items-center justify-center p-4 mb-4`}>
+                <img 
+                  src={winningItem.image} 
+                  alt={winningItem.name} 
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+              
+              <h3 className="text-xl font-bold mb-1">{winningItem.name}</h3>
+              
+              <div className={`text-xs px-3 py-1 rounded mb-2 ${
+                winningItem.rarity === 'common' ? 'bg-gray-600' :
+                winningItem.rarity === 'uncommon' ? 'bg-green-600' :
+                winningItem.rarity === 'rare' ? 'bg-blue-600' :
+                winningItem.rarity === 'epic' ? 'bg-purple-600' :
+                winningItem.rarity === 'legendary' ? 'bg-yellow-500' :
+                'bg-red-600'
+              }`}>
+                {winningItem.rarity.toUpperCase()}
+              </div>
+              
+              <div className="flex items-center text-2xl font-bold text-yellow-400">
+                <DollarSign className="h-5 w-5 mr-1" />
+                {winningItem.price}
+              </div>
+              
+              <Button 
+                onClick={() => setShowWinDialog(false)} 
+                className="mt-6 bg-green-600 hover:bg-green-700"
+              >
+                Awesome!
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
