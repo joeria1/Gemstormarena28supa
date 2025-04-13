@@ -7,85 +7,47 @@ export interface User {
   email?: string;
   balance: number;
   avatar?: string;
-  totalBets: number; // Add totalBets for RakeBack tracking
+  totalBets: number;
   updateBalance: (amount: number) => void;
-  addBet: (amount: number) => void; // Add method to track bets
+  addBet: (amount: number) => void;
 }
 
 interface UserContextType {
-  user: User | null;
-  login: (userData: Omit<User, 'updateBalance' | 'addBet'>) => void;
-  logout: () => void;
+  user: User; // Changed to always have a user
   updateBalance: (amount: number) => void;
-  addBet: (amount: number) => void; // Add method to track bets
+  addBet: (amount: number) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-
-  // Load user data from localStorage on mount
-  useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser({
-          ...parsedUser,
-          updateBalance: (amount: number) => updateBalance(amount),
-          addBet: (amount: number) => addBet(amount),
-          totalBets: parsedUser.totalBets || 0, // Ensure totalBets exists
-        });
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-      }
-    }
-  }, []);
-
-  // Save user data to localStorage whenever it changes
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
-    }
-  }, [user]);
-
-  const login = (userData: Omit<User, 'updateBalance' | 'addBet'>) => {
-    const newUser = {
-      ...userData,
-      updateBalance: (amount: number) => updateBalance(amount),
-      addBet: (amount: number) => addBet(amount),
-      totalBets: userData.totalBets || 0, // Ensure totalBets exists
-    };
-    setUser(newUser);
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-  };
+  // Create a default user with 5000 gems
+  const [user, setUser] = useState<User>({
+    id: 'default-user',
+    username: 'Player',
+    balance: 5000,
+    avatar: '/placeholder.svg',
+    totalBets: 0,
+    updateBalance: (amount: number) => updateBalance(amount),
+    addBet: (amount: number) => addBet(amount),
+  });
 
   const updateBalance = (amount: number) => {
-    if (user) {
-      setUser({
-        ...user,
-        balance: Math.max(0, user.balance + amount)
-      });
-    }
+    setUser(prev => ({
+      ...prev,
+      balance: Math.max(0, prev.balance + amount)
+    }));
   };
   
-  // Add a method to track bets for RakeBack
   const addBet = (amount: number) => {
-    if (user) {
-      setUser({
-        ...user,
-        totalBets: user.totalBets + amount
-      });
-    }
+    setUser(prev => ({
+      ...prev,
+      totalBets: prev.totalBets + amount
+    }));
   };
 
   return (
-    <UserContext.Provider value={{ user, login, logout, updateBalance, addBet }}>
+    <UserContext.Provider value={{ user, updateBalance, addBet }}>
       {children}
     </UserContext.Provider>
   );

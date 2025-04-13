@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import CaseBattleGame from './CaseBattleGame';
 import { toast } from 'sonner';
+import { PlusSquare, Users, ArrowLeft } from 'lucide-react';
 
 interface CaseOption {
   id: string;
@@ -21,7 +22,7 @@ const EnhancedCaseBattleCreator: React.FC = () => {
   const [selectedCases, setSelectedCases] = useState<CaseOption[]>([]);
   const [battleSettings, setBattleSettings] = useState({
     roundsPerPlayer: 1,
-    maxPlayers: 2,
+    maxPlayers: 4,
     isPrivate: false,
   });
   const [battleId, setBattleId] = useState<string | null>(null);
@@ -57,6 +58,10 @@ const EnhancedCaseBattleCreator: React.FC = () => {
     setBattleId(null);
     setSelectedCases([]);
   };
+
+  if (showGame && battleId) {
+    return <CaseBattleGame battleId={battleId} onClose={handleCloseGame} />;
+  }
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 text-white">
@@ -165,17 +170,13 @@ const EnhancedCaseBattleCreator: React.FC = () => {
             className={`w-full mt-6 py-3 rounded-md font-bold ${
               selectedCases.length === 0 
                 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
+                : 'bg-gradient-to-r from-green-600 to-teal-600 text-white hover:from-green-700 hover:to-teal-700'
             } transition-all`}
           >
             Create Battle
           </button>
         </div>
       </div>
-      
-      {showGame && battleId && (
-        <CaseBattleGame battleId={battleId} onClose={handleCloseGame} />
-      )}
     </div>
   );
 };
