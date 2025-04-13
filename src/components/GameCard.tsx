@@ -11,6 +11,7 @@ interface GameCardProps {
   buttonText: string;
   buttonClass?: string;
   isNew?: boolean;
+  icon?: React.ReactNode;
 }
 
 const GameCard: React.FC<GameCardProps> = ({
@@ -20,7 +21,8 @@ const GameCard: React.FC<GameCardProps> = ({
   path,
   buttonText,
   buttonClass = "btn-primary",
-  isNew = false
+  isNew = false,
+  icon
 }) => {
   return (
     <div className="relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-black/80 to-black/40 backdrop-blur-sm">
@@ -44,7 +46,10 @@ const GameCard: React.FC<GameCardProps> = ({
       </div>
       
       <div className="p-5">
-        <h3 className="text-xl font-bold mb-2">{title}</h3>
+        <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+          {icon && <span className="text-primary">{icon}</span>}
+          {title}
+        </h3>
         <p className="text-muted-foreground mb-4 text-sm">{description}</p>
         <Link to={path}>
           <button className={cn("w-full py-2 px-4 rounded-md font-medium text-sm", buttonClass)}>

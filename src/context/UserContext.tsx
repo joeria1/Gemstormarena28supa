@@ -6,6 +6,7 @@ interface User {
   username: string;
   avatar?: string;
   balance: number;
+  updateBalance: (amount: number) => void;
 }
 
 interface UserContextType {
@@ -16,7 +17,7 @@ interface UserContextType {
   logout: () => void;
 }
 
-const defaultUser: User = {
+const defaultUser: Omit<User, 'updateBalance'> = {
   id: 'user-1',
   username: 'GemHunter',
   avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=GemHunter',
@@ -39,9 +40,23 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser({
+          ...parsedUser,
+          updateBalance: (amount) => updateBalance(amount)
+        });
+      } catch (e) {
+        setUser({
+          ...defaultUser,
+          updateBalance: (amount) => updateBalance(amount)
+        });
+      }
     } else {
-      setUser(defaultUser);
+      setUser({
+        ...defaultUser,
+        updateBalance: (amount) => updateBalance(amount)
+      });
     }
     setLoading(false);
   }, []);
@@ -49,7 +64,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Store user in localStorage when it changes
   useEffect(() => {
     if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
+      const { updateBalance: _, ...userWithoutFunction } = user;
+      localStorage.setItem('user', JSON.stringify(userWithoutFunction));
     }
   }, [user]);
 
@@ -59,14 +75,17 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!prev) return null;
       return {
         ...prev,
-        balance: prev.balance + amount
+        balance: prev.balance + amount,
       };
     });
   };
 
   // Login
   const login = () => {
-    setUser(defaultUser);
+    setUser({
+      ...defaultUser,
+      updateBalance: (amount) => updateBalance(amount)
+    });
   };
 
   // Logout

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
 import ChatWindow from '@/components/Chat/ChatWindow';
@@ -128,8 +127,7 @@ const Cases: React.FC = () => {
         description: `Worth ${item.price} gems!`
       });
     } else {
-      toast({
-        title: `You won: ${item.name}!`,
+      toast(`You won: ${item.name}!`, {
         description: `Worth ${item.price} gems!`
       });
     }
