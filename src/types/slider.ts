@@ -22,5 +22,5 @@ export interface SliderProps {
   spinDuration?: number;
   isSpinning?: boolean;
   setIsSpinning?: React.Dispatch<React.SetStateAction<boolean>>;
-  caseName?: string; // Added caseName as an optional property
+  caseName?: string;
 }

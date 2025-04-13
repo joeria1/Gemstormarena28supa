@@ -2,7 +2,9 @@
 import React, { useState } from 'react';
 import CaseBattleGame from './CaseBattleGame';
 import { toast } from 'sonner';
-import { PlusSquare, Users, ArrowLeft } from 'lucide-react';
+import { PlusSquare, Users, ArrowLeft, Trash2, Skull } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface CaseOption {
   id: string;
@@ -24,6 +26,7 @@ const EnhancedCaseBattleCreator: React.FC = () => {
     roundsPerPlayer: 1,
     maxPlayers: 4,
     isPrivate: false,
+    cursedMode: false
   });
   const [battleId, setBattleId] = useState<string | null>(null);
   const [showGame, setShowGame] = useState(false);
@@ -60,7 +63,7 @@ const EnhancedCaseBattleCreator: React.FC = () => {
   };
 
   if (showGame && battleId) {
-    return <CaseBattleGame battleId={battleId} onClose={handleCloseGame} />;
+    return <CaseBattleGame battleId={battleId} onClose={handleCloseGame} cursedMode={battleSettings.cursedMode} />;
   }
 
   return (
@@ -125,6 +128,18 @@ const EnhancedCaseBattleCreator: React.FC = () => {
                 />
                 <label htmlFor="private-battle">Private Battle</label>
               </div>
+              
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-2">
+                  <Skull className="h-4 w-4 text-red-400" />
+                  <Label htmlFor="cursed-mode">Cursed Mode (lowest value wins)</Label>
+                </div>
+                <Switch
+                  id="cursed-mode"
+                  checked={battleSettings.cursedMode}
+                  onCheckedChange={(checked) => setBattleSettings({...battleSettings, cursedMode: checked})}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -150,7 +165,7 @@ const EnhancedCaseBattleCreator: React.FC = () => {
                     onClick={() => handleRemoveCase(index)}
                     className="text-gray-400 hover:text-white"
                   >
-                    ✕
+                    <Trash2 size={16} />
                   </button>
                 </div>
               ))}

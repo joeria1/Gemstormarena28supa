@@ -10,13 +10,10 @@ interface ChatToggleProps {
 }
 
 const ChatToggle: React.FC<ChatToggleProps> = ({ isOpen, onToggle }) => {
-  const { isRainActive, rainTimeRemaining } = useChat();
+  const { isRainActive, rainTimeRemaining, toggleChat } = useChat();
   
   // If not provided via props, we'll use internal state or context
-  const handleToggle = onToggle || (() => {
-    // Default toggle implementation if none provided
-    console.log("Chat toggle clicked, but no handler provided");
-  });
+  const handleToggle = onToggle || toggleChat;
   
   return (
     <Button 
@@ -24,6 +21,7 @@ const ChatToggle: React.FC<ChatToggleProps> = ({ isOpen, onToggle }) => {
       variant="outline" 
       className="fixed right-4 bottom-4 z-50 bg-blue-950 text-white shadow-lg hover:bg-blue-900 scale-110 border-2 border-blue-800/50"
       size="lg"
+      type="button"
     >
       {isOpen ? (
         <MessageSquareOff className="h-8 w-8 text-white" />
