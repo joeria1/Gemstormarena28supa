@@ -40,3 +40,37 @@ export const playLoseSound = () => {
     console.error("Error playing lose sound:", error);
   });
 };
+
+// Mines game sounds
+export const playTileClickSound = () => {
+  const audio = new Audio('/sounds/tile-click.mp3');
+  audio.volume = 0.15;
+  audio.play().catch(error => {
+    console.error("Error playing tile click sound:", error);
+  });
+};
+
+export const playMineExplosionSound = () => {
+  const audio = new Audio('/sounds/explosion.mp3');
+  audio.volume = 0.25;
+  audio.play().catch(error => {
+    console.error("Error playing explosion sound:", error);
+  });
+};
+
+export const playCashoutSound = () => {
+  const audio = new Audio('/sounds/cashout.mp3');
+  audio.volume = 0.2;
+  audio.play().catch(error => {
+    console.error("Error playing cashout sound:", error);
+  });
+};
+
+// Reroll sound effect
+export const playRerollSound = () => {
+  const audio = new Audio('/sounds/reroll.mp3');
+  audio.volume = 0.3;
+  audio.play().catch(error => {
+    console.error("Error playing reroll sound:", error);
+  });
+};
