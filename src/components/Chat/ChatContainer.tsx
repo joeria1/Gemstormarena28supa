@@ -11,7 +11,7 @@ import RainFeature from './RainFeature';
 import { preventAutoScroll } from '@/utils/scrollFix';
 
 const ChatContainer = () => {
-  const { isOpen, messages, sendMessage } = useChat();
+  const { isChatOpen: isOpen, messages, sendMessage } = useChat();
   const { user } = useUser();
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);

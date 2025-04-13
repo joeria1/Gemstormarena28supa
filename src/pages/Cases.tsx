@@ -1,16 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import CaseSlider from '@/components/CaseSlider/CaseSlider';
-import ChatWindow from '@/components/Chat/ChatWindow';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import CaseBattleCreator from '@/components/CaseBattle/CaseBattleCreator';
 import CaseBattlesList, { Battle } from '@/components/CaseBattle/CaseBattlesList';
-import { SliderItem } from '@/types/slider';
-import { useUser } from '@/context/UserContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowRight, PlusSquare, Rocket, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Gem, CreditCard, Star, Filter, Users, Swords } from 'lucide-react';
-import { playButtonSound } from '@/utils/sounds';
 
 // Demo case items
 const caseItems: Record<string, SliderItem[]> = {
@@ -86,8 +82,8 @@ const Cases: React.FC = () => {
   const [battles, setBattles] = useState<Battle[]>([]);
   const [mainTab, setMainTab] = useState('cases');
   const [battleTab, setBattleTab] = useState('join');
-  
-  // Initialize with demo battles
+  const [showBattleCreator, setShowBattleCreator] = useState(false);
+
   useEffect(() => {
     const demoBattles: Battle[] = [
       { 
@@ -146,7 +142,6 @@ const Cases: React.FC = () => {
     setBattles(demoBattles);
   }, []);
 
-  // Handle case opening
   const openCase = () => {
     playButtonSound();
     
@@ -162,28 +157,22 @@ const Cases: React.FC = () => {
       return;
     }
     
-    // Deduct case price
     updateBalance(-casePrice);
     setIsSpinning(true);
   };
 
-  // Handle spin completion
   const handleSpinComplete = (item: SliderItem) => {
     if (item.isReroll) {
-      // Handle reroll
       toast.success('Reroll! Rolling again for a better item!', {
         description: 'You will get at least an uncommon item!'
       });
       
-      // Find items better than common
       const betterItems = caseItems[activeCase].filter(
         item => item.rarity !== 'common' && !item.isReroll
       );
       
-      // Get a random better item
       const randomBetterItem = betterItems[Math.floor(Math.random() * betterItems.length)];
       
-      // Trigger a new spin animation with a delay
       setTimeout(() => {
         setLastWon(randomBetterItem);
         updateBalance(randomBetterItem.price);
@@ -197,8 +186,7 @@ const Cases: React.FC = () => {
     updateBalance(item.price);
     showWinToast(item);
   };
-  
-  // Show toast based on item rarity
+
   const showWinToast = (item: SliderItem) => {
     if (item.rarity === 'legendary' || item.rarity === 'mythical') {
       toast.success(`Incredible! You won ${item.name}!`, {
@@ -215,7 +203,6 @@ const Cases: React.FC = () => {
     }
   };
 
-  // Join a case battle
   const joinBattle = (battleId: string) => {
     playButtonSound();
     
@@ -232,20 +219,16 @@ const Cases: React.FC = () => {
       return;
     }
     
-    // Deduct battle cost
     updateBalance(-battle.cost);
     
-    // Update battle with new player
     const updatedBattles = battles.map(b => {
       if (b.id === battleId) {
-        // Add user to players
         const updatedPlayers = [...b.players, {
           id: user.id,
           name: user.username,
           avatar: user.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=Shiny'
         }];
         
-        // Check if battle is ready to start
         const battleReady = updatedPlayers.length === b.maxPlayers;
         
         return {
@@ -264,46 +247,35 @@ const Cases: React.FC = () => {
       description: "The battle will start when all slots are filled."
     });
     
-    // Simulate battle starting if all slots are filled
-    const updatedBattle = updatedBattles.find(b => b.id === battleId);
     if (updatedBattle && updatedBattle.status === 'starting') {
       setTimeout(() => {
         startBattle(battleId);
       }, 3000);
     }
   };
-  
-  // Create a case battle
+
   const createBattle = (battleData: Battle) => {
-    // Add the battle to the list
     setBattles(prev => [battleData, ...prev]);
     
-    // Deduct the cost from user balance
     if (user) {
       updateBalance(-battleData.cost);
     }
     
-    // If the battle is starting immediately (with bots), start it
     if (battleData.status === 'in-progress' || battleData.status === 'starting') {
       setTimeout(() => {
         startBattle(battleData.id);
       }, 3000);
     }
     
-    // Switch to join tab to see the created battle
     setBattleTab('join');
   };
-  
-  // Start a battle
+
   const startBattle = (battleId: string) => {
-    // Update battle status to in-progress
     setBattles(prev => prev.map(b => 
       b.id === battleId ? { ...b, status: 'in-progress' } : b
     ));
     
-    // Simulate battle results after a delay
     setTimeout(() => {
-      // Determine winner randomly
       const battle = battles.find(b => b.id === battleId);
       if (!battle) return;
       
@@ -311,7 +283,6 @@ const Cases: React.FC = () => {
       const winnerIndex = Math.floor(Math.random() * players.length);
       const winner = players[winnerIndex];
       
-      // Update battle status to completed and set winner
       setBattles(prev => prev.map(b => 
         b.id === battleId ? { 
           ...b, 
@@ -320,7 +291,6 @@ const Cases: React.FC = () => {
         } : b
       ));
       
-      // If user is the winner, award them
       if (winner.id === user?.id) {
         const winnings = battle.cost * battle.maxPlayers;
         updateBalance(winnings);
@@ -328,13 +298,20 @@ const Cases: React.FC = () => {
           description: `You've been awarded ${winnings} gems!`
         });
       }
-    }, 10000); // Battle lasts 10 seconds
+    }, 10000);
   };
-  
-  // Spectate a battle
+
   const spectateBattle = (battleId: string) => {
     setActiveBattle(battleId);
     toast('Spectating battle...');
+  };
+
+  const handleJoinBattle = (battleId: string) => {
+    toast.success(`Joined battle ${battleId}`);
+  };
+
+  const handleSpectateBattle = (battleId: string) => {
+    toast.success(`Spectating battle ${battleId}`);
   };
 
   return (
@@ -350,18 +327,12 @@ const Cases: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main case opening area */}
           <div className="lg:col-span-2 space-y-8">
-            <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-              <TabsList className="w-full">
-                <TabsTrigger value="cases" className="flex-1">
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Cases
-                </TabsTrigger>
-                <TabsTrigger value="battles" className="flex-1">
-                  <Swords className="h-4 w-4 mr-2" />
-                  Case Battles
-                </TabsTrigger>
+            <Tabs defaultValue="cases" className="w-full">
+              <TabsList className="grid grid-cols-3 mb-6 w-full sm:w-[400px]">
+                <TabsTrigger value="cases">Cases</TabsTrigger>
+                <TabsTrigger value="battles">Battles</TabsTrigger>
+                <TabsTrigger value="inventory">Inventory</TabsTrigger>
               </TabsList>
               
               <TabsContent value="cases" className="space-y-6 py-4">
@@ -464,31 +435,42 @@ const Cases: React.FC = () => {
                 )}
               </TabsContent>
               
-              <TabsContent value="battles" className="space-y-6 py-4">
-                <Tabs value={battleTab} onValueChange={setBattleTab} className="w-full">
-                  <TabsList className="w-full">
-                    <TabsTrigger value="join">
-                      Join Battle
-                    </TabsTrigger>
-                    <TabsTrigger value="create">
+              <TabsContent value="battles">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Case Battles</h2>
+                  <Button onClick={() => setShowBattleCreator(true)}>
+                    <PlusSquare className="mr-2 h-4 w-4" />
+                    Create Battle
+                  </Button>
+                </div>
+
+                <CaseBattlesList 
+                  battles={[]} 
+                  onJoinBattle={handleJoinBattle} 
+                  onSpectate={handleSpectateBattle} 
+                />
+              </TabsContent>
+              
+              <TabsContent value="inventory">
+                <Card className="bg-black/40 border-white/10 p-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-xl font-semibold">Inventory</h2>
+                    <div className="text-muted-foreground flex items-center">
+                      <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                      <span>0</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 text-center">
+                    <Button 
+                      className="btn-primary"
+                      onClick={() => setShowBattleCreator(true)}
+                    >
+                      <Rocket className="mr-2 h-4 w-4" />
                       Create Battle
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="join" className="pt-6">
-                    <CaseBattlesList 
-                      battles={battles}
-                      onJoinBattle={joinBattle}
-                      onSpectate={spectateBattle}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="create" className="pt-6">
-                    <CaseBattleCreator 
-                      onBattleCreate={createBattle}
-                    />
-                  </TabsContent>
-                </Tabs>
+                    </Button>
+                  </div>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>
@@ -498,6 +480,18 @@ const Cases: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <Dialog open={showBattleCreator} onOpenChange={setShowBattleCreator}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Battle</DialogTitle>
+            <DialogDescription>
+              Create a new battle to challenge other players.
+            </DialogDescription>
+          </DialogHeader>
+          <CaseBattleCreator onBattleCreate={createBattle} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

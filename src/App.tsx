@@ -45,6 +45,7 @@ function App() {
           <DepositButton />
         </div>
         <SoundManager />
+        <Toaster />
       </div>
     </QueryClientProvider>
   );

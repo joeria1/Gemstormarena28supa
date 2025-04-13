@@ -1,21 +1,32 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Gem, User, Bot } from 'lucide-react';
-import { toast } from 'sonner';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser } from '@/context/UserContext';
-import { useSound } from '@/components/SoundManager';
-import { preventAutoScroll } from '@/utils/scrollFix';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowRight, Clock, Crown, Plus, Users } from 'lucide-react';
+import { toast } from 'sonner';
 
-// Define Battle participant type
-export interface BattleParticipant {
+// Battle participant interface
+interface BattleParticipant {
   id: string;
-  name: string;
+  username: string;
+  name: string; // Alias for username
   avatar: string;
+  rewards?: {
+    id: string;
+    name: string;
+    image: string;
+    value: number;
+  }[];
   isBot?: boolean;
 }
 
-// Define Battle type
+// Export the Battle interface for use in other components
 export interface Battle {
   id: string;
   type: string;
@@ -26,722 +37,493 @@ export interface Battle {
   players: BattleParticipant[];
   maxPlayers: number;
   cost: number;
-  status: 'waiting' | 'starting' | 'in-progress' | 'completed';
+  status: 'waiting' | 'in-progress' | 'completed';
   winner?: BattleParticipant;
   createdAt: Date;
+  cases?: {
+    id: string;
+    name: string;
+    image: string;
+    price: number;
+  }[];
 }
 
-// Define case and battle types
-type CaseItem = {
-  id: string;
-  name: string;
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-  value: number;
-  iconUrl: string;
-};
-
-type Case = {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  items: CaseItem[];
-};
-
-type CaseBattle = {
+// Old CaseBattle interface for backward compatibility
+interface CaseBattle {
   id: string;
   creatorId: string;
-  cases: Case[];
+  cases: {
+    id: string;
+    name: string;
+    image: string;
+    price: number;
+  }[];
   participants: BattleParticipant[];
   maxParticipants: number;
   totalValue: number;
   status: 'waiting' | 'in-progress' | 'completed';
   winner?: BattleParticipant;
-  createdAt: string;
-};
+  createdAt: Date;
+}
 
-// Sample cases data
-const SAMPLE_CASES: Case[] = [
-  {
-    id: 'case1',
-    name: 'Basic Case',
-    price: 100,
-    image: 'https://via.placeholder.com/150?text=Basic',
-    items: [
-      { id: 'item1', name: 'Common Gem', rarity: 'common', value: 50, iconUrl: 'https://via.placeholder.com/50/green?text=C' },
-      { id: 'item2', name: 'Uncommon Gem', rarity: 'uncommon', value: 150, iconUrl: 'https://via.placeholder.com/50/blue?text=U' },
-      { id: 'item3', name: 'Rare Gem', rarity: 'rare', value: 300, iconUrl: 'https://via.placeholder.com/50/purple?text=R' }
-    ]
-  },
-  {
-    id: 'case2',
-    name: 'Premium Case',
-    price: 250,
-    image: 'https://via.placeholder.com/150?text=Premium',
-    items: [
-      { id: 'item4', name: 'Rare Gem', rarity: 'rare', value: 200, iconUrl: 'https://via.placeholder.com/50/purple?text=R' },
-      { id: 'item5', name: 'Epic Gem', rarity: 'epic', value: 500, iconUrl: 'https://via.placeholder.com/50/pink?text=E' },
-      { id: 'item6', name: 'Legendary Gem', rarity: 'legendary', value: 1000, iconUrl: 'https://via.placeholder.com/50/gold?text=L' }
-    ]
-  },
-  {
-    id: 'case3',
-    name: 'Luxury Case',
-    price: 500,
-    image: 'https://via.placeholder.com/150?text=Luxury',
-    items: [
-      { id: 'item7', name: 'Epic Gem', rarity: 'epic', value: 400, iconUrl: 'https://via.placeholder.com/50/pink?text=E' },
-      { id: 'item8', name: 'Legendary Gem', rarity: 'legendary', value: 800, iconUrl: 'https://via.placeholder.com/50/gold?text=L' },
-      { id: 'item9', name: 'Mythical Gem', rarity: 'legendary', value: 1500, iconUrl: 'https://via.placeholder.com/50/rainbow?text=M' }
-    ]
-  }
-];
-
-interface CaseBattlesListProps {
+// Battle list component props
+interface BattleListProps {
   battles: Battle[];
   onJoinBattle: (battleId: string) => void;
   onSpectate: (battleId: string) => void;
 }
 
-const CaseBattlesList: React.FC<CaseBattlesListProps> = ({ battles, onJoinBattle, onSpectate }) => {
-  const { user, updateBalance } = useUser();
-  const { playSound } = useSound();
-  const [selectedBattle, setSelectedBattle, ] = useState<CaseBattle | null>(null);
+// Mock data
+const demoRewards = [
+  { id: 'reward1', name: 'Dragon Lore', image: '/placeholder.svg', value: 5000 },
+  { id: 'reward2', name: 'Karambit Fade', image: '/placeholder.svg', value: 2500 },
+  { id: 'reward3', name: 'AK-47 Wild Lotus', image: '/placeholder.svg', value: 1750 },
+  { id: 'reward4', name: 'AWP Gungnir', image: '/placeholder.svg', value: 3200 },
+];
 
-  // Prevent automatic scrolling
-  useEffect(() => {
-    preventAutoScroll();
-  }, []);
+const demoCases = [
+  { id: 'case1', name: 'Premium Case', image: '/placeholder.svg', price: 500 },
+  { id: 'case2', name: 'Luxury Case', image: '/placeholder.svg', price: 1000 },
+  { id: 'case3', name: 'Elite Case', image: '/placeholder.svg', price: 2000 },
+];
 
-  // Fetch battles on mount
-  useEffect(() => {
-    // Simulate fetching battles from API
-    const sampleBattles: CaseBattle[] = [
+// Mock battle data
+const mockBattles: Battle[] = [
+  {
+    id: 'battle1',
+    type: '2v2',
+    caseType: 'Premium',
+    rounds: 3,
+    cursedMode: false,
+    creator: {
+      id: 'user1',
+      username: 'CryptoKing',
+      name: 'CryptoKing',
+      avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=CryptoKing',
+    },
+    players: [
       {
-        id: 'battle1',
-        creatorId: 'user1',
-        cases: [SAMPLE_CASES[0], SAMPLE_CASES[1]],
-        participants: [
-          { id: 'user1', name: 'Player1', avatar: 'https://ui-avatars.com/api/?name=Player1', isBot: false, ready: true, rewards: [], totalValue: 0 }
-        ],
-        maxParticipants: 2,
-        totalValue: SAMPLE_CASES[0].price + SAMPLE_CASES[1].price,
-        status: 'waiting',
-        createdAt: new Date().toISOString()
+        id: 'user1',
+        username: 'CryptoKing',
+        name: 'CryptoKing',
+        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=CryptoKing',
+      }
+    ],
+    maxPlayers: 4,
+    cost: 500,
+    status: 'waiting',
+    createdAt: new Date(),
+    cases: demoCases,
+  },
+  {
+    id: 'battle2',
+    type: '1v1',
+    caseType: 'Luxury',
+    rounds: 2,
+    cursedMode: true,
+    creator: {
+      id: 'user2',
+      username: 'DiamondHands',
+      name: 'DiamondHands',
+      avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DiamondHands',
+    },
+    players: [
+      {
+        id: 'user2',
+        username: 'DiamondHands',
+        name: 'DiamondHands',
+        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DiamondHands',
       },
       {
-        id: 'battle2',
-        creatorId: 'user2',
-        cases: [SAMPLE_CASES[1], SAMPLE_CASES[2]],
-        participants: [
-          { id: 'user2', name: 'Player2', avatar: 'https://ui-avatars.com/api/?name=Player2', isBot: false, ready: true, rewards: [], totalValue: 0 },
-          { id: 'user3', name: 'Player3', avatar: 'https://ui-avatars.com/api/?name=Player3', isBot: false, ready: false, rewards: [], totalValue: 0 }
-        ],
-        maxParticipants: 2,
-        totalValue: SAMPLE_CASES[1].price + SAMPLE_CASES[2].price,
-        status: 'waiting',
-        createdAt: new Date().toISOString()
-      }
-    ];
-    
-    //setBattles(sampleBattles);
-  }, []);
-
-  // Join a battle
-  const joinBattleFunc = (battleId: string) => {
-    if (!user) {
-      toast.error('Please login to join battles');
-      return;
-    }
-    
-    const battle = battles.find(b => b.id === battleId);
-    if (!battle) return;
-    
-    // Check if battle is full
-    if (battle.players.length >= battle.maxPlayers) {
-      toast.error('This battle is already full');
-      return;
-    }
-    
-    // Check if battle has started
-    if (battle.status !== 'waiting') {
-      toast.error('This battle has already started');
-      return;
-    }
-    
-    // Calculate cost to join
-    const costToJoin = battle.cases.reduce((total, c) => total + c.price, 0);
-    
-    // Check if user has enough balance
-    if (user.balance < costToJoin) {
-      toast.error(`Insufficient balance. You need ${costToJoin} gems to join.`);
-      return;
-    }
-    
-    // Deduct cost from balance
-    updateBalance(-costToJoin);
-    
-    // Add user to participants
-    const updatedBattles = [...battles];
-    const battleIndex = updatedBattles.findIndex(b => b.id === battleId);
-    
-    if (battleIndex !== -1) {
-      updatedBattles[battleIndex].players.push({
-        id: user.id,
-        name: user.username,
-        avatar: user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.username),
-        isBot: false,
-        
-      });
-      
-      // If battle is full, start it
-      //if (updatedBattles[battleIndex].participants.length >= updatedBattles[battleIndex].maxParticipants) {
-      //  startBattle(battleId);
-      //}
-    }
-    
-    //setBattles(updatedBattles);
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3');
-    toast.success(`Joined battle successfully!`);
-  };
-
-  // Add a bot to a battle
-  const addBot = (battleId: string) => {
-    const battle = battles.find(b => b.id === battleId);
-    if (!battle) return;
-    
-    // Check if battle has started
-    if (battle.status !== 'waiting') {
-      toast.error('This battle has already started');
-      return;
-    }
-    
-    // Check if battle is full
-    if (battle.players.length >= battle.maxPlayers) {
-      toast.error('This battle is already full');
-      return;
-    }
-    
-    // Add bot to participants
-    const updatedBattles = [...battles];
-    const battleIndex = updatedBattles.findIndex(b => b.id === battleId);
-    
-    if (battleIndex !== -1) {
-      const botNames = ['BotAlice', 'BotBob', 'BotCharlie', 'BotDave', 'BotEve'];
-      const randomBotName = botNames[Math.floor(Math.random() * botNames.length)];
-      
-      updatedBattles[battleIndex].players.push({
-        id: `bot-${Date.now()}`,
-        name: randomBotName,
-        avatar: `https://ui-avatars.com/api/?name=${randomBotName}&background=FF5733&color=fff`,
+        id: 'user3',
+        username: 'MoonShooter',
+        name: 'MoonShooter',
+        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=MoonShooter',
         isBot: true,
-        
-      });
-      
-      // If battle is full, start it
-      //if (updatedBattles[battleIndex].participants.length >= updatedBattles[battleIndex].maxParticipants) {
-      //  startBattle(battleId);
-      //}
-    }
-    
-    //setBattles(updatedBattles);
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-arcade-mechanical-bling-210.mp3');
-  };
-
-  // Start a battle
-  const startBattle = (battleId: string) => {
-    const battleIndex = battles.findIndex(b => b.id === battleId);
-    if (battleIndex === -1) return;
-    
-    const battle = battles[battleIndex];
-    
-    // Update battle status
-    const updatedBattles = [...battles];
-    //updatedBattles[battleIndex].status = 'in-progress';
-    //setBattles(updatedBattles);
-    
-    // Set selected battle to view
-    setSelectedBattle(battle);
-    
-    // Simulate opening cases
-    simulateBattle(battleId);
-  };
-
-  // Simulate battle (opening cases)
-  const simulateBattle = (battleId: string) => {
-    const battleIndex = battles.findIndex(b => b.id === battleId);
-    if (battleIndex === -1) return;
-    
-    const battle = battles[battleIndex];
-    
-    // Simulate opening each case for each participant
-    const updatedBattles = [...battles];
-    const updatedBattle = { ...battle };
-    
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-game-level-music-689.mp3');
-    
-    // Simulate case openings for each case
-    updatedBattle.cases.forEach((caseItem, caseIndex) => {
-      // Delay to add suspense for each case
-      setTimeout(() => {
-        // Each participant opens this case
-        //updatedBattle.participants.forEach((participant, participantIndex) => {
-          // Random item from the case
-          //const randomItemIndex = Math.floor(Math.random() * caseItem.items.length);
-          //const item = { ...caseItem.items[randomItemIndex] };
-          
-          // Add slight randomization to value
-          //item.value = Math.floor(item.value * (0.8 + Math.random() * 0.4));
-          
-          // Add reward
-          //updatedBattle.participants[participantIndex].rewards.push(item);
-          //updatedBattle.participants[participantIndex].totalValue += item.value;
-          
-          // Update the battle in state
-          //updatedBattles[battleIndex] = updatedBattle;
-          //setBattles([...updatedBattles]);
-          //setSelectedBattle(updatedBattle);
-          
-          playSound('https://assets.mixkit.co/sfx/preview/mixkit-bonus-earned-in-video-game-2058.mp3');
-        //});
-        
-        // If this is the last case, determine winner
-        if (caseIndex === updatedBattle.cases.length - 1) {
-          setTimeout(() => {
-            determineBattleWinner(battleId);
-          }, 2000);
-        }
-      }, 3000 * caseIndex); // Delay each case opening
-    });
-  };
-
-  // Determine the winner of a battle
-  const determineBattleWinner = (battleId: string) => {
-    const battleIndex = battles.findIndex(b => b.id === battleId);
-    if (battleIndex === -1) return;
-    
-    const battle = battles[battleIndex];
-    
-    // Find participant with highest total value
-    //let highestValue = -1;
-    //let winnerIndex = -1;
-    
-    //battle.participants.forEach((participant, index) => {
-    //  if (participant.totalValue > highestValue) {
-    //    highestValue = participant.totalValue;
-    //    winnerIndex = index;
-    //  }
-    //});
-    
-    // Update battle with winner
-    const updatedBattles = [...battles];
-    //updatedBattles[battleIndex].winner = battle.participants[winnerIndex];
-    //updatedBattles[battleIndex].status = 'completed';
-    
-    // If real player won, add winnings to balance
-    //const winner = battle.participants[winnerIndex];
-    //if (!winner.isBot && winner.id === user?.id) {
-    //  const totalValue = battle.participants.reduce((total, p) => total + p.totalValue, 0);
-    //  updateBalance(totalValue);
-      
-    //  playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-    //  toast.success(`Congratulations! You won ${totalValue} gems!`);
-    //} else if (winner.id === user?.id) {
-    //  playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-    //  toast.success(`Congratulations! You won the battle!`);
-    //}
-    
-    //setBattles(updatedBattles);
-    //setSelectedBattle(updatedBattles[battleIndex]);
-  };
-
-  // Create a new battle
-  const createBattle = (caseIds: string[], maxParticipants: number) => {
-    if (!user) {
-      toast.error('Please login to create battles');
-      return;
-    }
-    
-    // Get cases by IDs
-    const selectedCases = SAMPLE_CASES.filter(c => caseIds.includes(c.id));
-    
-    // Calculate total cost
-    const totalCost = selectedCases.reduce((total, c) => total + c.price, 0);
-    
-    // Check if user has enough balance
-    if (user.balance < totalCost) {
-      toast.error(`Insufficient balance. You need ${totalCost} gems to create this battle.`);
-      return;
-    }
-    
-    // Deduct cost from balance
-    updateBalance(-totalCost);
-    
-    // Create new battle
-    const newBattle = {
-      id: `battle-${Date.now()}`,
-      creatorId: user.id,
-      cases: selectedCases,
-      participants: [
-        {
-          id: user.id,
-          name: user.username,
-          avatar: user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.username),
-          isBot: false,
-          ready: true,
-          rewards: [],
-          totalValue: 0
-        }
-      ],
-      maxParticipants,
-      totalValue: totalCost,
-      status: 'waiting',
-      createdAt: new Date().toISOString()
-    };
-    
-    // Add battle to list
-    //setBattles([newBattle, ...battles]);
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-magical-coin-win-1936.mp3');
-    toast.success('Battle created successfully!');
-  };
-
-  // Render functions
-  const renderBattleCard = (battle: Battle) => {
-    const isFull = battle.players.length >= battle.maxPlayers;
-    const isUserInBattle = user && battle.players.some(p => p.id === user.id);
-    //const isUserCreator = user && battle.creatorId === user.id;
-    
-    return (
-      <Card className="bg-black/40 border border-primary/20 p-4 rounded-xl backdrop-blur-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold">
-            {battle.caseType}
-          </h3>
-          <div className="flex items-center">
-            <Gem className="h-4 w-4 text-gem mr-1" />
-            <span>{battle.cost}</span>
-          </div>
-        </div>
-        
-        {/*<div className="grid grid-cols-2 gap-2 mb-4">
-          {battle.cases.map((caseItem, index) => (
-            <div key={index} className="bg-black/30 rounded p-2 text-center">
-              <div className="text-xs text-muted-foreground mb-1">{caseItem.name}</div>
-              <div className="flex items-center justify-center text-sm">
-                <Gem className="h-3 w-3 text-gem mr-1" />
-                <span>{caseItem.price}</span>
-              </div>
-            </div>
-          ))}
-        </div>*/}
-        
-        <div className="mb-4">
-          <div className="text-sm text-muted-foreground mb-2">Participants ({battle.players.length}/{battle.maxPlayers})</div>
-          <div className="grid grid-cols-2 gap-2">
-            {Array.from({ length: battle.maxPlayers }).map((_, index) => {
-              const participant = battle.players[index];
-              
-              return (
-                <div 
-                  key={index} 
-                  className={`p-2 rounded flex items-center
-                    ${participant ? 'bg-primary/20' : 'bg-black/20 border border-dashed border-white/10'}`}
-                >
-                  {participant ? (
-                    <>
-                      <img 
-                        src={participant.avatar} 
-                        alt={participant.name} 
-                        className="w-6 h-6 rounded-full mr-2" 
-                      />
-                      <div className="text-xs truncate">{participant.name}</div>
-                      {participant.isBot && <Bot className="h-3 w-3 ml-1 text-orange-400" />}
-                    </>
-                  ) : (
-                    <div className="w-full text-center text-xs text-muted-foreground">
-                      Empty Slot
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        
-        <div className="flex justify-between">
-          {!isFull && battle.status === 'waiting' && !isUserInBattle && (
-            <Button 
-              onClick={() => onJoinBattle(battle.id)} 
-              className="flex-1 mr-1"
-              disabled={!user || user.balance < battle.cost}
-            >
-              Join Battle
-            </Button>
-          )}
-          
-          {!isFull && battle.status === 'waiting' && (isUserInBattle) && (
-            <Button 
-              onClick={() => addBot(battle.id)} 
-              variant="outline" 
-              className="flex-1 mr-1"
-            >
-              Add Bot
-            </Button>
-          )}
-          
-          {battle.status !== 'waiting' && (
-            <Button 
-              onClick={() => onSpectate(battle.id)} 
-              variant="outline" 
-              className="flex-1"
-            >
-              View Battle
-            </Button>
-          )}
-          
-          {isFull && battle.status === 'waiting' && (
-            <Button 
-              onClick={() => startBattle(battle.id)} 
-              className="flex-1"
-            >
-              Start Battle
-            </Button>
-          )}
-        </div>
-      </Card>
-    );
-  };
-
-  const renderBattleView = (battle: CaseBattle) => {
-    return (
-      <div className="bg-black/40 border border-primary/20 p-6 rounded-xl backdrop-blur-sm mb-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">
-            Case Battle: {battle.cases.map(c => c.name).join(' + ')}
-          </h2>
-          <Button 
-            variant="outline" 
-            onClick={() => setSelectedBattle(null)}
-          >
-            Back to List
-          </Button>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/*battle.participants.map((participant, index) => (
-            <div key={participant.id} className={`p-4 rounded-lg ${participant.id === user?.id ? 'bg-primary/20' : 'bg-black/30'}`}>
-              <div className="flex items-center mb-4">
-                <img 
-                  src={participant.avatar} 
-                  alt={participant.name} 
-                  className="w-10 h-10 rounded-full mr-3" 
-                />
-                <div>
-                  <div className="font-semibold flex items-center">
-                    {participant.name}
-                    {participant.isBot && <Bot className="h-4 w-4 ml-1 text-orange-400" />}
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Gem className="h-3 w-3 text-gem mr-1" />
-                    <span>{participant.totalValue}</span>
-                  </div>
-                </div>
-                {battle.winner?.id === participant.id && (
-                  <div className="ml-auto px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
-                    Winner
-                  </div>
-                )}
-              </div>
-              
-              <div className="space-y-3">
-                {participant.rewards.length > 0 ? (
-                  participant.rewards.map((reward, rewardIndex) => (
-                    <div 
-                      key={rewardIndex} 
-                      className={`p-3 rounded-lg border flex items-center
-                        ${reward.rarity === 'common' ? 'border-gray-500 bg-gray-800/30' : 
-                          reward.rarity === 'uncommon' ? 'border-blue-500 bg-blue-800/30' : 
-                          reward.rarity === 'rare' ? 'border-purple-500 bg-purple-800/30' :
-                          reward.rarity === 'epic' ? 'border-pink-500 bg-pink-800/30' :
-                          'border-yellow-500 bg-yellow-800/30'}`}
-                    >
-                      <div className="w-10 h-10 rounded-md bg-black/30 flex items-center justify-center mr-3">
-                        <img 
-                          src={reward.iconUrl} 
-                          alt={reward.name} 
-                          className="w-8 h-8" 
-                        />
-                      </div>
-                      <div>
-                        <div className="font-medium">{reward.name}</div>
-                        <div className="flex items-center text-sm">
-                          <Gem className="h-3 w-3 text-gem mr-1" />
-                          <span>{reward.value}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground py-4">
-                    {battle.status === 'waiting' ? 'Waiting to start...' : 'Opening cases...'}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))*/}
-        </div>
-        
-        {battle.status === 'completed' && (
-          <div className="text-center mb-6">
-            <div className="text-xl font-semibold mb-2">
-              Battle Completed
-            </div>
-            <div className="text-muted-foreground">
-              {/*battle.winner?.name*/} won with a total value of {/*battle.winner?.totalValue*/} gems!
-            </div>
-          </div>
-        )}
-        
-        <div className="mb-4">
-          <h3 className="font-semibold mb-2">Cases in this Battle</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {battle.cases.map((caseItem, index) => (
-              <div key={index} className="bg-black/30 rounded p-3 text-center">
-                <div className="font-medium mb-1">{caseItem.name}</div>
-                <div className="flex items-center justify-center">
-                  <Gem className="h-4 w-4 text-gem mr-1" />
-                  <span>{caseItem.price}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderCreateBattle = () => {
-    const [selectedCases, setSelectedCases] = useState<string[]>([]);
-    const [maxParticipants, setMaxParticipants] = useState(2);
-    
-    const toggleCaseSelection = (caseId: string) => {
-      if (selectedCases.includes(caseId)) {
-        setSelectedCases(selectedCases.filter(id => id !== caseId));
-      } else {
-        setSelectedCases([...selectedCases, caseId]);
       }
+    ],
+    maxPlayers: 2,
+    cost: 1000,
+    status: 'in-progress',
+    createdAt: new Date(),
+    cases: demoCases,
+  },
+  {
+    id: 'battle3',
+    type: '2v2',
+    caseType: 'Elite',
+    rounds: 5,
+    cursedMode: false,
+    creator: {
+      id: 'user4',
+      username: 'SatoshiLover',
+      name: 'SatoshiLover',
+      avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=SatoshiLover',
+    },
+    players: [
+      {
+        id: 'user4',
+        username: 'SatoshiLover',
+        name: 'SatoshiLover',
+        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=SatoshiLover',
+      },
+      {
+        id: 'user5',
+        username: 'GemCollector',
+        name: 'GemCollector',
+        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=GemCollector',
+      }
+    ],
+    maxPlayers: 4,
+    cost: 2000,
+    status: 'waiting',
+    createdAt: new Date(),
+    cases: demoCases,
+  }
+];
+
+const CaseBattlesList: React.FC<BattleListProps> = ({ battles = mockBattles, onJoinBattle, onSpectate }) => {
+  const { user } = useUser();
+  const [selectedBattle, setSelectedBattle] = useState<Battle | null>(null);
+
+  const handleJoinBattle = (battleId: string) => {
+    if (!user) {
+      toast.error('You need to log in to join a battle');
+      return;
+    }
+    onJoinBattle(battleId);
+  };
+
+  const handleSpectate = (battleId: string) => {
+    onSpectate(battleId);
+  };
+
+  const addBot = (battle: Battle) => {
+    if (!user) {
+      toast.error('You need to log in to add a bot');
+      return;
+    }
+
+    // Create a bot player
+    const botId = `bot-${Date.now()}`;
+    const botNames = ['CryptoBot', 'DiamondBot', 'MoonBot', 'SatoshiBot', 'GemBot'];
+    const randomBotName = botNames[Math.floor(Math.random() * botNames.length)];
+    
+    const newBot: BattleParticipant = {
+      id: botId,
+      username: randomBotName,
+      name: randomBotName,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${randomBotName}`,
+      isBot: true
     };
     
-    const totalCost = SAMPLE_CASES
-      .filter(c => selectedCases.includes(c.id))
-      .reduce((total, c) => total + c.price, 0);
+    // Clone the battle and add the bot
+    const updatedBattle = {
+      ...battle,
+      players: [...battle.players, newBot]
+    };
     
-    return (
-      <div className="bg-black/40 border border-primary/20 p-6 rounded-xl backdrop-blur-sm mb-6">
-        <h2 className="text-xl font-semibold mb-4">Create New Battle</h2>
-        
-        <div className="mb-4">
-          <div className="font-medium mb-2">Select Cases</div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {SAMPLE_CASES.map(caseItem => (
-              <div 
-                key={caseItem.id}
-                className={`p-3 rounded border cursor-pointer transition-colors
-                  ${selectedCases.includes(caseItem.id) 
-                    ? 'bg-primary/20 border-primary' 
-                    : 'bg-black/30 border-white/10 hover:bg-black/40'}`}
-                onClick={() => toggleCaseSelection(caseItem.id)}
-              >
-                <div className="font-medium mb-1">{caseItem.name}</div>
-                <div className="flex items-center">
-                  <Gem className="h-4 w-4 text-gem mr-1" />
-                  <span>{caseItem.price}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div className="mb-4">
-          <div className="font-medium mb-2">Number of Participants</div>
-          <div className="flex space-x-2">
-            {[2, 3, 4].map(num => (
-              <div 
-                key={num}
-                className={`flex-1 py-2 text-center rounded border cursor-pointer transition-colors
-                  ${maxParticipants === num 
-                    ? 'bg-primary/20 border-primary' 
-                    : 'bg-black/30 border-white/10 hover:bg-black/40'}`}
-                onClick={() => setMaxParticipants(num)}
-              >
-                {num} Players
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center mb-4">
-          <div className="font-medium">Total Cost:</div>
-          <div className="flex items-center text-xl font-bold">
-            <Gem className="h-5 w-5 text-gem mr-1" />
-            <span>{totalCost}</span>
-          </div>
-        </div>
-        
-        <Button 
-          onClick={() => createBattle(selectedCases, maxParticipants)} 
-          className="w-full"
-          disabled={selectedCases.length === 0 || !user || user.balance < totalCost}
-        >
-          Create Battle
-        </Button>
-      </div>
-    );
+    // For demo purposes, just update the UI
+    toast.success(`${randomBotName} joined the battle!`);
+    
+    // In a real app, you would call an API here
+    // For now, we'll just update our local state
+    setSelectedBattle(updatedBattle as Battle);
   };
 
   return (
-    <div className="p-4">
-      {selectedBattle ? (
-        renderBattleView(selectedBattle)
-      ) : (
-        <>
-          {renderCreateBattle()}
-          
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold mb-2">Active Battles</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {battles.filter(b => b.status !== 'completed').map(battle => (
-                <div key={battle.id}>
-                  {renderBattleCard(battle)}
-                </div>
+    <div className="w-full">
+      <Tabs defaultValue="active" className="w-full">
+        <TabsList className="grid grid-cols-3 mb-4">
+          <TabsTrigger value="active">Active Battles</TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="my">My Battles</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="w-full">
+          <ScrollArea className="h-[500px] w-full pr-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {battles.filter(battle => battle.status !== 'completed').map((battle) => (
+                <Card key={battle.id} className="bg-black/40 border-primary/20 p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <div>
+                      <Badge variant="outline" className="bg-primary/10 text-primary">
+                        {battle.type}
+                      </Badge>
+                      <Badge variant="outline" className="ml-2 bg-black/50">
+                        {battle.rounds} Rounds
+                      </Badge>
+                      {battle.cursedMode && (
+                        <Badge variant="destructive" className="ml-2 bg-red-900/50">
+                          Cursed Mode
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      {new Date(battle.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <Avatar className="h-8 w-8 mr-2">
+                        <AvatarImage src={battle.creator.avatar} alt={battle.creator.name} />
+                        <AvatarFallback>{battle.creator.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{battle.creator.name}</p>
+                        <p className="text-xs text-muted-foreground">Creator</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{battle.cost * battle.rounds} Gems</p>
+                      <p className="text-xs text-muted-foreground">Total Value</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-1 mb-3">
+                    {battle.cases && battle.cases.slice(0, 5).map((caseItem, index) => (
+                      <div key={index} className="aspect-square rounded-md bg-primary/10 p-1 flex items-center justify-center">
+                        <img 
+                          src={caseItem.image} 
+                          alt={caseItem.name} 
+                          className="w-full h-full object-contain" 
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 text-muted-foreground mr-1" />
+                      <span className="text-sm">{battle.players.length}/{battle.maxPlayers}</span>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {battle.status === 'in-progress' ? (
+                        <Button 
+                          variant="outline"
+                          className="text-xs h-8"
+                          onClick={() => handleSpectate(battle.id)}
+                        >
+                          Spectate
+                        </Button>
+                      ) : (
+                        <Button 
+                          className="text-xs h-8"
+                          onClick={() => handleJoinBattle(battle.id)}
+                          disabled={battle.players.length >= battle.maxPlayers || 
+                            battle.players.some(p => p.id === user?.id)}
+                        >
+                          Join Battle
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
               ))}
-              
-              {battles.filter(b => b.status !== 'completed').length === 0 && (
-                <div className="col-span-full text-center py-8 text-muted-foreground">
-                  No active battles. Create one to get started!
-                </div>
-              )}
             </div>
-          </div>
-          
-          <div>
-            <h2 className="text-xl font-semibold mb-2">Completed Battles</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {battles.filter(b => b.status === 'completed').map(battle => (
-                <div key={battle.id}>
-                  {renderBattleCard(battle)}
-                </div>
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="completed">
+          <ScrollArea className="h-[500px] w-full pr-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {battles.filter(battle => battle.status === 'completed').map((battle) => (
+                <Card key={battle.id} className="bg-black/40 border-primary/20 p-4">
+                  {/* Display completed battles similar to active ones */}
+                  <div className="flex justify-between items-center mb-3">
+                    <div>
+                      <Badge variant="outline" className="bg-primary/10 text-primary">
+                        {battle.type}
+                      </Badge>
+                      <Badge variant="outline" className="ml-2 bg-black/50">
+                        {battle.rounds} Rounds
+                      </Badge>
+                    </div>
+                    <Badge variant="outline" className="bg-green-900/50 text-green-400">
+                      Completed
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <Avatar className="h-8 w-8 mr-2 ring-2 ring-yellow-500">
+                        <AvatarImage src={battle.winner?.avatar || ''} alt={battle.winner?.name || ''} />
+                        <AvatarFallback>{battle.winner?.name[0] || '?'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-center">
+                          <p className="text-sm font-medium">{battle.winner?.name || 'Unknown'}</p>
+                          <Crown className="h-4 w-4 text-yellow-500 ml-1" />
+                        </div>
+                        <p className="text-xs text-green-400">Winner</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{battle.cost * battle.rounds} Gems</p>
+                      <p className="text-xs text-muted-foreground">Total Value</p>
+                    </div>
+                  </div>
+
+                  <Button 
+                    variant="outline"
+                    className="w-full text-xs h-8"
+                    onClick={() => handleSpectate(battle.id)}
+                  >
+                    View Results
+                  </Button>
+                </Card>
               ))}
-              
-              {battles.filter(b => b.status === 'completed').length === 0 && (
-                <div className="col-span-full text-center py-8 text-muted-foreground">
-                  No completed battles yet.
-                </div>
-              )}
             </div>
-          </div>
-        </>
-      )}
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="my">
+          <ScrollArea className="h-[500px] w-full pr-4">
+            {user ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {battles.filter(battle => battle.players.some(p => p.id === user.id)).map((battle) => (
+                  <Card key={battle.id} className="bg-black/40 border-primary/20 p-4">
+                    {/* Display user's battles similar to active ones */}
+                    <div className="flex justify-between items-center mb-3">
+                      <div>
+                        <Badge variant="outline" className="bg-primary/10 text-primary">
+                          {battle.type}
+                        </Badge>
+                        <Badge variant="outline" className="ml-2 bg-black/50">
+                          {battle.rounds} Rounds
+                        </Badge>
+                      </div>
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          battle.status === 'completed' 
+                            ? "bg-green-900/50 text-green-400"
+                            : battle.status === 'in-progress'
+                              ? "bg-amber-900/50 text-amber-400"
+                              : "bg-blue-900/50 text-blue-400"
+                        }
+                      >
+                        {battle.status === 'completed' ? 'Completed' : 
+                         battle.status === 'in-progress' ? 'In Progress' : 'Waiting'}
+                      </Badge>
+                    </div>
+
+                    <Button 
+                      variant="outline"
+                      className="w-full text-xs h-8"
+                      onClick={() => battle.status === 'waiting' 
+                        ? handleJoinBattle(battle.id) 
+                        : handleSpectate(battle.id)
+                      }
+                    >
+                      {battle.status === 'waiting' ? 'Join Battle' : 'View Battle'}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Please log in to see your battles</p>
+              </div>
+            )}
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
+
+      {/* Battle Detail Dialog */}
+      <Dialog open={!!selectedBattle} onOpenChange={() => setSelectedBattle(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Battle Details</DialogTitle>
+            <DialogDescription>
+              View battle information and participants
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedBattle && (
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <div>
+                  <h3 className="font-semibold">{selectedBattle.type} Battle</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedBattle.rounds} rounds with {selectedBattle.caseType} cases
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">{selectedBattle.cost * selectedBattle.rounds} Gems</p>
+                  <p className="text-sm text-muted-foreground">Total Value</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {selectedBattle.players.map((player, index) => (
+                  <div key={index} className="bg-black/40 p-3 rounded-md">
+                    <div className="flex items-center">
+                      <Avatar className="h-8 w-8 mr-2">
+                        <AvatarImage src={player.avatar} alt={player.name} />
+                        <AvatarFallback>{player.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium truncate">{player.name}</p>
+                        {player.isBot && (
+                          <Badge variant="outline" className="text-xs">Bot</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Empty slots */}
+                {Array.from({ length: selectedBattle.maxPlayers - selectedBattle.players.length }).map((_, index) => (
+                  <div key={`empty-${index}`} className="bg-black/20 p-3 rounded-md border border-dashed border-white/10 flex items-center justify-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-auto p-1 text-xs"
+                      onClick={() => addBot(selectedBattle)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Bot
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Cases</h4>
+                <div className="grid grid-cols-5 gap-2">
+                  {selectedBattle.cases && selectedBattle.cases.map((caseItem, index) => (
+                    <div key={index} className="aspect-square bg-primary/10 rounded-md p-2 flex flex-col items-center justify-between">
+                      <img src={caseItem.image} alt={caseItem.name} className="w-full h-2/3 object-contain" />
+                      <p className="text-xs text-center truncate w-full">{caseItem.name}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setSelectedBattle(null)}>
+                  Close
+                </Button>
+                <Button 
+                  onClick={() => {
+                    handleJoinBattle(selectedBattle.id);
+                    setSelectedBattle(null);
+                  }}
+                  disabled={selectedBattle.players.some(p => p.id === user?.id) || 
+                    selectedBattle.players.length >= selectedBattle.maxPlayers}
+                >
+                  Join Battle
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
