@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -245,7 +246,8 @@ const Cases: React.FC = () => {
         return {
           ...b,
           players: updatedPlayers,
-          status: battleReady ? 'starting' : 'waiting'
+          // Ensure status is one of the allowed values in the union type
+          status: battleReady ? 'starting' as const : 'waiting' as const
         };
       }
       return b;
@@ -258,8 +260,8 @@ const Cases: React.FC = () => {
       description: "The battle will start when all slots are filled."
     });
     
-    const updatedBattle = updatedBattles.find(b => b.id === battleId);
-    if (updatedBattle && updatedBattle.status === 'starting') {
+    const foundBattle = updatedBattles.find(b => b.id === battleId);
+    if (foundBattle && foundBattle.status === 'starting') {
       setTimeout(() => {
         startBattle(battleId);
       }, 3000);
@@ -284,7 +286,7 @@ const Cases: React.FC = () => {
 
   const startBattle = (battleId: string) => {
     setBattles(prev => prev.map(b => 
-      b.id === battleId ? { ...b, status: 'in-progress' } : b
+      b.id === battleId ? { ...b, status: 'in-progress' as const } : b
     ));
     
     setTimeout(() => {
@@ -298,7 +300,7 @@ const Cases: React.FC = () => {
       setBattles(prev => prev.map(b => 
         b.id === battleId ? { 
           ...b, 
-          status: 'completed', 
+          status: 'completed' as const, 
           winner: winner 
         } : b
       ));
