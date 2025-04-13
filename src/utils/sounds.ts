@@ -1,10 +1,18 @@
-
 // Sound effects for the case slider
 export const playTickSound = () => {
   const audio = new Audio('/sounds/tick.mp3');
   audio.volume = 0.1;
   audio.play().catch(error => {
     console.error("Error playing tick sound:", error);
+  });
+};
+
+// General play function for soundEffects.ts
+export const play = (sound: string) => {
+  const audio = new Audio(`/sounds/${sound}.mp3`);
+  audio.volume = 0.2;
+  audio.play().catch(error => {
+    console.error(`Error playing ${sound} sound:`, error);
   });
 };
 

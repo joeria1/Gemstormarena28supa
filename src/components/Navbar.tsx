@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { Button } from './ui/button';
 import { Menu } from 'lucide-react';
-import RocketLogo from './RocketLogo';
+import { RocketLogo } from './RocketLogo';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);

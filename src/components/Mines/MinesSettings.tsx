@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -118,8 +117,8 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
           </Button>
         ) : (
           <Button 
-            className="w-full"
-            variant="success"
+            className="w-full bg-green-500 hover:bg-green-600"
+            variant="default"
             onClick={handleCashout}
           >
             Cashout ({currentMultiplier?.toFixed(2)}x)

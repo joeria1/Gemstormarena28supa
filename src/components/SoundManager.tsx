@@ -1,61 +1,15 @@
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React from 'react';
+import { useSound } from './ui/sound-context';
 
-interface SoundContextType {
-  isMuted: boolean;
-  toggleMute: () => void;
-  playSound: (url: string, volume?: number) => void;
-}
-
-const SoundContext = createContext<SoundContextType>({
-  isMuted: false,
-  toggleMute: () => {},
-  playSound: () => {}
-});
-
-export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isMuted, setIsMuted] = useState(() => {
-    const stored = localStorage.getItem('isMuted');
-    return stored ? JSON.parse(stored) : false;
-  });
+const SoundManager: React.FC = () => {
+  const { isMuted } = useSound();
   
-  const [audioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
-  
-  useEffect(() => {
-    localStorage.setItem('isMuted', JSON.stringify(isMuted));
-  }, [isMuted]);
-
-  const toggleMute = () => {
-    setIsMuted(prev => !prev);
-  };
-
-  const playSound = (url: string, volume: number = 0.5) => {
-    if (isMuted) return;
-    
-    // Check if audio for this URL already exists
-    let audio = audioElements.get(url);
-    
-    if (!audio) {
-      // Create and store a new audio element if one doesn't exist
-      audio = new Audio(url);
-      audioElements.set(url, audio);
-    }
-    
-    // Reset audio and play
-    audio.currentTime = 0;
-    audio.volume = volume;
-    
-    // Play the sound
-    audio.play().catch(error => {
-      console.error("Error playing sound:", error);
-    });
-  };
-
   return (
-    <SoundContext.Provider value={{ isMuted, toggleMute, playSound }}>
-      {children}
-    </SoundContext.Provider>
+    <div className="fixed bottom-4 left-4 z-50">
+      {/* Sound indicator could be placed here if needed */}
+    </div>
   );
 };
 
-export const useSound = () => useContext(SoundContext);
+export default SoundManager;

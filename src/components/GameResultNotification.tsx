@@ -15,6 +15,7 @@ export const showGameResult = ({ success, message, multiplier, amount }: GameRes
     title: success ? 'Success!' : 'Game Over',
     description: (
       <div className="flex items-center space-x-2">
+        {success ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
         <span>{message}</span>
         {multiplier && (
           <span className={`font-bold ${success ? 'text-green-500' : 'text-red-500'}`}>
@@ -29,7 +30,6 @@ export const showGameResult = ({ success, message, multiplier, amount }: GameRes
       </div>
     ),
     variant: success ? "default" : "destructive",
-    icon: success ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />,
     duration: 5000,
   });
 };
