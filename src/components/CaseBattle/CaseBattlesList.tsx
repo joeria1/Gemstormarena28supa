@@ -16,7 +16,7 @@ interface Player {
   isBot?: boolean;
 }
 
-interface Battle {
+export interface Battle {
   id: string;
   type: string;
   caseType: string;

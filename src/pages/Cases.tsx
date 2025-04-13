@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
 import ChatWindow from '@/components/Chat/ChatWindow';
 import CaseBattleCreator from '@/components/CaseBattle/CaseBattleCreator';
-import CaseBattlesList from '@/components/CaseBattle/CaseBattlesList';
+import CaseBattlesList, { Battle } from '@/components/CaseBattle/CaseBattlesList';
 import { SliderItem } from '@/types/slider';
 import { useUser } from '@/context/UserContext';
 import { toast } from 'sonner';
@@ -267,7 +266,7 @@ const Cases: React.FC = () => {
         return {
           ...b,
           players: updatedPlayers,
-          status: battleReady ? 'starting' : 'waiting'
+          status: battleReady ? 'starting' as const : 'waiting' as const
         };
       }
       return b;
@@ -290,7 +289,7 @@ const Cases: React.FC = () => {
   };
   
   // Create a case battle
-  const createBattle = (battleData: any) => {
+  const createBattle = (battleData: Battle) => {
     // Add the battle to the list
     setBattles(prev => [battleData, ...prev]);
     

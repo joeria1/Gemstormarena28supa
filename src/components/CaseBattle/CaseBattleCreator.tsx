@@ -8,11 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useUser } from "@/context/UserContext";
 import { playButtonSound } from "@/utils/sounds";
-import { Box, Plus, Minus, Skull, Users, Bot, Dice, RotateCw } from "lucide-react";
+import { Box, Plus, Minus, Skull, Users, Bot, Dice1, RotateCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Battle } from './CaseBattlesList';
 
 // Case types
-const CASE_TYPES = [
+interface CaseType {
+  id: string;
+  name: string;
+  price: number;
+}
+
+const CASE_TYPES: CaseType[] = [
   { id: 'standard', name: 'Standard Case', price: 100 },
   { id: 'premium', name: 'Premium Case', price: 500 },
   { id: 'battle', name: 'Battle Case', price: 250 },
@@ -34,7 +41,7 @@ const BATTLE_CONFIGS: BattleConfig[] = [
 ];
 
 interface CaseBattleCreatorProps {
-  onBattleCreate: (battleData: any) => void;
+  onBattleCreate: (battleData: Battle) => void;
 }
 
 const CaseBattleCreator: React.FC<CaseBattleCreatorProps> = ({ onBattleCreate }) => {
@@ -50,7 +57,7 @@ const CaseBattleCreator: React.FC<CaseBattleCreatorProps> = ({ onBattleCreate })
   const currentBattleConfig = BATTLE_CONFIGS.find(config => config.id === battleType) || BATTLE_CONFIGS[0];
   
   // Get current case configuration
-  const currentCase = CASE_TYPES.find(caseType => caseType.id === caseType) || CASE_TYPES[0];
+  const currentCase = CASE_TYPES.find(caseItem => caseItem.id === caseType) || CASE_TYPES[0];
   
   // Calculate total cost
   const calculateTotalCost = () => {
@@ -76,7 +83,7 @@ const CaseBattleCreator: React.FC<CaseBattleCreatorProps> = ({ onBattleCreate })
     setIsCreating(true);
     
     // Create battle data
-    const battleData = {
+    const battleData: Battle = {
       id: `battle-${Date.now()}`,
       type: battleType,
       caseType: caseType,
@@ -166,9 +173,9 @@ const CaseBattleCreator: React.FC<CaseBattleCreatorProps> = ({ onBattleCreate })
               <SelectValue placeholder="Select Case Type" />
             </SelectTrigger>
             <SelectContent>
-              {CASE_TYPES.map(caseType => (
-                <SelectItem key={caseType.id} value={caseType.id}>
-                  {caseType.name} ({caseType.price} gems)
+              {CASE_TYPES.map(caseItem => (
+                <SelectItem key={caseItem.id} value={caseItem.id}>
+                  {caseItem.name} ({caseItem.price} gems)
                 </SelectItem>
               ))}
             </SelectContent>
@@ -247,7 +254,7 @@ const CaseBattleCreator: React.FC<CaseBattleCreatorProps> = ({ onBattleCreate })
               </>
             ) : (
               <>
-                <Dice className="mr-2 h-4 w-4" />
+                <Dice1 className="mr-2 h-4 w-4" />
                 Create Battle
               </>
             )}
