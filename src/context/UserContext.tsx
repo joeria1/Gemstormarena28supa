@@ -1,7 +1,9 @@
+
 import React, { createContext, useState, useContext } from 'react';
 
 interface UserContextType {
   user: {
+    id: string;
     username: string;
     balance: number;
     avatar?: string;
@@ -13,10 +15,12 @@ interface UserContextType {
   };
   updateUser: (user: any) => void;
   updateBalance: (amount: number) => void;
+  addBet?: (amount: number) => void;
 }
 
-const UserContext = createContext<UserContextType>({
+export const UserContext = createContext<UserContextType>({
   user: {
+    id: 'player123',
     username: 'Player',
     balance: 5000,
     avatar: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Player',
@@ -28,10 +32,12 @@ const UserContext = createContext<UserContextType>({
   },
   updateUser: () => {},
   updateBalance: () => {},
+  addBet: () => {},
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState({
+    id: 'player123',
     username: 'Player',
     balance: 5000,
     avatar: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Player',
@@ -53,8 +59,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }));
   };
 
+  const addBet = (amount: number) => {
+    setUser(prevUser => ({
+      ...prevUser,
+      wagered: (prevUser.wagered || 0) + amount
+    }));
+  };
+
   return (
-    <UserContext.Provider value={{ user, updateUser, updateBalance }}>
+    <UserContext.Provider value={{ user, updateUser, updateBalance, addBet }}>
       {children}
     </UserContext.Provider>
   );
