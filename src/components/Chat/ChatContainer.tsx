@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import RainFeature from './RainFeature';
 import { preventAutoScroll } from '@/utils/scrollFix';
 
@@ -15,7 +15,7 @@ const ChatContainer = () => {
   const { user } = useUser();
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [userScrolled, setUserScrolled] = useState(false);
   
   // Prevent automatic scrolling
@@ -55,8 +55,8 @@ const ChatContainer = () => {
       text: trimmedMessage,
       user: {
         id: user.id,
-        name: user.name,
-        avatar: user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name),
+        name: user.username,
+        avatar: user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.username),
       },
       timestamp: new Date().toISOString(),
     });

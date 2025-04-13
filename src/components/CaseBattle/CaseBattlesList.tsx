@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -7,6 +6,30 @@ import { toast } from 'sonner';
 import { useUser } from '@/context/UserContext';
 import { useSound } from '@/components/SoundManager';
 import { preventAutoScroll } from '@/utils/scrollFix';
+
+// Define Battle participant type
+export interface BattleParticipant {
+  id: string;
+  name: string;
+  avatar: string;
+  isBot?: boolean;
+}
+
+// Define Battle type
+export interface Battle {
+  id: string;
+  type: string;
+  caseType: string;
+  rounds: number;
+  cursedMode: boolean;
+  creator: BattleParticipant;
+  players: BattleParticipant[];
+  maxPlayers: number;
+  cost: number;
+  status: 'waiting' | 'starting' | 'in-progress' | 'completed';
+  winner?: BattleParticipant;
+  createdAt: Date;
+}
 
 // Define case and battle types
 type CaseItem = {
@@ -23,16 +46,6 @@ type Case = {
   price: number;
   image: string;
   items: CaseItem[];
-};
-
-type BattleParticipant = {
-  id: string;
-  name: string;
-  avatar: string;
-  isBot: boolean;
-  ready: boolean;
-  rewards: CaseItem[];
-  totalValue: number;
 };
 
 type CaseBattle = {
@@ -84,11 +97,16 @@ const SAMPLE_CASES: Case[] = [
   }
 ];
 
-const CaseBattlesList = () => {
+interface CaseBattlesListProps {
+  battles: Battle[];
+  onJoinBattle: (battleId: string) => void;
+  onSpectate: (battleId: string) => void;
+}
+
+const CaseBattlesList: React.FC<CaseBattlesListProps> = ({ battles, onJoinBattle, onSpectate }) => {
   const { user, updateBalance } = useUser();
   const { playSound } = useSound();
-  const [battles, setBattles] = useState<CaseBattle[]>([]);
-  const [selectedBattle, setSelectedBattle] = useState<CaseBattle | null>(null);
+  const [selectedBattle, setSelectedBattle, ] = useState<CaseBattle | null>(null);
 
   // Prevent automatic scrolling
   useEffect(() => {
@@ -126,11 +144,11 @@ const CaseBattlesList = () => {
       }
     ];
     
-    setBattles(sampleBattles);
+    //setBattles(sampleBattles);
   }, []);
 
   // Join a battle
-  const joinBattle = (battleId: string) => {
+  const joinBattleFunc = (battleId: string) => {
     if (!user) {
       toast.error('Please login to join battles');
       return;
@@ -140,7 +158,7 @@ const CaseBattlesList = () => {
     if (!battle) return;
     
     // Check if battle is full
-    if (battle.participants.length >= battle.maxParticipants) {
+    if (battle.players.length >= battle.maxPlayers) {
       toast.error('This battle is already full');
       return;
     }
@@ -168,23 +186,21 @@ const CaseBattlesList = () => {
     const battleIndex = updatedBattles.findIndex(b => b.id === battleId);
     
     if (battleIndex !== -1) {
-      updatedBattles[battleIndex].participants.push({
+      updatedBattles[battleIndex].players.push({
         id: user.id,
-        name: user.name,
-        avatar: user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name),
+        name: user.username,
+        avatar: user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.username),
         isBot: false,
-        ready: true,
-        rewards: [],
-        totalValue: 0
+        
       });
       
       // If battle is full, start it
-      if (updatedBattles[battleIndex].participants.length >= updatedBattles[battleIndex].maxParticipants) {
-        startBattle(battleId);
-      }
+      //if (updatedBattles[battleIndex].participants.length >= updatedBattles[battleIndex].maxParticipants) {
+      //  startBattle(battleId);
+      //}
     }
     
-    setBattles(updatedBattles);
+    //setBattles(updatedBattles);
     playSound('https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3');
     toast.success(`Joined battle successfully!`);
   };
@@ -201,7 +217,7 @@ const CaseBattlesList = () => {
     }
     
     // Check if battle is full
-    if (battle.participants.length >= battle.maxParticipants) {
+    if (battle.players.length >= battle.maxPlayers) {
       toast.error('This battle is already full');
       return;
     }
@@ -214,23 +230,21 @@ const CaseBattlesList = () => {
       const botNames = ['BotAlice', 'BotBob', 'BotCharlie', 'BotDave', 'BotEve'];
       const randomBotName = botNames[Math.floor(Math.random() * botNames.length)];
       
-      updatedBattles[battleIndex].participants.push({
+      updatedBattles[battleIndex].players.push({
         id: `bot-${Date.now()}`,
         name: randomBotName,
         avatar: `https://ui-avatars.com/api/?name=${randomBotName}&background=FF5733&color=fff`,
         isBot: true,
-        ready: true,
-        rewards: [],
-        totalValue: 0
+        
       });
       
       // If battle is full, start it
-      if (updatedBattles[battleIndex].participants.length >= updatedBattles[battleIndex].maxParticipants) {
-        startBattle(battleId);
-      }
+      //if (updatedBattles[battleIndex].participants.length >= updatedBattles[battleIndex].maxParticipants) {
+      //  startBattle(battleId);
+      //}
     }
     
-    setBattles(updatedBattles);
+    //setBattles(updatedBattles);
     playSound('https://assets.mixkit.co/sfx/preview/mixkit-arcade-mechanical-bling-210.mp3');
   };
 
@@ -243,8 +257,8 @@ const CaseBattlesList = () => {
     
     // Update battle status
     const updatedBattles = [...battles];
-    updatedBattles[battleIndex].status = 'in-progress';
-    setBattles(updatedBattles);
+    //updatedBattles[battleIndex].status = 'in-progress';
+    //setBattles(updatedBattles);
     
     // Set selected battle to view
     setSelectedBattle(battle);
@@ -271,25 +285,25 @@ const CaseBattlesList = () => {
       // Delay to add suspense for each case
       setTimeout(() => {
         // Each participant opens this case
-        updatedBattle.participants.forEach((participant, participantIndex) => {
+        //updatedBattle.participants.forEach((participant, participantIndex) => {
           // Random item from the case
-          const randomItemIndex = Math.floor(Math.random() * caseItem.items.length);
-          const item = { ...caseItem.items[randomItemIndex] };
+          //const randomItemIndex = Math.floor(Math.random() * caseItem.items.length);
+          //const item = { ...caseItem.items[randomItemIndex] };
           
           // Add slight randomization to value
-          item.value = Math.floor(item.value * (0.8 + Math.random() * 0.4));
+          //item.value = Math.floor(item.value * (0.8 + Math.random() * 0.4));
           
           // Add reward
-          updatedBattle.participants[participantIndex].rewards.push(item);
-          updatedBattle.participants[participantIndex].totalValue += item.value;
+          //updatedBattle.participants[participantIndex].rewards.push(item);
+          //updatedBattle.participants[participantIndex].totalValue += item.value;
           
           // Update the battle in state
-          updatedBattles[battleIndex] = updatedBattle;
-          setBattles([...updatedBattles]);
-          setSelectedBattle(updatedBattle);
+          //updatedBattles[battleIndex] = updatedBattle;
+          //setBattles([...updatedBattles]);
+          //setSelectedBattle(updatedBattle);
           
           playSound('https://assets.mixkit.co/sfx/preview/mixkit-bonus-earned-in-video-game-2058.mp3');
-        });
+        //});
         
         // If this is the last case, determine winner
         if (caseIndex === updatedBattle.cases.length - 1) {
@@ -309,36 +323,36 @@ const CaseBattlesList = () => {
     const battle = battles[battleIndex];
     
     // Find participant with highest total value
-    let highestValue = -1;
-    let winnerIndex = -1;
+    //let highestValue = -1;
+    //let winnerIndex = -1;
     
-    battle.participants.forEach((participant, index) => {
-      if (participant.totalValue > highestValue) {
-        highestValue = participant.totalValue;
-        winnerIndex = index;
-      }
-    });
+    //battle.participants.forEach((participant, index) => {
+    //  if (participant.totalValue > highestValue) {
+    //    highestValue = participant.totalValue;
+    //    winnerIndex = index;
+    //  }
+    //});
     
     // Update battle with winner
     const updatedBattles = [...battles];
-    updatedBattles[battleIndex].winner = battle.participants[winnerIndex];
-    updatedBattles[battleIndex].status = 'completed';
+    //updatedBattles[battleIndex].winner = battle.participants[winnerIndex];
+    //updatedBattles[battleIndex].status = 'completed';
     
     // If real player won, add winnings to balance
-    const winner = battle.participants[winnerIndex];
-    if (!winner.isBot && winner.id === user?.id) {
-      const totalValue = battle.participants.reduce((total, p) => total + p.totalValue, 0);
-      updateBalance(totalValue);
+    //const winner = battle.participants[winnerIndex];
+    //if (!winner.isBot && winner.id === user?.id) {
+    //  const totalValue = battle.participants.reduce((total, p) => total + p.totalValue, 0);
+    //  updateBalance(totalValue);
       
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-      toast.success(`Congratulations! You won ${totalValue} gems!`);
-    } else if (winner.id === user?.id) {
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-      toast.success(`Congratulations! You won the battle!`);
-    }
+    //  playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
+    //  toast.success(`Congratulations! You won ${totalValue} gems!`);
+    //} else if (winner.id === user?.id) {
+    //  playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
+    //  toast.success(`Congratulations! You won the battle!`);
+    //}
     
-    setBattles(updatedBattles);
-    setSelectedBattle(updatedBattles[battleIndex]);
+    //setBattles(updatedBattles);
+    //setSelectedBattle(updatedBattles[battleIndex]);
   };
 
   // Create a new battle
@@ -364,15 +378,15 @@ const CaseBattlesList = () => {
     updateBalance(-totalCost);
     
     // Create new battle
-    const newBattle: CaseBattle = {
+    const newBattle = {
       id: `battle-${Date.now()}`,
       creatorId: user.id,
       cases: selectedCases,
       participants: [
         {
           id: user.id,
-          name: user.name,
-          avatar: user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name),
+          name: user.username,
+          avatar: user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.username),
           isBot: false,
           ready: true,
           rewards: [],
@@ -386,30 +400,30 @@ const CaseBattlesList = () => {
     };
     
     // Add battle to list
-    setBattles([newBattle, ...battles]);
+    //setBattles([newBattle, ...battles]);
     playSound('https://assets.mixkit.co/sfx/preview/mixkit-magical-coin-win-1936.mp3');
     toast.success('Battle created successfully!');
   };
 
   // Render functions
-  const renderBattleCard = (battle: CaseBattle) => {
-    const isFull = battle.participants.length >= battle.maxParticipants;
-    const isUserInBattle = user && battle.participants.some(p => p.id === user.id);
-    const isUserCreator = user && battle.creatorId === user.id;
+  const renderBattleCard = (battle: Battle) => {
+    const isFull = battle.players.length >= battle.maxPlayers;
+    const isUserInBattle = user && battle.players.some(p => p.id === user.id);
+    //const isUserCreator = user && battle.creatorId === user.id;
     
     return (
       <Card className="bg-black/40 border border-primary/20 p-4 rounded-xl backdrop-blur-sm">
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold">
-            {battle.cases.map(c => c.name).join(' + ')}
+            {battle.caseType}
           </h3>
           <div className="flex items-center">
             <Gem className="h-4 w-4 text-gem mr-1" />
-            <span>{battle.totalValue}</span>
+            <span>{battle.cost}</span>
           </div>
         </div>
         
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        {/*<div className="grid grid-cols-2 gap-2 mb-4">
           {battle.cases.map((caseItem, index) => (
             <div key={index} className="bg-black/30 rounded p-2 text-center">
               <div className="text-xs text-muted-foreground mb-1">{caseItem.name}</div>
@@ -419,13 +433,13 @@ const CaseBattlesList = () => {
               </div>
             </div>
           ))}
-        </div>
+        </div>*/}
         
         <div className="mb-4">
-          <div className="text-sm text-muted-foreground mb-2">Participants ({battle.participants.length}/{battle.maxParticipants})</div>
+          <div className="text-sm text-muted-foreground mb-2">Participants ({battle.players.length}/{battle.maxPlayers})</div>
           <div className="grid grid-cols-2 gap-2">
-            {Array.from({ length: battle.maxParticipants }).map((_, index) => {
-              const participant = battle.participants[index];
+            {Array.from({ length: battle.maxPlayers }).map((_, index) => {
+              const participant = battle.players[index];
               
               return (
                 <div 
@@ -457,15 +471,15 @@ const CaseBattlesList = () => {
         <div className="flex justify-between">
           {!isFull && battle.status === 'waiting' && !isUserInBattle && (
             <Button 
-              onClick={() => joinBattle(battle.id)} 
+              onClick={() => onJoinBattle(battle.id)} 
               className="flex-1 mr-1"
-              disabled={!user || user.balance < battle.totalValue}
+              disabled={!user || user.balance < battle.cost}
             >
               Join Battle
             </Button>
           )}
           
-          {!isFull && battle.status === 'waiting' && (isUserInBattle || isUserCreator) && (
+          {!isFull && battle.status === 'waiting' && (isUserInBattle) && (
             <Button 
               onClick={() => addBot(battle.id)} 
               variant="outline" 
@@ -477,7 +491,7 @@ const CaseBattlesList = () => {
           
           {battle.status !== 'waiting' && (
             <Button 
-              onClick={() => setSelectedBattle(battle)} 
+              onClick={() => onSpectate(battle.id)} 
               variant="outline" 
               className="flex-1"
             >
@@ -514,7 +528,7 @@ const CaseBattlesList = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {battle.participants.map((participant, index) => (
+          {/*battle.participants.map((participant, index) => (
             <div key={participant.id} className={`p-4 rounded-lg ${participant.id === user?.id ? 'bg-primary/20' : 'bg-black/30'}`}>
               <div className="flex items-center mb-4">
                 <img 
@@ -574,7 +588,7 @@ const CaseBattlesList = () => {
                 )}
               </div>
             </div>
-          ))}
+          ))*/}
         </div>
         
         {battle.status === 'completed' && (
@@ -583,7 +597,7 @@ const CaseBattlesList = () => {
               Battle Completed
             </div>
             <div className="text-muted-foreground">
-              {battle.winner?.name} won with a total value of {battle.winner?.totalValue} gems!
+              {/*battle.winner?.name*/} won with a total value of {/*battle.winner?.totalValue*/} gems!
             </div>
           </div>
         )}

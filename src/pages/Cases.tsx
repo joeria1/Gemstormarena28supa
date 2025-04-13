@@ -365,7 +365,6 @@ const Cases: React.FC = () => {
               </TabsList>
               
               <TabsContent value="cases" className="space-y-6 py-4">
-                {/* Case selection */}
                 <div className="grid grid-cols-3 gap-4">
                   {Object.keys(caseItems).map(caseKey => (
                     <Card 
@@ -388,7 +387,6 @@ const Cases: React.FC = () => {
                   ))}
                 </div>
                 
-                {/* Case slider */}
                 <Card className="bg-black/40 border-white/10 p-6">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-xl font-semibold">{caseNames[activeCase as keyof typeof caseNames]}</h2>
@@ -419,7 +417,6 @@ const Cases: React.FC = () => {
                   </div>
                 </Card>
                 
-                {/* Last won item */}
                 {lastWon && (
                   <Card className="bg-black/40 border-white/10 p-6">
                     <h2 className="text-lg font-semibold mb-4">Last Item Won</h2>
@@ -496,7 +493,6 @@ const Cases: React.FC = () => {
             </Tabs>
           </div>
           
-          {/* Chat sidebar */}
           <div className="col-span-1">
             <ChatWindow className="h-full" />
           </div>

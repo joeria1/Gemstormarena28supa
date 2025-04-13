@@ -4,6 +4,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 interface User {
   id: string;
   username: string;
+  name: string; // Add name as an alias for username for backward compatibility
   avatar: string;
   balance: number;
   level?: number;
@@ -19,7 +20,7 @@ interface UserContextType {
   logout: () => void;
 }
 
-const defaultUser: Omit<User, 'updateBalance'> = {
+const defaultUser: Omit<User, 'updateBalance' | 'name'> = {
   id: 'user-1',
   username: 'GemHunter',
   avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=GemHunter',
@@ -47,17 +48,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsedUser = JSON.parse(storedUser);
         setUser({
           ...parsedUser,
+          name: parsedUser.username, // Set name as an alias
           updateBalance: (amount) => updateBalance(amount)
         });
       } catch (e) {
         setUser({
           ...defaultUser,
+          name: defaultUser.username, // Set name as an alias
           updateBalance: (amount) => updateBalance(amount)
         });
       }
     } else {
       setUser({
         ...defaultUser,
+        name: defaultUser.username, // Set name as an alias
         updateBalance: (amount) => updateBalance(amount)
       });
     }
@@ -66,7 +70,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (user) {
-      const { updateBalance: _, ...userWithoutFunction } = user;
+      const { updateBalance: _, name: __, ...userWithoutFunction } = user;
       localStorage.setItem('user', JSON.stringify(userWithoutFunction));
       localStorage.setItem('userGems', user.balance.toString());
     }
@@ -90,6 +94,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = () => {
     setUser({
       ...defaultUser,
+      name: defaultUser.username, // Set name as an alias
       updateBalance: (amount) => updateBalance(amount)
     });
   };
