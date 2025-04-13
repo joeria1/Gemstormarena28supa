@@ -60,7 +60,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
   const displayMines = currentMineCount !== undefined ? currentMineCount : mines;
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto p-2">
       <div>
         <label htmlFor="bet" className="text-sm font-medium mb-1 block">
           Bet Amount
@@ -126,7 +126,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
 
       {!hideMineButtons && (
         <div>
-          <div className="grid grid-cols-3 gap-2 mt-4">
+          <div className="grid grid-cols-3 gap-2 mt-2">
             {[1, 3, 5, 10, 15, 20].map((num) => (
               <Button
                 key={num}
@@ -143,7 +143,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
         </div>
       )}
 
-      <div className="mt-6">
+      <div className="mt-4">
         {!isGameActive ? (
           <Button className="w-full" onClick={handleStart}>
             Start Game
@@ -153,7 +153,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
             className="w-full bg-green-500 hover:bg-green-600"
             onClick={handleCashout}
           >
-            Cashout ({currentMultiplier?.toFixed(2)}x)
+            Cashout ({currentMultiplier?.toFixed(2)}x • {Math.round(currentMultiplier * displayBet)} gems)
           </Button>
         )}
       </div>

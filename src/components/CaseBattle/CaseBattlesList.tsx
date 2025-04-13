@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from '@/components/ui/card';
@@ -77,7 +76,6 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle
   };
 
   if (activeBattleView) {
-    // Battle view UI - similar to the provided image
     return (
       <div className="w-full">
         <div className="flex justify-between items-center mb-6">
@@ -95,9 +93,7 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle
           </div>
         </div>
 
-        {/* Battle UI matching the image */}
         <div className="bg-gradient-to-b from-blue-950 to-black/90 rounded-xl p-6 border border-blue-900/50">
-          {/* Battle type header */}
           <div className="flex justify-between items-center mb-8">
             <div className="bg-green-600/20 text-green-400 border border-green-600/30 px-4 py-1 rounded-md">
               {activeBattleView.type}
@@ -107,16 +103,13 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle
             </div>
           </div>
 
-          {/* Players row */}
           <div className="grid grid-cols-4 gap-4 mb-10">
             {Array.from({ length: activeBattleView.maxPlayers }).map((_, index) => {
               const player = activeBattleView.players[index];
               
               return (
                 <div key={index} className="relative">
-                  {/* Player panel */}
                   <div className="bg-blue-950/60 rounded-lg border border-blue-900/50 overflow-hidden">
-                    {/* Player avatar and info */}
                     <div className="flex items-center gap-2 p-3 border-b border-blue-900/50">
                       <div className="flex items-center gap-2">
                         {player ? (
@@ -139,7 +132,6 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle
                       </div>
                     </div>
                     
-                    {/* Empty case slot area */}
                     <div className="h-40 flex items-center justify-center">
                       {player ? (
                         <div className="text-xs text-blue-400">Waiting to open cases...</div>
@@ -148,7 +140,6 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle
                       )}
                     </div>
                     
-                    {/* Join button area */}
                     <div className="p-3 border-t border-blue-900/50">
                       {player ? (
                         <div className="text-sm text-center text-blue-300">
@@ -166,9 +157,8 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle
                     </div>
                   </div>
                   
-                  {/* VS badge between players */}
-                  {index === 1 && (
-                    <div className="absolute -right-6 top-1/2 transform -translate-y-1/2 z-10">
+                  {index > 0 && index < activeBattleView.maxPlayers && index % 2 === 1 && (
+                    <div className="absolute -left-6 top-1/2 transform -translate-y-1/2 z-10">
                       <div className="bg-blue-800 text-blue-200 px-2 py-1 rounded text-xs font-bold">
                         VS
                       </div>
@@ -284,7 +274,6 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {battles.filter(battle => battle.status === 'completed').map((battle) => (
                 <Card key={battle.id} className="bg-black/40 border-primary/20 p-4">
-                  {/* Display completed battles similar to active ones */}
                   <div className="flex justify-between items-center mb-3">
                     <div>
                       <Badge variant="outline" className="bg-primary/10 text-primary">
@@ -338,7 +327,6 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {battles.filter(battle => battle.players.some(p => p.id === user.id)).map((battle) => (
                   <Card key={battle.id} className="bg-black/40 border-primary/20 p-4">
-                    {/* Display user's battles similar to active ones */}
                     <div className="flex justify-between items-center mb-3">
                       <div>
                         <Badge variant="outline" className="bg-primary/10 text-primary">

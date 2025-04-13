@@ -105,25 +105,6 @@ const RainFeature: React.FC<RainFeatureProps> = ({ isOpen }) => {
     toast.success(`You claimed ${claimAmount} gems from the rain!`);
   };
 
-  // Process command
-  const processRainCommand = (message: string) => {
-    // Check if message is a rain command
-    if (message.startsWith('/rain ')) {
-      const amount = parseInt(message.split(' ')[1]);
-      
-      if (isNaN(amount) || amount <= 0) {
-        toast.error('Invalid rain amount');
-        return true;
-      }
-      
-      setCustomRainAmount(amount);
-      startCustomRain();
-      return true;
-    }
-    
-    return false;
-  };
-
   return (
     <div className={`rain-feature ${!isOpen ? 'fixed bottom-20 right-4 z-50 bg-black/80 p-3 rounded-lg border border-primary/30' : ''}`}>
       <div className="mb-2">

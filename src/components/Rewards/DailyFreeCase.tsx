@@ -1,175 +1,165 @@
 
 import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { useUser } from '@/context/UserContext';
-import { Gift, Clock, Gem } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useUser } from '@/context/UserContext';
+import CaseSlider from '../CaseSlider/CaseSlider';
+import { SliderItem } from '@/types/slider';
+import { playSound } from '@/utils/soundEffects';
 
-interface DailyReward {
-  name: string;
-  image: string;
-  value: number;
-  rarity: string;
-}
-
-const REWARDS: DailyReward[] = [
-  { name: 'Small Gems Pack', image: '/placeholder.svg', value: 50, rarity: 'common' },
-  { name: 'Medium Gems Pack', image: '/placeholder.svg', value: 100, rarity: 'uncommon' },
-  { name: 'Large Gems Pack', image: '/placeholder.svg', value: 250, rarity: 'rare' },
-  { name: 'Huge Gems Pack', image: '/placeholder.svg', value: 500, rarity: 'epic' },
-  { name: 'Colossal Gems Pack', image: '/placeholder.svg', value: 1000, rarity: 'legendary' },
+const DAILY_ITEMS: SliderItem[] = [
+  { id: 'daily-1', name: 'Small Gems', image: '/placeholder.svg', rarity: 'common', price: 50 },
+  { id: 'daily-2', name: 'Medium Gems', image: '/placeholder.svg', rarity: 'uncommon', price: 150 },
+  { id: 'daily-3', name: 'Large Gems', image: '/placeholder.svg', rarity: 'rare', price: 500 },
+  { id: 'daily-4', name: 'Huge Gems', image: '/placeholder.svg', rarity: 'epic', price: 1000 },
+  { id: 'daily-5', name: 'Massive Gems', image: '/placeholder.svg', rarity: 'legendary', price: 2500 }
 ];
 
 const DailyFreeCase: React.FC = () => {
   const { user, updateBalance } = useUser();
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [timeUntilNext, setTimeUntilNext] = useState<number>(0);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [reward, setReward] = useState<DailyReward | null>(null);
-  const [timeUntilNextClaim, setTimeUntilNextClaim] = useState<string>('');
-  const [canClaim, setCanClaim] = useState(false);
-
-  // Check if player can claim the daily reward
-  const { data: lastClaimData, refetch } = useQuery({
-    queryKey: ['dailyReward', user?.id],
-    queryFn: async () => {
-      // Simulate API call - in a real app, this would check the server
-      const lastClaim = localStorage.getItem('lastDailyRewardClaim');
-      return lastClaim ? new Date(lastClaim) : null;
-    },
-    enabled: !!user
-  });
-
-  // Update time remaining
+  const [lastReward, setLastReward] = useState<SliderItem | null>(null);
+  
+  // Check if daily case is available
   useEffect(() => {
-    const checkEligibility = () => {
-      if (!lastClaimData) {
-        setCanClaim(true);
-        setTimeUntilNextClaim('Claim now!');
+    const checkAvailability = () => {
+      const lastClaimTime = localStorage.getItem('lastDailyClaim');
+      
+      if (!lastClaimTime) {
+        setIsAvailable(true);
         return;
       }
-
-      const now = new Date();
-      const lastClaim = new Date(lastClaimData);
-      const nextClaimTime = new Date(lastClaim);
-      nextClaimTime.setHours(nextClaimTime.getHours() + 24);
       
-      const timeDiff = nextClaimTime.getTime() - now.getTime();
+      const lastClaim = parseInt(lastClaimTime);
+      const now = Date.now();
+      const timePassed = now - lastClaim;
+      const timeRemaining = 24 * 60 * 60 * 1000 - timePassed; // 24 hours in ms
       
-      if (timeDiff <= 0) {
-        setCanClaim(true);
-        setTimeUntilNextClaim('Claim now!');
+      if (timeRemaining <= 0) {
+        setIsAvailable(true);
+        setTimeUntilNext(0);
       } else {
-        setCanClaim(false);
-        
-        // Format time
-        const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
-        
-        setTimeUntilNextClaim(`${hours}h ${minutes}m ${seconds}s`);
+        setIsAvailable(false);
+        setTimeUntilNext(Math.floor(timeRemaining / 1000));
       }
     };
     
-    checkEligibility();
-    const timer = setInterval(checkEligibility, 1000);
+    checkAvailability();
     
-    return () => clearInterval(timer);
-  }, [lastClaimData]);
-
-  const claimReward = () => {
+    const interval = setInterval(() => {
+      checkAvailability();
+      
+      if (!isAvailable && timeUntilNext > 0) {
+        setTimeUntilNext(prev => prev - 1);
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isAvailable, timeUntilNext]);
+  
+  // Format time as hh:mm:ss
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  // Claim daily case
+  const claimDailyCase = () => {
     if (!user) {
-      toast.error('Please log in to claim your daily reward');
+      toast.error('Please login to claim your daily case');
       return;
     }
     
-    if (!canClaim) {
-      toast.error('You\'ve already claimed your daily reward');
+    if (!isAvailable) {
+      toast.error('Daily case is not yet available');
       return;
     }
     
     setIsSpinning(true);
-    
-    // Simulate spinning and reward selection
-    setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * REWARDS.length);
-      const selectedReward = REWARDS[randomIndex];
-      
-      setReward(selectedReward);
-      updateBalance(selectedReward.value);
-      
-      toast.success(`You received: ${selectedReward.name}!`, {
-        description: `${selectedReward.value} gems have been added to your balance.`
-      });
-      
-      // Save claim time
-      localStorage.setItem('lastDailyRewardClaim', new Date().toISOString());
-      refetch();
-      
-      setIsSpinning(false);
-    }, 2000);
+    playSound('https://assets.mixkit.co/sfx/preview/mixkit-slot-machine-spin-1084.mp3');
   };
-
+  
+  // Handle spin complete
+  const handleSpinComplete = (item: SliderItem) => {
+    setLastReward(item);
+    updateBalance(item.price);
+    
+    // Set last claim time
+    localStorage.setItem('lastDailyClaim', Date.now().toString());
+    setIsAvailable(false);
+    setTimeUntilNext(24 * 60 * 60); // 24 hours in seconds
+    
+    toast.success(`Daily reward claimed: ${item.name}`, {
+      description: `Worth ${item.price} gems!`
+    });
+    
+    playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
+  };
+  
   return (
     <Card className="bg-black/40 border-white/10 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <div className="bg-primary/20 p-2 rounded-full mr-3">
-            <Gift className="h-5 w-5 text-primary" />
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Daily Free Case</h2>
+        
+        {!isAvailable && (
+          <div className="flex items-center text-muted-foreground">
+            <Clock className="h-4 w-4 mr-1" />
+            <span>{formatTime(timeUntilNext)}</span>
           </div>
-          <h3 className="text-xl font-bold">Daily Free Case</h3>
-        </div>
-        <div className="flex items-center text-sm bg-black/40 px-3 py-1 rounded-full border border-white/10">
-          <Clock className="h-4 w-4 mr-1 text-blue-400" />
-          <span>{timeUntilNextClaim}</span>
-        </div>
+        )}
       </div>
       
-      <div className="bg-gradient-to-b from-blue-900/30 to-violet-900/30 rounded-xl p-6 mb-6 border border-white/5">
-        <div className="grid grid-cols-5 gap-4 mb-6">
-          {REWARDS.map((item, index) => (
-            <div 
-              key={index} 
-              className={`rounded-lg p-2 text-center ${
-                reward === item 
-                  ? 'bg-gradient-to-b from-primary/30 to-primary/10 border border-primary/30 transform scale-110 transition-all'
-                  : 'bg-black/30 border border-white/10'
-              }`}
-            >
-              <div className="aspect-square rounded-md p-2 mb-2 flex items-center justify-center">
-                <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
-              </div>
-              <p className="text-xs font-medium truncate">{item.name}</p>
-              <div className="flex items-center justify-center mt-1">
-                <Gem className="h-3 w-3 text-cyan-400 mr-1" />
-                <span className="text-xs">{item.value}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {isSpinning && (
-          <Progress value={50} className="mb-6 animate-pulse" />
-        )}
-        
+      <CaseSlider 
+        items={DAILY_ITEMS} 
+        onComplete={handleSpinComplete}
+        spinDuration={5000}
+        isSpinning={isSpinning}
+        setIsSpinning={setIsSpinning}
+      />
+      
+      <div className="mt-6 text-center">
         <Button 
-          className="w-full btn-primary"
-          disabled={isSpinning || !canClaim || !user}
-          onClick={claimReward}
+          className="btn-primary"
+          onClick={claimDailyCase}
+          disabled={!isAvailable || isSpinning || !user}
         >
-          {isSpinning 
-            ? "Opening..." 
-            : canClaim 
-              ? "Claim Daily Reward" 
-              : "Already Claimed"
-          }
+          {isSpinning ? "Opening..." : isAvailable ? "Claim Daily Case" : "Case Already Claimed"}
         </Button>
       </div>
       
-      <div className="text-sm text-muted-foreground text-center">
-        Claim your free case every 24 hours!
-      </div>
+      {lastReward && (
+        <div className="mt-6 p-4 rounded-lg bg-black/20">
+          <h3 className="text-sm font-medium mb-2">Last Reward</h3>
+          <div className="flex items-center gap-4">
+            <div 
+              className={`w-12 h-12 rounded bg-gradient-to-b p-2 
+                ${lastReward.rarity === 'common' ? 'from-gray-500 to-gray-400' : 
+                  lastReward.rarity === 'uncommon' ? 'from-green-600 to-green-500' : 
+                  lastReward.rarity === 'rare' ? 'from-blue-700 to-blue-600' :
+                  lastReward.rarity === 'epic' ? 'from-purple-700 to-purple-600' :
+                  'from-amber-600 to-amber-500'}`
+              }
+            >
+              <img 
+                src={lastReward.image} 
+                alt={lastReward.name} 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div>
+              <h3 className="text-white font-medium">{lastReward.name}</h3>
+              <p className="text-sm text-gray-300">{lastReward.price} gems</p>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };

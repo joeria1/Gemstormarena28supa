@@ -1,116 +1,100 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
 
-interface User {
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+export interface User {
   id: string;
   username: string;
-  name: string; // Add name as an alias for username for backward compatibility
-  avatar: string;
+  email?: string;
   balance: number;
-  level?: number;
-  xp?: number;
-  totalBets?: number; // Add totalBets property to support Rewards.tsx
+  avatar?: string;
+  totalBets: number; // Add totalBets for RakeBack tracking
   updateBalance: (amount: number) => void;
+  addBet: (amount: number) => void; // Add method to track bets
 }
 
 interface UserContextType {
   user: User | null;
-  loading: boolean;
-  updateBalance: (amount: number) => void;
-  login: () => void;
+  login: (userData: Omit<User, 'updateBalance' | 'addBet'>) => void;
   logout: () => void;
+  updateBalance: (amount: number) => void;
+  addBet: (amount: number) => void; // Add method to track bets
 }
 
-const defaultUser: Omit<User, 'updateBalance' | 'name'> = {
-  id: 'user-1',
-  username: 'GemHunter',
-  avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=GemHunter',
-  balance: 5000,
-  level: 1,
-  xp: 0,
-  totalBets: 1000 // Add default value for totalBets
-};
-
-const UserContext = createContext<UserContextType>({
-  user: null,
-  loading: true,
-  updateBalance: () => {},
-  login: () => {},
-  logout: () => {}
-});
+const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
 
+  // Load user data from localStorage on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const userData = localStorage.getItem('user');
+    if (userData) {
       try {
-        const parsedUser = JSON.parse(storedUser);
+        const parsedUser = JSON.parse(userData);
         setUser({
           ...parsedUser,
-          name: parsedUser.username, // Set name as an alias
-          updateBalance: (amount) => updateBalance(amount)
+          updateBalance: (amount: number) => updateBalance(amount),
+          addBet: (amount: number) => addBet(amount),
+          totalBets: parsedUser.totalBets || 0, // Ensure totalBets exists
         });
-      } catch (e) {
-        setUser({
-          ...defaultUser,
-          name: defaultUser.username, // Set name as an alias
-          updateBalance: (amount) => updateBalance(amount)
-        });
+      } catch (error) {
+        console.error('Error parsing user data:', error);
       }
-    } else {
-      setUser({
-        ...defaultUser,
-        name: defaultUser.username, // Set name as an alias
-        updateBalance: (amount) => updateBalance(amount)
-      });
     }
-    setLoading(false);
   }, []);
 
+  // Save user data to localStorage whenever it changes
   useEffect(() => {
     if (user) {
-      const { updateBalance: _, name: __, ...userWithoutFunction } = user;
-      localStorage.setItem('user', JSON.stringify(userWithoutFunction));
-      localStorage.setItem('userGems', user.balance.toString());
+      localStorage.setItem('user', JSON.stringify(user));
     }
   }, [user]);
 
-  const updateBalance = (amount: number) => {
-    setUser(prev => {
-      if (!prev) return null;
-      const newBalance = prev.balance + amount;
-      
-      // Also update localStorage directly for other components
-      localStorage.setItem('userGems', newBalance.toString());
-      
-      return {
-        ...prev,
-        balance: newBalance,
-      };
-    });
-  };
-
-  const login = () => {
-    setUser({
-      ...defaultUser,
-      name: defaultUser.username, // Set name as an alias
-      updateBalance: (amount) => updateBalance(amount)
-    });
+  const login = (userData: Omit<User, 'updateBalance' | 'addBet'>) => {
+    const newUser = {
+      ...userData,
+      updateBalance: (amount: number) => updateBalance(amount),
+      addBet: (amount: number) => addBet(amount),
+      totalBets: userData.totalBets || 0, // Ensure totalBets exists
+    };
+    setUser(newUser);
   };
 
   const logout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('userGems');
     setUser(null);
+    localStorage.removeItem('user');
+  };
+
+  const updateBalance = (amount: number) => {
+    if (user) {
+      setUser({
+        ...user,
+        balance: Math.max(0, user.balance + amount)
+      });
+    }
+  };
+  
+  // Add a method to track bets for RakeBack
+  const addBet = (amount: number) => {
+    if (user) {
+      setUser({
+        ...user,
+        totalBets: user.totalBets + amount
+      });
+    }
   };
 
   return (
-    <UserContext.Provider value={{ user, loading, updateBalance, login, logout }}>
+    <UserContext.Provider value={{ user, login, logout, updateBalance, addBet }}>
       {children}
     </UserContext.Provider>
   );
 };
 
-export const useUser = () => useContext(UserContext);
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (context === undefined) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
+};
