@@ -76,21 +76,6 @@ Object.keys(caseItems).forEach(caseType => {
   caseItems[caseType].push(rerollItem);
 });
 
-interface Battle {
-  id: string;
-  type: string;
-  caseType: string;
-  rounds: number;
-  cursedMode: boolean;
-  creator: any;
-  players: any[];
-  maxPlayers: number;
-  cost: number;
-  status: 'waiting' | 'starting' | 'in-progress' | 'completed';
-  createdAt: Date;
-  winner?: any;
-}
-
 const Cases: React.FC = () => {
   const { user, updateBalance } = useUser();
   const [activeCase, setActiveCase] = useState<string>('standard');
