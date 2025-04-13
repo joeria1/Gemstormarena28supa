@@ -365,7 +365,6 @@ const CaseBattles: React.FC = () => {
                             autoSpin={true}
                             spinDuration={4000}
                             onComplete={(item) => {/* Handler logic */}}
-                            caseName={selectedCase.name}
                           />
                         )}
                       </div>
