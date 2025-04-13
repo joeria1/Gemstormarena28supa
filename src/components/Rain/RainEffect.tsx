@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from "sonner";
+import { useUser } from "@/context/UserContext";
 
 interface RainDropProps {
   style: React.CSSProperties;
@@ -11,9 +12,12 @@ const RainDrop: React.FC<RainDropProps> = ({ style }) => {
 };
 
 const RainEffect: React.FC = () => {
+  const { updateBalance } = useUser();
   const [isRaining, setIsRaining] = useState(false);
   const [raindrops, setRaindrops] = useState<React.CSSProperties[]>([]);
   const [canClaim, setCanClaim] = useState(false);
+  const [hasClaimed, setHasClaimed] = useState(false);
+  const [pendingReward, setPendingReward] = useState(0);
 
   // Start rain randomly
   useEffect(() => {
@@ -41,6 +45,8 @@ const RainEffect: React.FC = () => {
     if (!isRaining) {
       setIsRaining(true);
       setCanClaim(true);
+      setHasClaimed(false);
+      setPendingReward(0);
       
       // Create raindrops
       const drops: React.CSSProperties[] = [];
@@ -60,6 +66,13 @@ const RainEffect: React.FC = () => {
         setIsRaining(false);
         setRaindrops([]);
         
+        // If user has claimed, give the reward now that the rain is over
+        if (hasClaimed && pendingReward > 0) {
+          updateBalance(pendingReward);
+          toast.success(`Received ${pendingReward} gems from the rain!`);
+          setPendingReward(0);
+        }
+        
         // Cancel claim if not claimed after 60 seconds
         setTimeout(() => {
           if (canClaim) {
@@ -71,11 +84,17 @@ const RainEffect: React.FC = () => {
   };
 
   const claimRain = () => {
-    if (canClaim) {
-      // Add random amount between 50-500 gems
+    if (canClaim && !hasClaimed) {
+      // Generate random amount between 50-500 gems
       const amount = Math.floor(Math.random() * 450) + 50;
-      toast.success(`Claimed ${amount} gems from the rain!`);
-      setCanClaim(false);
+      
+      // Store the pending reward (will be given after rain ends)
+      setPendingReward(amount);
+      setHasClaimed(true);
+      
+      toast.success(`Claimed ${amount} gems from the rain!`, {
+        description: "Gems will be added to your balance when the rain ends."
+      });
     }
   };
 
@@ -89,13 +108,19 @@ const RainEffect: React.FC = () => {
         </div>
       )}
       
-      {canClaim && (
+      {canClaim && !hasClaimed && (
         <button
           onClick={claimRain}
           className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold px-4 py-2 rounded-md z-50 animate-pulse hover:animate-none hover:from-yellow-500 hover:to-yellow-700 transition-all"
         >
           CLAIM RAIN!
         </button>
+      )}
+      
+      {hasClaimed && isRaining && (
+        <div className="absolute top-2 right-2 bg-gradient-to-r from-green-400 to-green-600 text-black font-bold px-4 py-2 rounded-md z-50">
+          CLAIMED! ({pendingReward} gems)
+        </div>
       )}
     </>
   );

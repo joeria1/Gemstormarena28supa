@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ChatToggle from '../Chat/ChatToggle';
 import { CloudRain, Gem, Send, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { useUser } from '@/context/UserContext';
 
 interface Message {
   id: string;
@@ -17,11 +18,14 @@ interface EnhancedChatContainerProps {
 }
 
 const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className }) => {
+  const { user, updateBalance } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isRaining, setIsRaining] = useState(false);
   const [canClaim, setCanClaim] = useState(false);
+  const [hasClaimed, setHasClaimed] = useState(false);
+  const [pendingReward, setPendingReward] = useState(0);
   const [raindrops, setRaindrops] = useState<React.CSSProperties[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -115,7 +119,7 @@ const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className
       sender: 'You',
       text: inputMessage,
       timestamp: new Date(),
-      avatar: '/placeholder.svg'
+      avatar: user?.avatar || '/placeholder.svg'
     };
     
     setMessages(prev => [...prev, newMessage]);
@@ -130,6 +134,8 @@ const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className
     if (!isRaining) {
       setIsRaining(true);
       setCanClaim(true);
+      setHasClaimed(false);
+      setPendingReward(0);
       
       // Create raindrops
       const drops: React.CSSProperties[] = [];
@@ -165,45 +171,64 @@ const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className
         setIsRaining(false);
         setRaindrops([]);
         
-        // Cancel claim if not claimed after 60 seconds
-        setTimeout(() => {
-          if (canClaim) {
-            setCanClaim(false);
-            
-            // Add rain ended message
-            const endMessage: Message = {
-              id: Date.now().toString(),
-              sender: 'System',
-              text: '☔ RAIN EVENT ENDED! Next rain in 15 minutes. ☔',
-              timestamp: new Date(),
-              avatar: '/placeholder.svg'
-            };
-            
-            setMessages(prev => [...prev, endMessage]);
-          }
-        }, 60000);
+        // If user has claimed, give the reward now
+        if (hasClaimed && pendingReward > 0) {
+          updateBalance(pendingReward);
+          
+          const rewardMessage: Message = {
+            id: Date.now().toString(),
+            sender: 'System',
+            text: `You received ${pendingReward} gems from the rain!`,
+            timestamp: new Date(),
+            avatar: '/placeholder.svg'
+          };
+          
+          setMessages(prev => [...prev, rewardMessage]);
+          
+          toast.success(`Received ${pendingReward} gems from the rain!`);
+          setPendingReward(0);
+        }
+        
+        // Add rain ended message
+        const endMessage: Message = {
+          id: Date.now().toString(),
+          sender: 'System',
+          text: '☔ RAIN EVENT ENDED! Next rain in 15 minutes. ☔',
+          timestamp: new Date(),
+          avatar: '/placeholder.svg'
+        };
+        
+        setMessages(prev => [...prev, endMessage]);
+        
+        // Cancel claim if not claimed after rain ends
+        setCanClaim(false);
       }, 20000);
     }
   };
   
   const claimRain = () => {
-    if (canClaim) {
+    if (canClaim && !hasClaimed) {
       // Add random amount between 50-500 gems
       const amount = Math.floor(Math.random() * 450) + 50;
+      
+      // Store the pending reward amount
+      setPendingReward(amount);
+      setHasClaimed(true);
       
       // Add claim message
       const claimMessage: Message = {
         id: Date.now().toString(),
         sender: 'System',
-        text: `You claimed ${amount} gems from the rain!`,
+        text: `You've claimed ${amount} gems from the rain! You'll receive them when the rain ends.`,
         timestamp: new Date(),
         avatar: '/placeholder.svg'
       };
       
       setMessages(prev => [...prev, claimMessage]);
       
-      toast.success(`Claimed ${amount} gems from the rain!`);
-      setCanClaim(false);
+      toast.success(`Claimed ${amount} gems from the rain!`, {
+        description: "Gems will be added to your balance when the rain ends."
+      });
     }
   };
 
@@ -224,7 +249,7 @@ const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className
                 <span className="text-gray-400 mr-4">Lv 1</span>
                 <div className="flex items-center bg-gray-800 px-2 py-1 rounded-md mr-4">
                   <Gem className="h-4 w-4 text-cyan-400 mr-1" />
-                  <span className="text-white font-medium">5000</span>
+                  <span className="text-white font-medium">{user?.balance || 0}</span>
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
@@ -319,13 +344,19 @@ const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className
             </div>
           )}
           
-          {canClaim && (
+          {canClaim && !hasClaimed && (
             <button
               onClick={claimRain}
               className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold px-4 py-2 rounded-md z-50 animate-pulse hover:animate-none hover:from-yellow-500 hover:to-yellow-700 transition-all"
             >
               CLAIM RAIN!
             </button>
+          )}
+          
+          {hasClaimed && isRaining && (
+            <div className="absolute top-2 right-2 bg-gradient-to-r from-green-400 to-green-600 text-black font-bold px-4 py-2 rounded-md z-50">
+              CLAIMED! ({pendingReward} gems)
+            </div>
           )}
         </div>
       )}
