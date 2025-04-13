@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ArrowLeft, Users, Gem } from 'lucide-react';
+import { ArrowLeft, Bot, Gem, Users } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
+import { Button } from '@/components/ui/button';
+import CaseSlider from '@/components/CaseSlider/CaseSlider';
 
 interface Player {
   id: string;
@@ -12,6 +14,7 @@ interface Player {
   items: CaseItem[];
   totalValue: number;
   isSpinning?: boolean;
+  isBot?: boolean;
 }
 
 interface CaseItem {
@@ -51,10 +54,20 @@ const mockItems: CaseItem[] = [
   { id: '5', name: 'Legendary Item', image: '/placeholder.svg', value: 1000, rarity: 'legendary' },
 ];
 
+// Mock case items for the case opening
+const caseItems = [
+  { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50 },
+  { id: '2', name: 'Forest Shield', image: '/placeholder.svg', rarity: 'uncommon', price: 150 },
+  { id: '3', name: 'Ocean Blade', image: '/placeholder.svg', rarity: 'rare', price: 500 },
+  { id: '4', name: 'Thunder Axe', image: '/placeholder.svg', rarity: 'epic', price: 1000 },
+  { id: '5', name: 'Dragon Slayer', image: '/placeholder.svg', rarity: 'legendary', price: 2500 },
+  { id: '6', name: 'Void Reaver', image: '/placeholder.svg', rarity: 'mythical', price: 5000 },
+];
+
 const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) => {
   const { user, updateBalance } = useUser();
   const [players, setPlayers] = useState<Player[]>([]);
-  const [emptySlots, setEmptySlots] = useState<number>(4);
+  const [emptySlots, setEmptySlots] = useState<number>(2);
   const [battleStarted, setBattleStarted] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<Player | null>(null);
@@ -63,6 +76,11 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
   const [currentRound, setCurrentRound] = useState(0);
   const [maxRounds] = useState(3);
   const [caseOpened, setCaseOpened] = useState(false);
+  
+  // Case opening state
+  const [isSpinningCase, setIsSpinningCase] = useState(false);
+  const [lastWon, setLastWon] = useState<any | null>(null);
+  const [showCaseOpening, setShowCaseOpening] = useState(false);
   
   useEffect(() => {
     // Mock data - in a real app, you would fetch this from your backend
@@ -78,35 +96,36 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     ];
     
     setPlayers(mockPlayers);
-    setEmptySlots(4 - mockPlayers.length);
+    setEmptySlots(2 - mockPlayers.length);
     
     // Calculate total potential value
     const caseValue = 100; // Example value
-    setTotalValue(caseValue * 4);
+    setTotalValue(caseValue * 2); // 1v1 battle
   }, []);
 
-  const handleJoinBattle = () => {
-    if (players.length >= 4) return;
+  const handleAddBot = () => {
+    if (players.length >= 2) return;
     
-    const newPlayerNames = ['RocketMan', 'CryptoKing', 'MoonShooter'];
-    const newPlayerName = newPlayerNames[Math.floor(Math.random() * newPlayerNames.length)];
+    const botNames = ['BotMaster', 'AIPlayer', 'RoboGamer'];
+    const botName = botNames[Math.floor(Math.random() * botNames.length)];
     
-    const newPlayer: Player = {
+    const newBot: Player = {
       id: Date.now().toString(),
-      name: newPlayerName,
-      avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${newPlayerName}`,
+      name: botName,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${botName}`,
       items: [],
       totalValue: 0,
-      isSpinning: false
+      isSpinning: false,
+      isBot: true
     };
     
-    setPlayers(prev => [...prev, newPlayer]);
+    setPlayers(prev => [...prev, newBot]);
     setEmptySlots(prev => prev - 1);
     
-    toast.success(`${newPlayerName} joined the battle!`);
+    toast.success(`Bot ${botName} added to the battle!`);
     
     // If battle is full, start countdown
-    if (players.length === 3) {
+    if (players.length === 1) {
       toast.success('Battle is starting soon!');
       setCountdown(5);
       
@@ -207,6 +226,37 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     }
   };
 
+  // Handle case opening
+  const handleOpenCase = () => {
+    if (isSpinningCase) return;
+    
+    setIsSpinningCase(true);
+    setShowCaseOpening(true);
+  };
+
+  const handleSpinComplete = (item: any) => {
+    setLastWon(item);
+    updateBalance(item.price);
+    
+    if (item.rarity === 'legendary' || item.rarity === 'mythical') {
+      toast.success(`Incredible! You won ${item.name}!`, {
+        description: `Worth ${item.price} gems!`
+      });
+    } else if (item.rarity === 'epic') {
+      toast.success(`Great pull! You won ${item.name}!`, {
+        description: `Worth ${item.price} gems!`
+      });
+    } else {
+      toast(`You won: ${item.name}!`, {
+        description: `Worth ${item.price} gems!`
+      });
+    }
+    
+    setTimeout(() => {
+      setIsSpinningCase(false);
+    }, 1000);
+  };
+
   return (
     <div className="bg-gray-900 min-h-screen w-full p-4">
       <div className="max-w-7xl mx-auto">
@@ -221,7 +271,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
           
           <div className="flex items-center text-gray-300">
             <span className="mr-2">Battle ID: {battleId}</span>
-            <span className="px-3 py-1 bg-gray-800 rounded-md text-sm">2v2</span>
+            <span className="px-3 py-1 bg-gray-800 rounded-md text-sm">1v1</span>
           </div>
           
           <div className="flex items-center">
@@ -230,128 +280,181 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
           </div>
         </div>
         
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-          {battleStarted && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Case opening section */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <h2 className="text-xl font-bold text-white mb-4">Open Case</h2>
+            
+            {showCaseOpening ? (
+              <>
+                <CaseSlider 
+                  items={caseItems} 
+                  onComplete={handleSpinComplete}
+                  spinDuration={5000}
+                  isSpinning={isSpinningCase}
+                  setIsSpinning={setIsSpinningCase}
+                />
+                
+                <div className="mt-4 flex justify-between">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setShowCaseOpening(false)}
+                  >
+                    Back to Battle
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleOpenCase}
+                    disabled={isSpinningCase}
+                  >
+                    {isSpinningCase ? "Opening..." : "Open Case (100 gems)"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-60">
+                <div className="text-gray-400 mb-4">Click the button below to open a case</div>
+                <Button 
+                  onClick={handleOpenCase}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Open Standard Case (100 gems)
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Battle information */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
             <div className="mb-4 text-center">
               <div className="text-xl font-bold text-white">
-                Round {currentRound} of {maxRounds}
+                {battleStarted ? `Round ${currentRound} of ${maxRounds}` : '1v1 Battle'}
               </div>
               {spinning && (
                 <div className="text-blue-400 animate-pulse mt-2">
                   Opening cases...
                 </div>
               )}
-            </div>
-          )}
-          
-          {!battleStarted && countdown > 0 && (
-            <div className="flex justify-center items-center mb-4">
-              <div className="text-4xl font-bold text-yellow-400 animate-pulse">
-                Starting in {countdown}...
-              </div>
-            </div>
-          )}
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            {players.map((player, index) => (
-              <div key={player.id} className="relative">
-                <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between p-3 border-b border-gray-700">
-                    <div className="flex items-center gap-2">
-                      <img 
-                        src={player.avatar} 
-                        alt={player.name} 
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <div className="text-white font-bold">{player.name}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <Gem className="h-4 w-4 text-yellow-400 mr-1" />
-                      <div className="text-yellow-400">{player.totalValue}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="h-40 p-2">
-                    {player.isSpinning ? (
-                      <div className="h-full flex items-center justify-center">
-                        <div className="text-blue-400 animate-pulse">Opening case...</div>
-                      </div>
-                    ) : battleStarted ? (
-                      <div className="grid grid-cols-3 gap-1 h-full">
-                        {player.items.map((item, itemIndex) => (
-                          <motion.div 
-                            key={item.id} 
-                            className={`border-2 ${rarityColors[item.rarity]} rounded p-1 flex flex-col items-center justify-center bg-gradient-to-b ${rarityGradients[item.rarity]}`}
-                            initial={caseOpened ? { scale: 0 } : { scale: 1 }}
-                            animate={caseOpened ? { scale: 1 } : { scale: 1 }}
-                            transition={{ delay: itemIndex * 0.2 }}
-                          >
-                            <img src={item.image} alt={item.name} className="w-full h-8 object-contain mb-1" />
-                            <p className="text-xs text-white truncate w-full text-center">{item.name}</p>
-                            <p className="text-xs text-yellow-400">{item.value}</p>
-                          </motion.div>
-                        ))}
-                        
-                        {/* Empty slots for future rounds */}
-                        {Array(maxRounds - player.items.length).fill(0).map((_, emptyIndex) => (
-                          <div 
-                            key={`empty-${player.id}-${emptyIndex}`} 
-                            className="border-2 border-gray-700 rounded p-1 flex items-center justify-center h-full"
-                          >
-                            <span className="text-gray-600 text-xs">Round {currentRound + emptyIndex + 1}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="h-full flex items-center justify-center">
-                        <div className="text-gray-400">Waiting for battle to start...</div>
-                      </div>
-                    )}
-                  </div>
+              {!battleStarted && countdown > 0 && (
+                <div className="text-4xl font-bold text-yellow-400 animate-pulse mt-2">
+                  Starting in {countdown}...
                 </div>
-                
-                {/* VS indicator between players */}
-                {(index === 0 || index === 2) && (
-                  <div className="absolute -right-7 top-1/2 transform -translate-y-1/2 z-10 bg-blue-800 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
-                    VS
-                  </div>
-                )}
-              </div>
-            ))}
+              )}
+            </div>
             
-            {/* Empty slots */}
-            {Array(emptySlots).fill(0).map((_, index) => (
-              <div key={`empty-${index}`} className="relative">
-                <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
-                  <div className="flex items-center gap-2 p-3 border-b border-gray-700">
-                    <div className="w-8 h-8 rounded-full bg-gray-800"></div>
-                    <div className="text-white">0</div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {players.map((player, index) => (
+                <div key={player.id} className="relative">
+                  <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+                    <div className="flex items-center justify-between p-3 border-b border-gray-700">
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={player.avatar} 
+                          alt={player.name} 
+                          className="w-8 h-8 rounded-full"
+                        />
+                        <div className="text-white font-bold flex items-center">
+                          {player.name}
+                          {player.isBot && <Bot className="ml-1 h-3 w-3 text-blue-400" />}
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        <Gem className="h-4 w-4 text-yellow-400 mr-1" />
+                        <div className="text-yellow-400">{player.totalValue}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-2 min-h-[160px]">
+                      {player.isSpinning ? (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-blue-400 animate-pulse">Opening case...</div>
+                        </div>
+                      ) : battleStarted ? (
+                        <div className="grid grid-cols-3 gap-1 h-full">
+                          {player.items.map((item, itemIndex) => (
+                            <motion.div 
+                              key={item.id} 
+                              className={`border-2 ${rarityColors[item.rarity]} rounded p-1 flex flex-col items-center justify-center bg-gradient-to-b ${rarityGradients[item.rarity]}`}
+                              initial={caseOpened ? { scale: 0 } : { scale: 1 }}
+                              animate={caseOpened ? { scale: 1 } : { scale: 1 }}
+                              transition={{ delay: itemIndex * 0.2 }}
+                            >
+                              <img src={item.image} alt={item.name} className="w-full h-8 object-contain mb-1" />
+                              <p className="text-xs text-white truncate w-full text-center">{item.name}</p>
+                              <p className="text-xs text-yellow-400">{item.value}</p>
+                            </motion.div>
+                          ))}
+                          
+                          {/* Empty slots for future rounds */}
+                          {Array(maxRounds - player.items.length).fill(0).map((_, emptyIndex) => (
+                            <div 
+                              key={`empty-${player.id}-${emptyIndex}`} 
+                              className="border-2 border-gray-700 rounded p-1 flex items-center justify-center h-full"
+                            >
+                              <span className="text-gray-600 text-xs">Round {currentRound + emptyIndex + 1}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-blue-300">Waiting to open cases...</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
-                  <div className="h-40 flex items-center justify-center">
-                    <button 
-                      onClick={handleJoinBattle} 
-                      disabled={battleStarted}
-                      className={`${battleStarted ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white py-2 px-4 rounded-md flex items-center`}
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      {battleStarted ? 'Battle in Progress' : 'Join Battle'}
-                    </button>
-                  </div>
-                  
-                  <div className="p-3 border-t border-gray-700 text-center">
-                    <div className="text-gray-400">Empty Slot</div>
-                  </div>
+                  {/* VS indicator between players */}
+                  {index === 0 && players.length > 1 && (
+                    <div className="absolute -right-7 top-1/2 transform -translate-y-1/2 z-10 bg-blue-800 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
+                      VS
+                    </div>
+                  )}
                 </div>
-                
-                {/* VS indicator for empty slots */}
-                {(players.length + index === 1 || players.length + index === 3) && (
-                  <div className="absolute -right-7 top-1/2 transform -translate-y-1/2 z-10 bg-blue-800 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
-                    VS
+              ))}
+              
+              {/* Empty slots */}
+              {Array(emptySlots).fill(0).map((_, index) => (
+                <div key={`empty-${index}`} className="relative">
+                  <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+                    <div className="flex items-center gap-2 p-3 border-b border-gray-700">
+                      <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center">
+                        <Bot className="h-4 w-4 text-gray-600" />
+                      </div>
+                      <div className="text-white">0</div>
+                    </div>
+                    
+                    <div className="min-h-[160px] flex items-center justify-center">
+                      <button 
+                        onClick={handleAddBot} 
+                        disabled={battleStarted}
+                        className={`${battleStarted ? 'bg-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white py-2 px-4 rounded-md flex items-center`}
+                      >
+                        <Bot className="mr-2 h-4 w-4" />
+                        {battleStarted ? 'Battle in Progress' : 'Add Bot'}
+                      </button>
+                    </div>
                   </div>
-                )}
+                  
+                  {/* VS indicator for empty slots */}
+                  {index === 0 && players.length === 1 && (
+                    <div className="absolute -left-7 top-1/2 transform -translate-y-1/2 z-10 bg-blue-800 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
+                      VS
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {emptySlots === 0 && !battleStarted && countdown === 0 && (
+              <div className="text-center mt-4">
+                <Button 
+                  onClick={startBattle}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Start Battle
+                </Button>
               </div>
-            ))}
+            )}
           </div>
         </div>
         
@@ -396,3 +499,4 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
 };
 
 export default CaseBattleGame;
+
