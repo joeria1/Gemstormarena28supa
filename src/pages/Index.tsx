@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import GameCard from '@/components/GameCard';
-import ChatWindow from '@/components/Chat/ChatWindow';
 import { 
   ArrowRight, Bomb, CloudRain, CreditCard, Gem, 
   Rocket, MessageSquare, Award, Gift, Layers, 
@@ -134,70 +133,64 @@ const Index: React.FC = () => {
         </div>
       </div>
       
-      {/* Live Activity & Chat */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="col-span-1 lg:col-span-2">
-          <div className="bg-black/40 border border-primary/20 backdrop-blur-md p-6 rounded-xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <Rocket className="h-5 w-5 text-primary" />
-                Live Activity
-              </h2>
-              <Link to="/leaderboard" className="text-primary text-sm hover:underline">
-                View Leaderboard
-              </Link>
-            </div>
-            
-            <div className="space-y-4">
-              {[...Array(6)].map((_, index) => {
-                const activities = [
-                  { type: 'cases', description: 'won a Mythical item', amount: Math.floor(Math.random() * 5000) + 1000, icon: <Layers className="h-4 w-4 text-primary" /> },
-                  { type: 'mines', description: 'found 10 gems in mines', amount: Math.floor(Math.random() * 2000) + 500, icon: <Bomb className="h-4 w-4 text-red-400" /> },
-                  { type: 'blackjack', description: 'got a blackjack', amount: Math.floor(Math.random() * 1000) + 300, icon: <CreditCard className="h-4 w-4 text-amber-400" /> },
-                  { type: 'rain', description: 'claimed from the rain', amount: Math.floor(Math.random() * 500) + 100, icon: <CloudRain className="h-4 w-4 text-blue-400" /> },
-                  { type: 'tower', description: 'reached level 8', amount: Math.floor(Math.random() * 3000) + 1500, icon: <TrendingUp className="h-4 w-4 text-green-400" /> },
-                  { type: 'rakeback', description: 'claimed rakeback bonus', amount: Math.floor(Math.random() * 800) + 200, icon: <Award className="h-4 w-4 text-purple-400" /> },
-                ];
-                
-                const activity = activities[index % activities.length];
-                const username = ['CryptoKing', 'DiamondHands', 'MoonShooter', 'GemCollector', 'SatoshiLover', 'RocketRider'][index];
-                const timeAgo = ['2m ago', '5m ago', '12m ago', '18m ago', '25m ago', '31m ago'][index];
-                
-                return (
-                  <Card key={index} className="bg-black/60 border-white/10 p-4 flex items-center justify-between group hover:bg-black/70 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${username}`} alt={username} />
-                        <AvatarFallback>{username[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-white">{username}</p>
-                          <span className="text-xs text-muted-foreground flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {timeAgo}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground flex items-center">
-                          {activity.icon}
-                          <span className="ml-1">{activity.description}</span>
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center text-lg font-bold gem-text">
-                      <Gem className="h-4 w-4 text-cyan-400 mr-1" />
-                      {activity.amount}
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+      {/* Live Activity */}
+      <div>
+        <div className="bg-black/40 border border-primary/20 backdrop-blur-md p-6 rounded-xl">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Rocket className="h-5 w-5 text-primary" />
+              Live Activity
+            </h2>
+            <Link to="/leaderboard" className="text-primary text-sm hover:underline">
+              View Leaderboard
+            </Link>
           </div>
-        </div>
-        
-        <div className="col-span-1">
-          <ChatWindow className="h-full" />
+          
+          <div className="space-y-4">
+            {[...Array(6)].map((_, index) => {
+              const activities = [
+                { type: 'cases', description: 'won a Mythical item', amount: Math.floor(Math.random() * 5000) + 1000, icon: <Layers className="h-4 w-4 text-primary" /> },
+                { type: 'mines', description: 'found 10 gems in mines', amount: Math.floor(Math.random() * 2000) + 500, icon: <Bomb className="h-4 w-4 text-red-400" /> },
+                { type: 'blackjack', description: 'got a blackjack', amount: Math.floor(Math.random() * 1000) + 300, icon: <CreditCard className="h-4 w-4 text-amber-400" /> },
+                { type: 'rain', description: 'claimed from the rain', amount: Math.floor(Math.random() * 500) + 100, icon: <CloudRain className="h-4 w-4 text-blue-400" /> },
+                { type: 'tower', description: 'reached level 8', amount: Math.floor(Math.random() * 3000) + 1500, icon: <TrendingUp className="h-4 w-4 text-green-400" /> },
+                { type: 'rakeback', description: 'claimed rakeback bonus', amount: Math.floor(Math.random() * 800) + 200, icon: <Award className="h-4 w-4 text-purple-400" /> },
+              ];
+              
+              const activity = activities[index % activities.length];
+              const username = ['CryptoKing', 'DiamondHands', 'MoonShooter', 'GemCollector', 'SatoshiLover', 'RocketRider'][index];
+              const timeAgo = ['2m ago', '5m ago', '12m ago', '18m ago', '25m ago', '31m ago'][index];
+              
+              return (
+                <Card key={index} className="bg-black/60 border-white/10 p-4 flex items-center justify-between group hover:bg-black/70 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${username}`} alt={username} />
+                      <AvatarFallback>{username[0]}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-white">{username}</p>
+                        <span className="text-xs text-muted-foreground flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {timeAgo}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground flex items-center">
+                        {activity.icon}
+                        <span className="ml-1">{activity.description}</span>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center text-lg font-bold gem-text">
+                    <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                    {activity.amount}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       </div>
 

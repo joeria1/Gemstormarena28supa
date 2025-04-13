@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -6,15 +5,14 @@ import CaseBattleCreator from '@/components/CaseBattle/CaseBattleCreator';
 import CaseBattlesList, { Battle, BattleParticipant } from '@/components/CaseBattle/CaseBattlesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowRight, PlusSquare, Rocket, Users, Gem } from 'lucide-react';
+import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { SliderItem } from '@/types/slider';
 import { useUser } from '@/context/UserContext';
 import { playButtonSound } from "@/utils/sounds";
-import ChatWindow from '@/components/Chat/ChatWindow';
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
+import { useChat } from '@/context/ChatContext';
 
-// Demo case items
 const caseItems: Record<string, SliderItem[]> = {
   standard: [
     { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50 },
@@ -49,21 +47,18 @@ const caseItems: Record<string, SliderItem[]> = {
   ]
 };
 
-// Case prices
 const casePrices = {
   standard: 100,
   premium: 500,
   battle: 250
 };
 
-// Case display names
 const caseNames = {
   standard: 'Standard Case',
   premium: 'Premium Case',
   battle: 'Battle Case'
 };
 
-// Special item: Reroll
 const rerollItem: SliderItem = {
   id: 'reroll',
   name: 'Reroll',
@@ -73,7 +68,6 @@ const rerollItem: SliderItem = {
   isReroll: true
 };
 
-// Add reroll to all case types
 Object.keys(caseItems).forEach(caseType => {
   caseItems[caseType].push(rerollItem);
 });
@@ -89,6 +83,8 @@ const Cases: React.FC = () => {
   const [mainTab, setMainTab] = useState('cases');
   const [battleTab, setBattleTab] = useState('join');
   const [showBattleCreator, setShowBattleCreator] = useState(false);
+  const [activeBattleView, setActiveBattleView] = useState<Battle | null>(null);
+  const { toggleChat } = useChat();
 
   useEffect(() => {
     const demoBattles: Battle[] = [
@@ -214,7 +210,7 @@ const Cases: React.FC = () => {
     }
   };
 
-  const joinBattle = (battleId: string) => {
+  const handleJoinBattle = (battleId: string) => {
     playButtonSound();
     
     if (!user) {
@@ -246,7 +242,6 @@ const Cases: React.FC = () => {
         return {
           ...b,
           players: updatedPlayers,
-          // Ensure status is one of the allowed values in the union type
           status: battleReady ? 'starting' as const : 'waiting' as const
         };
       }
@@ -254,18 +249,21 @@ const Cases: React.FC = () => {
     });
     
     setBattles(updatedBattles);
-    setActiveBattle(battleId);
+    
+    const foundBattle = updatedBattles.find(b => b.id === battleId);
+    if (foundBattle) {
+      setActiveBattleView(foundBattle);
+      
+      if (foundBattle.status === 'starting') {
+        setTimeout(() => {
+          startBattle(battleId);
+        }, 3000);
+      }
+    }
     
     toast.success(`You've joined the ${battle.type} Battle!`, {
       description: "The battle will start when all slots are filled."
     });
-    
-    const foundBattle = updatedBattles.find(b => b.id === battleId);
-    if (foundBattle && foundBattle.status === 'starting') {
-      setTimeout(() => {
-        startBattle(battleId);
-      }, 3000);
-    }
   };
 
   const createBattle = (battleData: Battle) => {
@@ -275,19 +273,29 @@ const Cases: React.FC = () => {
       updateBalance(-battleData.cost);
     }
     
+    setShowBattleCreator(false);
+    
+    setActiveBattleView(battleData);
+    
     if (battleData.status === 'in-progress' || battleData.status === 'starting') {
       setTimeout(() => {
         startBattle(battleData.id);
       }, 3000);
     }
-    
-    setBattleTab('join');
   };
 
   const startBattle = (battleId: string) => {
     setBattles(prev => prev.map(b => 
       b.id === battleId ? { ...b, status: 'in-progress' as const } : b
     ));
+    
+    const updatedBattle = battles.find(b => b.id === battleId);
+    if (updatedBattle) {
+      setActiveBattleView({
+        ...updatedBattle,
+        status: 'in-progress' as const
+      });
+    }
     
     setTimeout(() => {
       const battle = battles.find(b => b.id === battleId);
@@ -297,13 +305,23 @@ const Cases: React.FC = () => {
       const winnerIndex = Math.floor(Math.random() * players.length);
       const winner = players[winnerIndex];
       
-      setBattles(prev => prev.map(b => 
+      const updatedBattles = battles.map(b => 
         b.id === battleId ? { 
           ...b, 
           status: 'completed' as const, 
           winner: winner 
         } : b
-      ));
+      );
+      
+      setBattles(updatedBattles);
+      
+      if (activeBattleView && activeBattleView.id === battleId) {
+        setActiveBattleView({
+          ...activeBattleView,
+          status: 'completed' as const,
+          winner: winner
+        });
+      }
       
       if (winner.id === user?.id) {
         const winnings = battle.cost * battle.maxPlayers;
@@ -315,18 +333,116 @@ const Cases: React.FC = () => {
     }, 10000);
   };
 
-  const spectateBattle = (battleId: string) => {
-    setActiveBattle(battleId);
-    toast('Spectating battle...');
-  };
-
-  const handleJoinBattle = (battleId: string) => {
-    toast.success(`Joined battle ${battleId}`);
-  };
-
   const handleSpectateBattle = (battleId: string) => {
-    toast.success(`Spectating battle ${battleId}`);
+    const battle = battles.find(b => b.id === battleId);
+    if (battle) {
+      setActiveBattleView(battle);
+    }
   };
+
+  if (activeBattleView) {
+    return (
+      <div className="container py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <Button variant="outline" onClick={() => setActiveBattleView(null)} className="flex items-center">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Battles
+            </Button>
+            <h2 className="text-xl font-bold">{activeBattleView.type} Battle</h2>
+            <div className="flex items-center">
+              <span className="font-bold mr-2">Total Value</span>
+              <div className="bg-black/40 px-3 py-1.5 rounded-md flex items-center">
+                <span className="text-yellow-400 font-bold">
+                  {activeBattleView.cost * activeBattleView.maxPlayers}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-b from-blue-950 to-black/90 rounded-xl p-6 border border-blue-900/50">
+            <div className="flex justify-between items-center mb-8">
+              <div className="bg-green-600/20 text-green-400 border border-green-600/30 px-4 py-1 rounded-md">
+                {activeBattleView.type}
+              </div>
+              <div className="text-white/70 text-sm">
+                {activeBattleView.rounds} Rounds • {activeBattleView.caseType} Case
+              </div>
+              <div className="text-white/70 text-sm">
+                Waiting for players ({activeBattleView.players.length}/{activeBattleView.maxPlayers})
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+              {Array.from({ length: activeBattleView.maxPlayers }).map((_, index) => {
+                const player = activeBattleView.players[index];
+                
+                return (
+                  <div key={index} className="relative">
+                    <div className="bg-blue-950/60 rounded-lg border border-blue-900/50 overflow-hidden">
+                      <div className="flex items-center gap-2 p-3 border-b border-blue-900/50">
+                        <div className="flex items-center gap-2">
+                          {player ? (
+                            <>
+                              <img 
+                                src={player.avatar} 
+                                alt={player.name} 
+                                className="w-8 h-8 rounded-full"
+                              />
+                              <div className="text-white">0</div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-8 h-8 rounded-full bg-blue-900/30 flex items-center justify-center">
+                                <span className="text-blue-400">?</span>
+                              </div>
+                              <div className="text-white">0</div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="h-40 flex items-center justify-center">
+                        {player ? (
+                          <div className="text-xs text-blue-400">Waiting to open cases...</div>
+                        ) : (
+                          <div className="text-xs text-blue-400">Empty slot</div>
+                        )}
+                      </div>
+                      
+                      <div className="p-3 border-t border-blue-900/50">
+                        {player ? (
+                          <div className="text-sm text-center text-blue-300">
+                            {player.name}
+                          </div>
+                        ) : (
+                          <Button 
+                            className="w-full bg-green-500 hover:bg-green-600"
+                            onClick={() => handleJoinBattle(activeBattleView.id)}
+                          >
+                            <PlusSquare className="mr-1 h-3 w-3" />
+                            Join Battle
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {index > 0 && index < activeBattleView.maxPlayers && index % 2 === 1 && activeBattleView.maxPlayers > 2 && (
+                      <div className="absolute -left-6 top-1/2 transform -translate-y-1/2 z-10">
+                        <div className="bg-blue-800 text-blue-200 px-2 py-1 rounded text-xs font-bold">
+                          VS
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-8">
@@ -340,159 +456,151 @@ const Cases: React.FC = () => {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            <Tabs defaultValue="cases" className="w-full">
-              <TabsList className="grid grid-cols-3 mb-6 w-full sm:w-[400px]">
-                <TabsTrigger value="cases">Cases</TabsTrigger>
-                <TabsTrigger value="battles">Battles</TabsTrigger>
-                <TabsTrigger value="inventory">Inventory</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="cases" className="space-y-6 py-4">
-                <div className="grid grid-cols-3 gap-4">
-                  {Object.keys(caseItems).map(caseKey => (
-                    <Card 
-                      key={caseKey}
-                      className={`bg-black/40 border cursor-pointer transition-all overflow-hidden ${
-                        activeCase === caseKey 
-                          ? 'border-primary shadow-lg shadow-primary/20' 
-                          : 'border-white/10 hover:border-white/30'
-                      }`}
-                      onClick={() => setActiveCase(caseKey)}
-                    >
-                      <div className="p-4 text-center">
-                        <h3 className="font-medium text-sm md:text-base">{caseNames[caseKey as keyof typeof caseNames]}</h3>
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <Gem className="h-3 w-3 text-cyan-400" />
-                          <span className="text-sm">{casePrices[caseKey as keyof typeof casePrices]}</span>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-                
-                <Card className="bg-black/40 border-white/10 p-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-xl font-semibold">{caseNames[activeCase as keyof typeof caseNames]}</h2>
-                    <div className="text-muted-foreground flex items-center">
-                      <Gem className="h-4 w-4 text-cyan-400 mr-1" />
-                      <span>{casePrices[activeCase as keyof typeof casePrices]}</span>
-                    </div>
-                  </div>
-                  
-                  <CaseSlider 
-                    items={caseItems[activeCase]} 
-                    onComplete={handleSpinComplete}
-                    spinDuration={5000}
-                    isSpinning={isSpinning}
-                    setIsSpinning={setIsSpinning}
-                  />
-                  
-                  <div className="mt-6 text-center">
-                    <Button 
-                      className="btn-primary"
-                      onClick={openCase}
-                      disabled={isSpinning || !user || (user && user.balance < casePrices[activeCase as keyof typeof casePrices])}
-                    >
-                      {isSpinning 
-                        ? "Opening..." 
-                        : `Open Case (${casePrices[activeCase as keyof typeof casePrices]} gems)`}
-                    </Button>
-                  </div>
-                </Card>
-                
-                {lastWon && (
-                  <Card className="bg-black/40 border-white/10 p-6">
-                    <h2 className="text-lg font-semibold mb-4">Last Item Won</h2>
-                    <div className="flex items-center gap-4">
-                      <div 
-                        className={`w-16 h-16 rounded bg-gradient-to-b p-2 
-                          ${lastWon.rarity === 'common' ? 'from-gray-500 to-gray-400' : 
-                            lastWon.rarity === 'uncommon' ? 'from-green-600 to-green-500' : 
-                            lastWon.rarity === 'rare' ? 'from-blue-700 to-blue-600' :
-                            lastWon.rarity === 'epic' ? 'from-purple-700 to-purple-600' :
-                            lastWon.rarity === 'legendary' ? 'from-amber-600 to-amber-500' :
-                            'from-red-700 to-red-600'}`
-                        }
-                      >
-                        <img 
-                          src={lastWon.image} 
-                          alt={lastWon.name} 
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.onerror = null;
-                            target.src = '/placeholder.svg';
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-medium">{lastWon.name}</h3>
-                        <p className={`text-sm font-bold capitalize ${
-                          lastWon.rarity === 'common' ? 'text-gray-300' :
-                          lastWon.rarity === 'uncommon' ? 'text-green-300' :
-                          lastWon.rarity === 'rare' ? 'text-blue-300' :
-                          lastWon.rarity === 'epic' ? 'text-purple-300' :
-                          lastWon.rarity === 'legendary' ? 'text-amber-300' :
-                          'text-red-300'
-                        }`}>
-                          {lastWon.rarity}
-                        </p>
-                        <div className="flex items-center mt-1">
-                          <Gem className="h-3 w-3 text-cyan-400 mr-1" />
-                          <span>{lastWon.price}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="battles">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Case Battles</h2>
-                  <Button onClick={() => setShowBattleCreator(true)}>
-                    <PlusSquare className="mr-2 h-4 w-4" />
-                    Create Battle
-                  </Button>
-                </div>
-
-                <CaseBattlesList 
-                  battles={battles} 
-                  onJoinBattle={handleJoinBattle} 
-                  onSpectate={handleSpectateBattle} 
-                />
-              </TabsContent>
-              
-              <TabsContent value="inventory">
-                <Card className="bg-black/40 border-white/10 p-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-xl font-semibold">Inventory</h2>
-                    <div className="text-muted-foreground flex items-center">
-                      <Gem className="h-4 w-4 text-cyan-400 mr-1" />
-                      <span>0</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 text-center">
-                    <Button 
-                      className="btn-primary"
-                      onClick={() => setShowBattleCreator(true)}
-                    >
-                      <Rocket className="mr-2 h-4 w-4" />
-                      Create Battle
-                    </Button>
-                  </div>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
+        <Tabs defaultValue="cases" className="w-full" onValueChange={value => setMainTab(value)}>
+          <TabsList className="grid grid-cols-3 mb-6 w-full sm:w-[400px]">
+            <TabsTrigger value="cases">Cases</TabsTrigger>
+            <TabsTrigger value="battles">Battles</TabsTrigger>
+            <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          </TabsList>
           
-          <div className="col-span-1">
-            <ChatWindow className="h-full" />
-          </div>
-        </div>
+          <TabsContent value="cases" className="space-y-6 py-4">
+            <div className="grid grid-cols-3 gap-4">
+              {Object.keys(caseItems).map(caseKey => (
+                <Card 
+                  key={caseKey}
+                  className={`bg-black/40 border cursor-pointer transition-all overflow-hidden ${
+                    activeCase === caseKey 
+                      ? 'border-primary shadow-lg shadow-primary/20' 
+                      : 'border-white/10 hover:border-white/30'
+                  }`}
+                  onClick={() => setActiveCase(caseKey)}
+                >
+                  <div className="p-4 text-center">
+                    <h3 className="font-medium text-sm md:text-base">{caseNames[caseKey as keyof typeof caseNames]}</h3>
+                    <div className="flex items-center justify-center gap-1 mt-1">
+                      <Gem className="h-3 w-3 text-cyan-400" />
+                      <span className="text-sm">{casePrices[caseKey as keyof typeof casePrices]}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            
+            <Card className="bg-black/40 border-white/10 p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold">{caseNames[activeCase as keyof typeof caseNames]}</h2>
+                <div className="text-muted-foreground flex items-center">
+                  <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                  <span>{casePrices[activeCase as keyof typeof casePrices]}</span>
+                </div>
+              </div>
+              
+              <CaseSlider 
+                items={caseItems[activeCase]} 
+                onComplete={handleSpinComplete}
+                spinDuration={5000}
+                isSpinning={isSpinning}
+                setIsSpinning={setIsSpinning}
+              />
+              
+              <div className="mt-6 text-center">
+                <Button 
+                  className="btn-primary"
+                  onClick={openCase}
+                  disabled={isSpinning || !user || (user && user.balance < casePrices[activeCase as keyof typeof casePrices])}
+                >
+                  {isSpinning 
+                    ? "Opening..." 
+                    : `Open Case (${casePrices[activeCase as keyof typeof casePrices]} gems)`}
+                </Button>
+              </div>
+            </Card>
+            
+            {lastWon && (
+              <Card className="bg-black/40 border-white/10 p-6">
+                <h2 className="text-lg font-semibold mb-4">Last Item Won</h2>
+                <div className="flex items-center gap-4">
+                  <div 
+                    className={`w-16 h-16 rounded bg-gradient-to-b p-2 
+                      ${lastWon.rarity === 'common' ? 'from-gray-500 to-gray-400' : 
+                        lastWon.rarity === 'uncommon' ? 'from-green-600 to-green-500' : 
+                        lastWon.rarity === 'rare' ? 'from-blue-700 to-blue-600' :
+                        lastWon.rarity === 'epic' ? 'from-purple-700 to-purple-600' :
+                        lastWon.rarity === 'legendary' ? 'from-amber-600 to-amber-500' :
+                        'from-red-700 to-red-600'}`
+                    }
+                  >
+                    <img 
+                      src={lastWon.image} 
+                      alt={lastWon.name} 
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = '/placeholder.svg';
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">{lastWon.name}</h3>
+                    <p className={`text-sm font-bold capitalize ${
+                      lastWon.rarity === 'common' ? 'text-gray-300' :
+                      lastWon.rarity === 'uncommon' ? 'text-green-300' :
+                      lastWon.rarity === 'rare' ? 'text-blue-300' :
+                      lastWon.rarity === 'epic' ? 'text-purple-300' :
+                      lastWon.rarity === 'legendary' ? 'text-amber-300' :
+                      'text-red-300'
+                    }`}>
+                      {lastWon.rarity}
+                    </p>
+                    <div className="flex items-center mt-1">
+                      <Gem className="h-3 w-3 text-cyan-400 mr-1" />
+                      <span>{lastWon.price}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="battles">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Case Battles</h2>
+              <Button onClick={() => setShowBattleCreator(true)}>
+                <PlusSquare className="mr-2 h-4 w-4" />
+                Create Battle
+              </Button>
+            </div>
+
+            <CaseBattlesList 
+              battles={battles} 
+              onJoinBattle={handleJoinBattle} 
+              onSpectate={handleSpectateBattle} 
+            />
+          </TabsContent>
+          
+          <TabsContent value="inventory">
+            <Card className="bg-black/40 border-white/10 p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Inventory</h2>
+                <div className="text-muted-foreground flex items-center">
+                  <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                  <span>0</span>
+                </div>
+              </div>
+              
+              <div className="mt-6 text-center">
+                <Button 
+                  className="btn-primary"
+                  onClick={() => setShowBattleCreator(true)}
+                >
+                  <Rocket className="mr-2 h-4 w-4" />
+                  Create Battle
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={showBattleCreator} onOpenChange={setShowBattleCreator}>

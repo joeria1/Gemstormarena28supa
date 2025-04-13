@@ -1,35 +1,22 @@
 
 export const preventAutoScroll = () => {
-  // Prevent automatic scrolling
   if (typeof window !== 'undefined') {
-    // Set scroll position to top on page load
-    window.scrollTo(0, 0);
-    
-    // Add event listener to prevent automatic scrolling
-    const handleLoad = () => {
-      setTimeout(() => {
-        window.scrollTo(0, 0);
-      }, 0);
+    // Prevent scrolling when content is autofocused or elements are moved
+    const originalScrollTo = window.scrollTo;
+    window.scrollTo = function() {
+      // do nothing to prevent automatic scrolling
+      return;
     };
     
-    window.addEventListener('load', handleLoad);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('load', handleLoad);
-    };
+    // Restore original after a short delay
+    setTimeout(() => {
+      window.scrollTo = originalScrollTo;
+    }, 500);
   }
-  
-  return undefined;
 };
 
-// Add the missing function
 export const disableScrollRestoration = () => {
   if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
-    // Disable automatic scroll restoration
     history.scrollRestoration = 'manual';
-    
-    // Set scroll position to top
-    window.scrollTo(0, 0);
   }
 };

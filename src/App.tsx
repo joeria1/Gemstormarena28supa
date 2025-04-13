@@ -13,12 +13,45 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import SoundManager from './components/SoundManager';
 import ChatContainer from './components/Chat/ChatContainer';
+import ChatToggle from './components/Chat/ChatToggle';
 import DepositButton from './components/DepositButton';
 import Tower from './pages/Tower';
 import Rewards from './pages/Rewards';
 import Crash from './pages/Crash';
 import RakeBack from './pages/RakeBack';
 import { disableScrollRestoration } from './utils/scrollFix';
+import { useChat } from './context/ChatContext';
+
+function AppContent() {
+  const { isChatOpen, toggleChat } = useChat();
+  
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+      <div className="flex-1 pt-16 overflow-x-hidden">
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/cases" element={<Cases />} />
+          <Route path="/mines" element={<Mines />} />
+          <Route path="/blackjack" element={<Blackjack />} />
+          <Route path="/tower" element={<Tower />} />
+          <Route path="/rewards" element={<Rewards />} />
+          <Route path="/crash" element={<Crash />} />
+          <Route path="/rakeback" element={<RakeBack />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+      <Footer />
+      {isChatOpen && <ChatContainer />}
+      <ChatToggle isOpen={isChatOpen} onToggle={toggleChat} />
+      <div className="fixed top-16 right-4 z-30">
+        <DepositButton />
+      </div>
+      <SoundManager />
+      <Toaster />
+    </div>
+  );
+}
 
 function App() {
   const queryClient = new QueryClient();
@@ -30,29 +63,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <div className="flex-1 pt-16 overflow-x-hidden">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/cases" element={<Cases />} />
-            <Route path="/mines" element={<Mines />} />
-            <Route path="/blackjack" element={<Blackjack />} />
-            <Route path="/tower" element={<Tower />} />
-            <Route path="/rewards" element={<Rewards />} />
-            <Route path="/crash" element={<Crash />} />
-            <Route path="/rakeback" element={<RakeBack />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-        <Footer />
-        <ChatContainer />
-        <div className="fixed top-16 right-4 z-30">
-          <DepositButton />
-        </div>
-        <SoundManager />
-        <Toaster />
-      </div>
+      <AppContent />
     </QueryClientProvider>
   );
 }
