@@ -12,10 +12,11 @@ import {
   Coins, 
   Target, 
   Trophy, 
-  GitBranch, 
   Users, 
   ChevronDown,
-  CreditCard
+  CreditCard,
+  Gift,
+  User
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -26,6 +27,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import HorseIcon from './HorseRacing/HorseIcon';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
 
 const Navbar = () => {
   const location = useLocation();
@@ -34,6 +40,16 @@ const Navbar = () => {
 
   const isActive = (path: string) => {
     return location.pathname === path;
+  };
+
+  // Calculate progress for the XP bar
+  const level = user.level || 1;
+  const xp = user.xp || 0;
+  const xpRequired = level * 1000; // Simple calculation for required XP
+  const progress = Math.min((xp / xpRequired) * 100, 100);
+
+  const getInitials = (name: string) => {
+    return name ? name.substring(0, 2).toUpperCase() : 'US';
   };
 
   return (
@@ -54,6 +70,9 @@ const Navbar = () => {
             </NavLink>
             <NavLink to="/cases" isActive={isActive("/cases")} icon={<Boxes className="w-4 h-4" />}>
               Cases
+            </NavLink>
+            <NavLink to="/rewards" isActive={isActive("/rewards")} icon={<Gift className="w-4 h-4" />}>
+              Rewards
             </NavLink>
             
             <DropdownMenu>
@@ -104,7 +123,50 @@ const Navbar = () => {
             <DollarSign className="text-green-500 w-4 h-4 mr-1" />
             <span className="font-bold">${user.balance.toFixed(2)}</span>
           </div>
-          <DepositButton />
+          
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center">
+              <div className="mr-3">
+                <div className="flex items-center text-xs text-gray-400">
+                  <span className="mr-1">Level {level}</span>
+                  <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-600 to-green-500"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                  <span className="ml-1">{xp}/{xpRequired} XP</span>
+                </div>
+              </div>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center hover:opacity-80">
+                    <Avatar className="h-8 w-8 border border-gray-700">
+                      <AvatarImage src={user.avatar || "https://api.dicebear.com/7.x/lorelei/svg?seed=user"} />
+                      <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="flex items-center text-gray-200 hover:text-white hover:bg-gray-700 cursor-pointer">
+                      <User className="w-4 h-4 mr-2" />
+                      My Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/rewards" className="flex items-center text-gray-200 hover:text-white hover:bg-gray-700 cursor-pointer">
+                      <Gift className="w-4 h-4 mr-2" />
+                      Rewards
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
+            <DepositButton />
+          </div>
         </div>
       </div>
     </div>

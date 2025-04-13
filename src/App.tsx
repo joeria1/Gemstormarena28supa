@@ -1,36 +1,44 @@
-
-import { BrowserRouter as Router } from 'react-router-dom';
-import { Toaster } from 'sonner';
-
-import './App.css';
+import React, { useContext, useState } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import { ThemeProvider } from './components/ui/theme-provider';
-import ImprovedChatContainer from './components/Chat/ImprovedChatContainer';
+import Home from './pages/Home';
+import Blackjack from './pages/Blackjack';
+import CaseBattles from './pages/CaseBattles';
+import Cases from './pages/Cases';
+import Crash from './pages/Crash';
+import Mines from './pages/Mines';
+import Affiliates from './pages/Affiliates';
+import HorseRacing from './pages/HorseRacing';
 import { UserProvider } from './context/UserContext';
-import { ChatProvider } from './context/ChatContext';
-import SoundManager from './components/SoundManager';
-import AppRoutes from './routes';
+import { Toaster } from 'sonner';
+import Rewards from './pages/Rewards';
 
-function App() {
+const App = () => {
+  const [theme, setTheme] = useState('dark');
+
   return (
-    <ThemeProvider>
+    <BrowserRouter>
       <UserProvider>
-        <ChatProvider>
-          <SoundManager />
-          <div className="flex flex-col min-h-screen">
-            <Navbar />
-            <main className="flex-grow bg-gray-900 text-white">
-              <AppRoutes />
-            </main>
-            <Footer />
-            <ImprovedChatContainer />
-            <Toaster position="top-right" />
-          </div>
-        </ChatProvider>
+        <Navbar />
+        
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/blackjack" element={<Blackjack />} />
+          <Route path="/case-battles" element={<CaseBattles />} />
+          <Route path="/cases" element={<Cases />} />
+          <Route path="/crash" element={<Crash />} />
+          <Route path="/mines" element={<Mines />} />
+          <Route path="/affiliates" element={<Affiliates />} />
+          <Route path="/horse-racing" element={<HorseRacing />} />
+        
+        <Route path="/rewards" element={<Rewards />} />
+        
+        </Routes>
+      
+      <Toaster richColors closeButton />
       </UserProvider>
-    </ThemeProvider>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;

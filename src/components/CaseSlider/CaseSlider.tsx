@@ -33,6 +33,7 @@ const CaseSlider = ({
   const [selectedItem, setSelectedItem] = useState<SliderItem | null>(null);
   const [spinSequence, setSpinSequence] = useState<SliderItem[]>([]);
   const [winningItemIndex, setWinningItemIndex] = useState<number | null>(null);
+  const [animationStarted, setAnimationStarted] = useState(false);
   
   // Generate a sequence of items for spinning that's much longer than the visible area
   const generateSpinSequence = () => {
@@ -61,6 +62,16 @@ const CaseSlider = ({
       startSpin();
     }
   }, [autoSpin, items]);
+
+  // Reset animation flag when spinning changes
+  useEffect(() => {
+    if (spinning) {
+      setAnimationStarted(false);
+      setTimeout(() => {
+        setAnimationStarted(true);
+      }, 50);
+    }
+  }, [spinning]);
   
   // Handle playing tick sounds at correct intervals
   const checkAndPlayTickSound = () => {
@@ -127,23 +138,25 @@ const CaseSlider = ({
     setWinningItemIndex(targetIndex);
     
     // Apply the spinning animation with CSS
-    if (sliderRef.current) {
-      const itemWidth = getItemWidth();
-      sliderRef.current.style.transition = `transform ${duration}ms cubic-bezier(0.15, 0.85, 0.35, 1.0)`;
-      
-      // Calculate position to center the item in view
-      const offset = isCompact ? 40 : 60; // Adjust based on container padding
-      sliderRef.current.style.transform = `translateX(-${(targetIndex * itemWidth) - offset}px)`;
-    }
-    
-    // Set up animation frame based tick detection
-    const checkTicks = () => {
-      checkAndPlayTickSound();
-      if (spinning) {
-        requestAnimationFrame(checkTicks);
+    setTimeout(() => {
+      if (sliderRef.current) {
+        const itemWidth = getItemWidth();
+        sliderRef.current.style.transition = `transform ${duration}ms cubic-bezier(0.15, 0.85, 0.35, 1.0)`;
+        
+        // Calculate position to center the item in view
+        const offset = isCompact ? 40 : 60; // Adjust based on container padding
+        sliderRef.current.style.transform = `translateX(-${(targetIndex * itemWidth) - offset}px)`;
       }
-    };
-    requestAnimationFrame(checkTicks);
+      
+      // Set up animation frame based tick detection
+      const checkTicks = () => {
+        checkAndPlayTickSound();
+        if (spinning) {
+          requestAnimationFrame(checkTicks);
+        }
+      };
+      requestAnimationFrame(checkTicks);
+    }, 100);
     
     // Complete the spin after the animation
     setTimeout(() => {

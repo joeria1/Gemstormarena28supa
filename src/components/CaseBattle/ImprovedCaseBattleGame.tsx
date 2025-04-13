@@ -479,7 +479,7 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
             {!isSpinning && battle.status === 'waiting' && emptySlots > 0 && countdown === 0 && (
               <Button 
                 size="lg"
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 py-6 px-8 text-lg"
                 onClick={() => {
                   // Fill all remaining slots with bots
                   for (let i = 0; i < emptySlots; i++) {
@@ -516,7 +516,7 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
             {!isSpinning && battle.status === 'waiting' && emptySlots === 0 && countdown === 0 && (
               <Button 
                 size="lg"
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 py-6 px-8 text-lg"
                 onClick={startCountdown}
               >
                 Start Battle

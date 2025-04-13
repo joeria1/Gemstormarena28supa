@@ -6,15 +6,15 @@ import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
 import { motion } from 'framer-motion';
 import { Card } from '../components/ui/card';
-import { Trophy, DollarSign, User } from 'lucide-react';
+import { Trophy, DollarSign, User, Clock } from 'lucide-react';
 import HorseIcon from '../components/HorseRacing/HorseIcon';
 
 const horses = [
-  { id: 1, name: "Thunder Bolt", odds: 2.5, color: "bg-amber-700" },
-  { id: 2, name: "Silver Streak", odds: 3.2, color: "bg-slate-400" },
-  { id: 3, name: "Lucky Star", odds: 4.0, color: "bg-yellow-500" },
-  { id: 4, name: "Night Fury", odds: 5.0, color: "bg-gray-800" },
-  { id: 5, name: "Golden Flash", odds: 6.0, color: "bg-yellow-600" }
+  { id: 1, name: "Thunder Bolt", odds: 5, color: "bg-amber-700" },
+  { id: 2, name: "Silver Streak", odds: 5, color: "bg-slate-400" },
+  { id: 3, name: "Lucky Star", odds: 5, color: "bg-yellow-500" },
+  { id: 4, name: "Night Fury", odds: 5, color: "bg-gray-800" },
+  { id: 5, name: "Golden Flash", odds: 5, color: "bg-yellow-600" }
 ];
 
 const HorseRacing = () => {
@@ -25,14 +25,33 @@ const HorseRacing = () => {
   const [positions, setPositions] = useState<Array<{id: number, position: number}>>([]);
   const [winner, setWinner] = useState<number | null>(null);
   const [raceCompleted, setRaceCompleted] = useState<boolean>(false);
+  const [timeToNextRace, setTimeToNextRace] = useState<number>(10);
+  const [isAutoRacing, setIsAutoRacing] = useState<boolean>(true);
 
   useEffect(() => {
     // Initialize horse positions
     resetPositions();
+    
+    // Start the auto racing cycle
+    const interval = setInterval(() => {
+      setTimeToNextRace(prev => {
+        if (prev <= 1) {
+          // Start a new race when the countdown reaches 0
+          if (!isRacing) {
+            startAutoRace();
+          }
+          return 10; // Reset to 10 seconds after race starts
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const resetPositions = () => {
     setPositions(horses.map(horse => ({ id: horse.id, position: 0 })));
+    setWinner(null);
   }
 
   const handleBet = (amount: number) => {
@@ -43,27 +62,13 @@ const HorseRacing = () => {
     setSelectedHorse(horseId);
   };
 
-  const handleStartRace = () => {
-    if (selectedHorse === null) {
-      toast.error("Please select a horse first!");
-      return;
-    }
-
-    if (user.balance < betAmount) {
-      toast.error("Insufficient balance!");
-      return;
-    }
-
-    // Deduct bet amount from balance
-    updateUser({ ...user, balance: user.balance - betAmount });
+  const startAutoRace = () => {
+    if (isRacing) return;
     
-    // Start race
-    setIsRacing(true);
-    setRaceCompleted(false);
-    setWinner(null);
-    
-    // Reset positions
+    // Reset for a new race
     resetPositions();
+    setRaceCompleted(false);
+    setIsRacing(true);
     
     // Race simulation logic
     const raceInterval = setInterval(() => {
@@ -86,30 +91,24 @@ const HorseRacing = () => {
           setRaceCompleted(true);
           setWinner(finishedHorse.id);
           
-          // Handle winning logic
-          if (finishedHorse.id === selectedHorse) {
-            const winningHorse = horses.find(h => h.id === selectedHorse);
-            if (winningHorse) {
-              const winAmount = betAmount * winningHorse.odds;
-              updateUser({ ...user, balance: user.balance + winAmount });
-              toast.success(`You won $${winAmount.toFixed(2)}!`);
+          // Handle winning logic for the user if they placed a bet
+          if (selectedHorse !== null) {
+            if (finishedHorse.id === selectedHorse) {
+              const winningHorse = horses.find(h => h.id === selectedHorse);
+              if (winningHorse) {
+                const winAmount = betAmount * winningHorse.odds;
+                updateUser({ ...user, balance: user.balance + winAmount });
+                toast.success(`You won $${winAmount.toFixed(2)}!`);
+              }
+            } else {
+              toast.error("Better luck next time!");
             }
-          } else {
-            toast.error("Better luck next time!");
           }
         }
         
         return newPositions;
       });
     }, 100);
-    
-    return () => clearInterval(raceInterval);
-  };
-
-  const handleResetRace = () => {
-    setRaceCompleted(false);
-    setWinner(null);
-    resetPositions();
   };
 
   return (
@@ -127,7 +126,16 @@ const HorseRacing = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-gray-900 rounded-xl p-6">
-          <h2 className="text-xl font-bold mb-4 text-white">Race Track</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-white">Race Track</h2>
+            
+            <div className="flex items-center bg-blue-900 rounded-lg px-3 py-1">
+              <Clock className="h-4 w-4 text-blue-300 mr-2" />
+              <span className="text-white">
+                {isRacing ? "Race in progress" : `Next race in ${timeToNextRace}s`}
+              </span>
+            </div>
+          </div>
           
           <div className="relative bg-green-900 rounded-lg p-4 min-h-[400px]">
             {/* Track background with lanes */}
@@ -196,13 +204,6 @@ const HorseRacing = () => {
                   ? `Congratulations! ${horses.find(h => h.id === winner)?.name} won the race!` 
                   : `${horses.find(h => h.id === winner)?.name} won the race. Better luck next time!`}
               </p>
-              <Button 
-                onClick={handleResetRace} 
-                variant="outline" 
-                className="mt-4 border-gray-600"
-              >
-                New Race
-              </Button>
             </div>
           )}
         </div>
@@ -257,21 +258,31 @@ const HorseRacing = () => {
                 </div>
               </div>
               
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                size="lg"
-                onClick={handleStartRace}
-                disabled={isRacing || selectedHorse === null}
-              >
-                {isRacing ? 'Racing...' : 'Start Race'}
-              </Button>
-              
               <div className="mt-4 text-sm text-gray-400">
                 <p>Bet: ${betAmount}</p>
                 {selectedHorse && (
                   <p>Potential win: ${(betAmount * (horses.find(h => h.id === selectedHorse)?.odds || 0)).toFixed(2)}</p>
                 )}
               </div>
+              
+              {!selectedHorse && (
+                <div className="mt-4 bg-blue-900/50 p-3 rounded text-blue-300 text-sm">
+                  Select a horse to place your bet before the next race starts!
+                </div>
+              )}
+              
+              {selectedHorse && user.balance < betAmount && (
+                <div className="mt-4 bg-red-900/50 p-3 rounded text-red-300 text-sm">
+                  Insufficient balance to place this bet.
+                </div>
+              )}
+              
+              {selectedHorse && user.balance >= betAmount && (
+                <div className="mt-4 bg-green-900/50 p-3 rounded text-green-300 text-sm flex items-center">
+                  <Trophy className="w-4 h-4 mr-2" />
+                  Your bet on {horses.find(h => h.id === selectedHorse)?.name} is ready!
+                </div>
+              )}
             </div>
           </Card>
         </div>
