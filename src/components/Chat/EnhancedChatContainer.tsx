@@ -12,7 +12,11 @@ interface Message {
   avatar?: string;
 }
 
-const EnhancedChatContainer: React.FC = () => {
+interface EnhancedChatContainerProps {
+  className?: string;
+}
+
+const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -208,7 +212,7 @@ const EnhancedChatContainer: React.FC = () => {
       <ChatToggle isOpen={isOpen} onToggle={() => setIsOpen(!isOpen)} />
       
       {isOpen && (
-        <div className="fixed top-0 right-0 w-full sm:w-96 md:w-[400px] h-full bg-gray-900 border-l border-gray-800 z-40 shadow-lg">
+        <div className={`fixed top-0 right-0 w-full sm:w-96 md:w-[400px] h-full bg-gray-900 border-l border-gray-800 z-40 shadow-lg ${className || ''}`}>
           <div className="flex flex-col h-full">
             <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900">
               <div className="flex items-center">
@@ -326,7 +330,8 @@ const EnhancedChatContainer: React.FC = () => {
         </div>
       )}
             
-      <style jsx>{`
+      <style>
+        {`
         @keyframes fall {
           0% {
             transform: translateY(-100px);
@@ -345,7 +350,8 @@ const EnhancedChatContainer: React.FC = () => {
           animation-timing-function: linear;
           animation-iteration-count: infinite;
         }
-      `}</style>
+        `}
+      </style>
     </>
   );
 };
