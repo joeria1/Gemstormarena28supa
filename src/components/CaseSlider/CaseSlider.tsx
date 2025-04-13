@@ -1,112 +1,155 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { SliderItem, SliderOptions } from '@/types/slider';
-import { useSound } from '../SoundManager';
-import { cn } from '@/lib/utils';
-import { Gem } from 'lucide-react';
+import { SliderItem, SliderProps } from "@/types/slider";
+import { playTickSound, playStopSound } from "@/utils/sounds";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Gem } from "lucide-react";
 
-interface CaseSliderProps {
-  items: SliderItem[];
-  onComplete: (item: SliderItem) => void;
-  autoSpin?: boolean;
-  isCompact?: boolean;
-  playerName?: string;
-  highlightPlayer?: boolean;
-  options?: SliderOptions;
-}
-
-const CaseSlider: React.FC<CaseSliderProps> = ({ 
-  items, 
-  onComplete, 
+const CaseSlider = ({
+  items,
+  onComplete,
+  spinDuration = 5000,
   autoSpin = false,
   isCompact = false,
   playerName,
   highlightPlayer = false,
-  options = {} 
-}) => {
-  const { playSound } = useSound();
-  const { duration = 6000, itemSize = 'medium' } = options;
+  options = {},
+  isSpinning: externalSpinning,
+  setIsSpinning: setExternalSpinning
+}: SliderProps) => {
+  // For controlling internal spinning state if not provided externally
+  const [internalSpinning, setInternalSpinning] = useState(false);
+  const spinning = setExternalSpinning ? externalSpinning : internalSpinning;
+  const setSpinning = setExternalSpinning || setInternalSpinning;
   
-  const [spinning, setSpinning] = useState(false);
-  const [spinResult, setSpinResult] = useState<SliderItem | null>(null);
-  const [sliderItems, setSliderItems] = useState<SliderItem[]>([]);
-  const [spinInProgress, setSpinInProgress] = useState(false);
+  const { duration = spinDuration, itemSize = 'medium' } = options;
+  
+  // For the animation and sounds
   const sliderRef = useRef<HTMLDivElement>(null);
+  const tickIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastItemIndexRef = useRef<number>(0);
+  const [selectedItem, setSelectedItem] = useState<SliderItem | null>(null);
+  const [spinSequence, setSpinSequence] = useState<SliderItem[]>([]);
   
-  // Generate a larger array of items for the animation
+  // Generate a sequence of items for spinning that's much longer than the visible area
+  const generateSpinSequence = () => {
+    if (items.length === 0) return [];
+    
+    // Create a sequence with multiple repetitions to ensure smooth scrolling
+    let sequence: SliderItem[] = [];
+    for (let i = 0; i < 20; i++) {
+      // Shuffle the items for each repetition
+      const shuffled = [...items].sort(() => Math.random() - 0.5);
+      sequence = [...sequence, ...shuffled];
+    }
+    return sequence;
+  };
+
+  // Initialize spin sequence when items change
   useEffect(() => {
     if (items.length > 0) {
-      // Create multiple copies of the items to ensure smooth animation
-      const multipleItems = [];
-      for (let i = 0; i < 20; i++) {
-        // Add randomized items from the original array
-        multipleItems.push(...shuffleArray([...items]));
-      }
-      setSliderItems(multipleItems);
+      setSpinSequence(generateSpinSequence());
     }
   }, [items]);
   
-  // Function to shuffle array
-  const shuffleArray = (array: SliderItem[]): SliderItem[] => {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  };
-  
   // Auto-spin on mount if enabled
   useEffect(() => {
-    if (autoSpin && !spinning && !spinInProgress && sliderItems.length > 0) {
-      spin();
+    if (autoSpin && !spinning && items.length > 0) {
+      startSpin();
     }
-  }, [autoSpin, sliderItems]);
+  }, [autoSpin, items]);
   
-  // Function to start spinning
-  const spin = () => {
-    if (spinning || spinInProgress || sliderItems.length === 0) return;
+  // Handle playing tick sounds at correct intervals
+  const checkAndPlayTickSound = () => {
+    if (!sliderRef.current || !spinning) return;
     
-    setSpinInProgress(true);
-    setSpining(true);
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-slot-machine-random-wheel-1930.mp3', 0.3);
+    // Calculate current position
+    const transform = getComputedStyle(sliderRef.current).transform;
+    const matrix = new DOMMatrixReadOnly(transform);
+    const currentX = matrix.m41;
     
-    // Determine the winning item - pick a random item from the original items array
-    const winningItem = items[Math.floor(Math.random() * items.length)];
-    setSpinResult(winningItem);
+    // Calculate which item we're on based on position
+    const itemWidth = getItemWidth();
+    const currentIndex = Math.floor(Math.abs(currentX) / itemWidth);
     
-    // Find all instances of the winning item in the sliderItems array
-    const winningIndices = sliderItems
-      .map((item, index) => item.id === winningItem.id ? index : -1)
+    if (currentIndex !== lastItemIndexRef.current) {
+      playTickSound();
+      lastItemIndexRef.current = currentIndex;
+    }
+  };
+  
+  // Start the spinning animation
+  const startSpin = () => {
+    if (spinning || items.length === 0) return;
+    
+    // Generate a new spin sequence
+    const newSequence = generateSpinSequence();
+    setSpinSequence(newSequence);
+    setSelectedItem(null);
+    setSpinning(true);
+    lastItemIndexRef.current = 0;
+    
+    // Calculate which item will be selected (near the end but not the very end)
+    const winningIndex = Math.floor(newSequence.length * 0.7) + 
+      Math.floor(Math.random() * (newSequence.length * 0.2));
+    
+    // Determine the winning item (randomly pick from user's items array)
+    const winner = items[Math.floor(Math.random() * items.length)];
+    
+    // Find the corresponding item in the sequence
+    const matchingIndexes = newSequence
+      .map((item, index) => item.id === winner.id && index >= winningIndex - 5 && index <= winningIndex + 5 ? index : -1)
       .filter(index => index !== -1);
     
-    // Choose a random instance of the winning item
-    const targetIndex = winningIndices[Math.floor(Math.random() * winningIndices.length)];
-    const itemWidth = getItemWidth();
+    // Pick one of the matching indexes near our target winning area
+    const targetIndex = matchingIndexes.length > 0 
+      ? matchingIndexes[Math.floor(Math.random() * matchingIndexes.length)]
+      : winningIndex;
     
-    // Calculate position to scroll to (center the winning item)
+    // Apply the spinning animation with CSS
     if (sliderRef.current) {
-      // Add a small random offset for realistic effect
-      const randomOffset = (Math.random() * 20) - 10;
-      const targetPosition = (targetIndex * itemWidth) - (sliderRef.current.clientWidth / 2) + (itemWidth / 2) + randomOffset;
+      const itemWidth = getItemWidth();
+      sliderRef.current.style.transition = `transform ${duration}ms cubic-bezier(0.15, 0.85, 0.35, 1.0)`;
       
-      // Apply the animation
-      if (sliderRef.current) {
-        sliderRef.current.style.transition = `transform ${duration / 1000}s cubic-bezier(0.15, 0.85, 0.35, 1)`;
-        sliderRef.current.style.transform = `translateX(-${targetPosition}px)`;
-      }
+      // Calculate position to center the item in view
+      const offset = isCompact ? 40 : 60; // Adjust based on container padding
+      sliderRef.current.style.transform = `translateX(-${(targetIndex * itemWidth) - offset}px)`;
     }
     
-    // Handle completion
+    // Set up animation frame based tick detection
+    const checkTicks = () => {
+      checkAndPlayTickSound();
+      if (spinning) {
+        requestAnimationFrame(checkTicks);
+      }
+    };
+    requestAnimationFrame(checkTicks);
+    
+    // Complete the spin after the animation
     setTimeout(() => {
-      setSpining(false);
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3', 0.3);
-      
-      setTimeout(() => {
-        setSpinInProgress(false);
-        onComplete(winningItem);
-      }, 1000);
+      setSpinning(false);
+      setSelectedItem(winner);
+      playStopSound();
+      onComplete(winner);
     }, duration);
   };
+  
+  // Reset the slider position when not spinning and no selected item
+  useEffect(() => {
+    if (!spinning && sliderRef.current && selectedItem === null) {
+      sliderRef.current.style.transition = "none";
+      sliderRef.current.style.transform = isCompact 
+        ? "translateX(calc(50% - 40px))" 
+        : "translateX(calc(50% - 60px))";
+    }
+    
+    return () => {
+      if (tickIntervalRef.current) {
+        clearInterval(tickIntervalRef.current);
+      }
+    };
+  }, [spinning, isCompact, selectedItem]);
   
   // Helper function to get item width based on size
   const getItemWidth = () => {
@@ -126,16 +169,7 @@ const CaseSlider: React.FC<CaseSliderProps> = ({
     }
   };
   
-  // Helper function to get container height based on compact mode and item size
-  const getContainerHeight = () => {
-    if (isCompact) {
-      return getItemHeight() + 40;
-    } else {
-      return getItemHeight() + 60;
-    }
-  };
-  
-  // Helper function to get rarity color class
+  // Helper function to get rarity color gradient
   const getRarityColorClass = (rarity: string): string => {
     switch (rarity) {
       case 'common': return 'from-gray-500 to-gray-400';
@@ -148,111 +182,128 @@ const CaseSlider: React.FC<CaseSliderProps> = ({
     }
   };
   
-  // Helper function to get rarity border glow class
-  const getRarityGlowClass = (rarity: string): string => {
+  // Helper function to get rarity text color
+  const getRarityTextColor = (rarity: string): string => {
     switch (rarity) {
-      case 'common': return 'shadow-sm';
-      case 'uncommon': return 'shadow-md shadow-green-500/30';
-      case 'rare': return 'shadow-md shadow-blue-500/30';
-      case 'epic': return 'shadow-lg shadow-purple-500/40';
-      case 'legendary': return 'shadow-lg shadow-amber-500/50';
-      case 'mythical': return 'shadow-xl shadow-red-500/60';
-      default: return '';
+      case 'common': return 'text-gray-200';
+      case 'uncommon': return 'text-green-300';
+      case 'rare': return 'text-blue-300';
+      case 'epic': return 'text-purple-300';
+      case 'legendary': return 'text-amber-300';
+      case 'mythical': return 'text-red-300';
+      default: return 'text-gray-200';
+    }
+  };
+  
+  // Helper function to get container height based on compact mode and item size
+  const getContainerHeight = () => {
+    if (isCompact) {
+      return getItemHeight() + 40;
+    } else {
+      return getItemHeight() + 60;
     }
   };
   
   return (
-    <div 
-      className={cn(
-        "relative overflow-hidden rounded-lg border",
-        isCompact ? "p-2" : "p-4",
-        highlightPlayer ? "border-cyan-500 bg-black/90" : "border-primary/20 bg-black/80"
-      )}
-      style={{ height: `${getContainerHeight()}px` }}
-    >
-      {playerName && !isCompact && (
-        <div className={cn(
-          "absolute top-2 left-4 px-2 py-1 text-xs rounded-full z-10",
-          highlightPlayer ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40" : "bg-primary/20 text-white border border-primary/40"
-        )}>
-          {playerName}
+    <div className="w-full max-w-4xl mx-auto">
+      <div 
+        className={cn(
+          "relative overflow-hidden rounded-lg border",
+          isCompact ? "p-2" : "p-4",
+          highlightPlayer ? "border-primary bg-black/90" : "border-white/10 bg-black/80"
+        )}
+        style={{ height: `${getContainerHeight()}px` }}
+      >
+        {playerName && !isCompact && (
+          <div className={cn(
+            "absolute top-2 left-4 px-2 py-1 text-xs rounded-full z-10",
+            highlightPlayer ? "bg-primary/20 text-primary border border-primary/40" : "bg-white/10 text-white border border-white/20"
+          )}>
+            {playerName}
+          </div>
+        )}
+        
+        {/* Center pointer/indicator */}
+        <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-primary z-20 transform -translate-x-1/2">
+          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-primary rotate-45"></div>
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-primary rotate-45"></div>
         </div>
-      )}
-      
-      {/* Slider pointer/indicator */}
-      <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-cyan-500 z-20 transform -translate-x-1/2">
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-cyan-500 rotate-45"></div>
-        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-cyan-500 rotate-45"></div>
-      </div>
-      
-      {/* Slider container */}
-      <div className="relative h-full overflow-hidden">
-        <div
-          ref={sliderRef}
-          className={cn(
-            "absolute top-1/2 transform -translate-y-1/2 flex items-center transition-none",
-            isCompact ? "pl-[calc(50%-40px)]" : "pl-[calc(50%-60px)]"
-          )}
-          style={{ 
-            height: `${getItemHeight()}px`,
-            willChange: 'transform',
-          }}
-        >
-          {sliderItems.map((item, index) => (
-            <div
-              key={`${item.id}-${index}`}
-              className={cn(
-                "flex-shrink-0 mx-1 rounded flex flex-col items-center justify-between transition-transform",
-                getRarityGlowClass(item.rarity)
-              )}
-              style={{ 
-                width: `${getItemWidth()}px`, 
-                height: `${getItemHeight()}px`,
-              }}
-            >
-              <div 
+        
+        {/* Slider container */}
+        <div className="relative h-full overflow-hidden">
+          <div
+            ref={sliderRef}
+            className={cn(
+              "absolute top-1/2 transform -translate-y-1/2 flex items-center transition-none",
+              isCompact ? "pl-[calc(50%-40px)]" : "pl-[calc(50%-60px)]"
+            )}
+            style={{ 
+              height: `${getItemHeight()}px`,
+              willChange: 'transform',
+            }}
+          >
+            {spinSequence.map((item, index) => (
+              <div
+                key={`${item.id}-${index}`}
                 className={cn(
-                  "w-full h-full rounded flex flex-col items-center justify-center p-2",
-                  `bg-gradient-to-b ${getRarityColorClass(item.rarity)}`
+                  "flex-shrink-0 mx-1 rounded flex flex-col items-center justify-between transition-transform",
+                  selectedItem?.id === item.id ? "scale-105" : ""
                 )}
+                style={{ 
+                  width: `${getItemWidth()}px`, 
+                  height: `${getItemHeight()}px`,
+                }}
               >
-                <div className="relative w-full h-[70%] flex items-center justify-center">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="max-w-full max-h-full object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = '/placeholder.svg';
-                    }}
-                  />
-                </div>
-                
-                {!isCompact && (
-                  <div className="mt-1 w-full">
-                    <div className="text-xs text-center text-white font-semibold truncate px-1">
-                      {item.name}
-                    </div>
-                    <div className="flex items-center justify-center text-xs mt-0.5">
-                      <Gem className="h-3 w-3 text-cyan-400 mr-0.5" />
-                      <span className="text-white">{item.price}</span>
-                    </div>
+                <div 
+                  className={cn(
+                    "w-full h-full rounded flex flex-col items-center justify-center p-2",
+                    `bg-gradient-to-b ${getRarityColorClass(item.rarity)}`
+                  )}
+                >
+                  <div className="relative w-full h-[70%] flex items-center justify-center">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="max-w-full max-h-full object-contain"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = '/placeholder.svg';
+                      }}
+                    />
                   </div>
-                )}
+                  
+                  {!isCompact && (
+                    <div className="mt-1 w-full">
+                      <div className="text-xs text-center text-white font-semibold truncate px-1">
+                        {item.name}
+                      </div>
+                      <div className="flex items-center justify-center text-xs mt-0.5">
+                        <Gem className="h-3 w-3 text-cyan-400 mr-0.5" />
+                        <span className="text-white">{item.price}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
+      
+      {!autoSpin && (
+        <div className="mt-6 text-center">
+          <Button 
+            className="btn-primary"
+            onClick={startSpin}
+            disabled={spinning}
+          >
+            {spinning ? "Spinning..." : "Spin Now"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
-
-// Helper to handle state setting in useEffect cleanup
-function setSpining(value: boolean) {
-  // This is a no-op function to avoid stale closures
-  // The actual state setting happens in the spin function
-}
 
 export default CaseSlider;
