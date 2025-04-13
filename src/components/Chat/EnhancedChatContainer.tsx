@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChatToggle } from '../Chat/ChatToggle';
+import ChatToggle from '../Chat/ChatToggle';
 import RainEffect from '../Rain/RainEffect';
 
 interface Message {
