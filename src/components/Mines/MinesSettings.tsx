@@ -15,6 +15,12 @@ interface MinesSettingsProps {
   handleStart: () => void;
   handleCashout: () => void;
   currentMultiplier: number;
+  // Add these new props to match usage in Mines.tsx
+  onBetChange?: (amount: number) => void;
+  onMineCountChange?: (count: number) => void; 
+  currentBet?: number;
+  currentMineCount?: number;
+  hideMineButtons?: boolean;
 }
 
 const MinesSettings: React.FC<MinesSettingsProps> = ({
@@ -26,21 +32,32 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
   isGameActive,
   handleStart,
   handleCashout,
-  currentMultiplier
+  currentMultiplier,
+  onBetChange,
+  onMineCountChange,
+  currentBet,
+  currentMineCount,
+  hideMineButtons
 }) => {
   const handleBetChange = (value: number) => {
     playSound(SOUNDS.BUTTON_CLICK);
     if (value > 0) {
       setBet(value);
+      if (onBetChange) onBetChange(value);
     }
   };
   
   const handleMinesChange = (value: number) => {
     if (value >= 1 && value <= maxMines) {
       setMines(value);
+      if (onMineCountChange) onMineCountChange(value);
       playSound(SOUNDS.BUTTON_CLICK);
     }
   };
+  
+  // Use the passed value or fallback to the component's props
+  const displayBet = currentBet !== undefined ? currentBet : bet;
+  const displayMines = currentMineCount !== undefined ? currentMineCount : mines;
   
   return (
     <div className="space-y-4">

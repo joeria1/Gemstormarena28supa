@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 interface User {
@@ -9,6 +8,7 @@ interface User {
   balance: number;
   level?: number;
   xp?: number;
+  totalBets?: number; // Add totalBets property to support Rewards.tsx
   updateBalance: (amount: number) => void;
 }
 
@@ -26,7 +26,8 @@ const defaultUser: Omit<User, 'updateBalance' | 'name'> = {
   avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=GemHunter',
   balance: 5000,
   level: 1,
-  xp: 0
+  xp: 0,
+  totalBets: 1000 // Add default value for totalBets
 };
 
 const UserContext = createContext<UserContextType>({

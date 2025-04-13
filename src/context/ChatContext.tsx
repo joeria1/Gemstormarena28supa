@@ -1,6 +1,6 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
+import { CloudRain } from 'lucide-react';
 
 // Message interface
 export interface ChatMessage {

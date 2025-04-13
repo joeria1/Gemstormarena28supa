@@ -8,7 +8,7 @@ import { useUser } from '@/context/UserContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowRight, Clock, Crown, Plus, Users, Bot, Dice1, RotateCw, Vs } from 'lucide-react';
+import { ArrowRight, Clock, Crown, Plus, Users, Bot, Dice1, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Battle participant interface
