@@ -204,7 +204,7 @@ const Blackjack = () => {
     updatedTables[tableIndex].spots[spotIndex] = {
       occupied: true,
       isBot: false,
-      name: user.name || "Player",
+      name: user.username || "Player",
       hands: [],
       activeHandIndex: 0
     };

@@ -22,3 +22,14 @@ export const preventAutoScroll = () => {
   
   return undefined;
 };
+
+// Add the missing function
+export const disableScrollRestoration = () => {
+  if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
+    // Disable automatic scroll restoration
+    history.scrollRestoration = 'manual';
+    
+    // Set scroll position to top
+    window.scrollTo(0, 0);
+  }
+};
