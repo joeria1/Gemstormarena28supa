@@ -14,7 +14,7 @@ import {
   GitBranch, 
   Users, 
   ChevronDown,
-  PlayingCard
+  Cards
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -45,7 +45,7 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden md:flex space-x-1">
-            <NavLink to="/blackjack" isActive={isActive("/blackjack")} icon={<PlayingCard className="w-4 h-4" />}>
+            <NavLink to="/blackjack" isActive={isActive("/blackjack")} icon={<Cards className="w-4 h-4" />}>
               Blackjack
             </NavLink>
             <NavLink to="/case-battles" isActive={isActive("/case-battles")} icon={<Sword className="w-4 h-4" />}>
