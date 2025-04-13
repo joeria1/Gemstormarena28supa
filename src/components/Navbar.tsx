@@ -1,4 +1,3 @@
-
 import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RocketLogo } from './RocketLogo';
@@ -15,7 +14,7 @@ import {
   GitBranch, 
   Users, 
   ChevronDown,
-  Cards
+  PlayingCard
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -46,7 +45,7 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden md:flex space-x-1">
-            <NavLink to="/blackjack" isActive={isActive("/blackjack")} icon={<Cards className="w-4 h-4" />}>
+            <NavLink to="/blackjack" isActive={isActive("/blackjack")} icon={<PlayingCard className="w-4 h-4" />}>
               Blackjack
             </NavLink>
             <NavLink to="/case-battles" isActive={isActive("/case-battles")} icon={<Sword className="w-4 h-4" />}>
