@@ -18,9 +18,15 @@ import Tower from './pages/Tower';
 import Rewards from './pages/Rewards';
 import Crash from './pages/Crash';
 import RakeBack from './pages/RakeBack';
+import { disableScrollRestoration } from './utils/scrollFix';
 
 function App() {
   const queryClient = new QueryClient();
+  
+  // Disable automatic scroll restoration
+  React.useEffect(() => {
+    disableScrollRestoration();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

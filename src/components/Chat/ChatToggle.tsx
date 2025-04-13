@@ -10,13 +10,13 @@ interface ChatToggleProps {
 }
 
 const ChatToggle: React.FC<ChatToggleProps> = ({ isOpen, onToggle }) => {
-  const { isRainActive } = useChat();
+  const { isRainActive, rainTimeRemaining } = useChat();
   
   return (
     <Button 
       onClick={onToggle} 
       variant="outline" 
-      className="fixed right-4 bottom-4 z-50 bg-primary text-white shadow-lg hover:bg-primary/80 scale-110 border-2 border-white/30"
+      className="fixed right-4 bottom-4 z-50 bg-blue-950 text-white shadow-lg hover:bg-blue-900 scale-110 border-2 border-blue-800/50"
       size="lg"
     >
       {isOpen ? (

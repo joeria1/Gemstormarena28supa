@@ -11,9 +11,10 @@ import { Bomb, Gift, Gem } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
 import ChatWindow from '@/components/Chat/ChatWindow';
 import { playButtonSound } from '@/utils/sounds';
+import { disableScrollRestoration } from '@/utils/scrollFix';
 
 // Types
-type TileState = 'hidden' | 'gem' | 'bomb';
+type TileState = 'hidden' | 'gem' | 'bomb' | 'revealed-gem' | 'revealed-bomb';
 
 interface GameStats {
   gamesPlayed: number;
@@ -26,7 +27,7 @@ const MAX_TILES = 25;
 
 const Mines: React.FC = () => {
   const { toast } = useToast();
-  const { user, updateBalance } = useUser();
+  const { user, updateBalance, addBet } = useUser();
   
   // State
   const [betAmount, setBetAmount] = useState<number>(10);
@@ -46,8 +47,16 @@ const Mines: React.FC = () => {
   // Settings tab
   const [settingsTab, setSettingsTab] = useState("preset");
 
+  // Game data
+  const [tileData, setTileData] = useState<Array<'gem' | 'bomb'>>([]);
+
   // Calculate max mines allowed (5-24)
   const maxMinesAllowed = MAX_TILES - 1;
+  
+  // Effect to prevent auto-scrolling
+  useEffect(() => {
+    disableScrollRestoration();
+  }, []);
   
   // Effect to initialize stats from localStorage
   useEffect(() => {
@@ -94,6 +103,11 @@ const Mines: React.FC = () => {
     // Deduct bet amount
     updateBalance(-betAmount);
     
+    // Track bet for RakeBack
+    if (addBet) {
+      addBet(betAmount);
+    }
+    
     // Initialize new game
     const newTiles = Array(MAX_TILES).fill('hidden');
     setTiles(newTiles);
@@ -101,6 +115,7 @@ const Mines: React.FC = () => {
     setRevealedCount(0);
     setCurrentMultiplier(1);
     setCurrentWinnings(0);
+    setTileData([]);
     
     // Update stats
     setStats(prev => ({
@@ -119,99 +134,100 @@ const Mines: React.FC = () => {
   
   // Place mines on the first click
   const placeMines = (clickedIndex: number) => {
-    const newTiles = [...tiles];
+    const newTileData: Array<'gem' | 'bomb'> = Array(MAX_TILES).fill('gem');
     
     // Make sure clickedIndex doesn't get a mine
     let minesPlaced = 0;
     while (minesPlaced < mineCount) {
       const randIndex = Math.floor(Math.random() * MAX_TILES);
-      if (randIndex !== clickedIndex && newTiles[randIndex] !== 'bomb') {
-        newTiles[randIndex] = 'bomb';
+      if (randIndex !== clickedIndex && newTileData[randIndex] !== 'bomb') {
+        newTileData[randIndex] = 'bomb';
         minesPlaced++;
       }
     }
     
-    // All other tiles are gems
-    for (let i = 0; i < MAX_TILES; i++) {
-      if (newTiles[i] === 'hidden') {
-        newTiles[i] = 'gem';
-      }
-    }
-    
-    return newTiles;
+    setTileData(newTileData);
+    return newTileData;
   };
   
   // Handle tile click
   const handleTileClick = (index: number) => {
     if (!gameActive) return;
     
-    let newTiles = [...tiles];
-    const isFirstClick = revealedCount === 0;
+    // Check if tile is already revealed
+    if (tiles[index] !== 'hidden') return;
     
-    // If this is the first click, place mines after user clicks
+    const isFirstClick = revealedCount === 0;
+    let currentTileData = [...tileData];
+    
+    // If this is the first click, place mines
     if (isFirstClick) {
-      newTiles = placeMines(index);
+      currentTileData = placeMines(index);
     }
     
-    // Check if tile is already revealed
-    if (newTiles[index] !== 'hidden') {
-      // This tile's state is already determined (but still visually hidden from user)
-      if (newTiles[index] === 'bomb') {
-        // Game over - hit a mine
+    // Get the state of the clicked tile
+    const tileType = currentTileData[index];
+    
+    if (tileType === 'bomb') {
+      // Game over - hit a mine
+      const newTiles = [...tiles];
+      
+      // Reveal all tiles
+      for (let i = 0; i < MAX_TILES; i++) {
+        if (currentTileData[i] === 'bomb') {
+          newTiles[i] = i === index ? 'revealed-bomb' : 'bomb';
+        } else {
+          newTiles[i] = 'gem';
+        }
+      }
+      
+      setTiles(newTiles);
+      setGameActive(false);
+      
+      toast({
+        title: "Boom! Game Over",
+        description: `You hit a mine and lost ${betAmount} gems`,
+        variant: "destructive"
+      });
+    } else {
+      // Reveal this gem
+      const newTiles = [...tiles];
+      newTiles[index] = 'revealed-gem';
+      setTiles(newTiles);
+      
+      // Increment revealed count
+      const newRevealedCount = revealedCount + 1;
+      setRevealedCount(newRevealedCount);
+      
+      // Calculate new multiplier based on revealed gems
+      const newMultiplier = calculateMultiplier(newRevealedCount);
+      setCurrentMultiplier(newMultiplier);
+      
+      // Calculate current potential winnings
+      const winnings = Math.floor(betAmount * newMultiplier);
+      setCurrentWinnings(winnings);
+      
+      // Check if all non-mine tiles are revealed
+      const totalGems = MAX_TILES - mineCount;
+      if (newRevealedCount === totalGems) {
+        // Player won by revealing all gems!
         setGameActive(false);
         
-        // Reveal all tiles
-        const revealedTiles = newTiles.map(tile => tile);
-        setTiles(revealedTiles);
+        // Award winnings
+        updateBalance(winnings);
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          gamesWon: prev.gamesWon + 1,
+          totalWinnings: prev.totalWinnings + winnings,
+          highestWin: Math.max(prev.highestWin, winnings)
+        }));
         
         toast({
-          title: "Boom! Game Over",
-          description: `You hit a mine and lost ${betAmount} gems`,
-          variant: "destructive"
+          title: "Amazing! Perfect Game!",
+          description: `You revealed all gems and won ${winnings} gems!`,
         });
-        
-        return;
-      } else if (newTiles[index] === 'gem') {
-        // Reveal this gem
-        const visiblyRevealedTiles = [...newTiles];
-        
-        // Mark visibly as revealed to user
-        visiblyRevealedTiles[index] = 'gem';
-        setTiles(visiblyRevealedTiles);
-        
-        // Increment revealed count
-        setRevealedCount(prev => prev + 1);
-        
-        // Calculate new multiplier based on revealed gems
-        const newMultiplier = calculateMultiplier(revealedCount + 1);
-        setCurrentMultiplier(newMultiplier);
-        
-        // Calculate current potential winnings
-        const winnings = Math.floor(betAmount * newMultiplier);
-        setCurrentWinnings(winnings);
-        
-        // Check if all non-mine tiles are revealed
-        const totalGems = MAX_TILES - mineCount;
-        if (revealedCount + 1 === totalGems) {
-          // Player won by revealing all gems!
-          setGameActive(false);
-          
-          // Award winnings
-          updateBalance(winnings);
-          
-          // Update stats
-          setStats(prev => ({
-            ...prev,
-            gamesWon: prev.gamesWon + 1,
-            totalWinnings: prev.totalWinnings + winnings,
-            highestWin: Math.max(prev.highestWin, winnings)
-          }));
-          
-          toast({
-            title: "Amazing! Perfect Game!",
-            description: `You revealed all gems and won ${winnings} gems!`,
-          });
-        }
       }
     }
   };
@@ -245,15 +261,14 @@ const Mines: React.FC = () => {
     // End game and reveal mines
     setGameActive(false);
     
-    // Reveal just the bombs
-    const revealedTiles = [...tiles];
-    for (let i = 0; i < revealedTiles.length; i++) {
-      if (revealedTiles[i] === 'bomb') {
-        // Make bombs visible
-        revealedTiles[i] = 'bomb';
+    // Reveal all tiles
+    const newTiles = [...tiles];
+    for (let i = 0; i < MAX_TILES; i++) {
+      if (tileData[i] === 'bomb') {
+        newTiles[i] = 'bomb';
       }
     }
-    setTiles(revealedTiles);
+    setTiles(newTiles);
     
     toast({
       title: "Cashed Out!",
@@ -279,7 +294,7 @@ const Mines: React.FC = () => {
   return (
     <div className="container py-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8 text-center">
+        <div className="mb-6 text-center">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
             Mines
           </h1>
@@ -292,30 +307,35 @@ const Mines: React.FC = () => {
           <div className="lg:col-span-2">
             <Card>
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="col-span-1 bg-blue-900/20 rounded-lg p-4 border border-blue-900/40">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="col-span-1 bg-blue-900/20 rounded-lg p-3 border border-blue-900/40">
                     <div className="text-sm text-muted-foreground mb-1">Current Bet</div>
-                    <div className="text-2xl font-bold flex items-center">
+                    <div className="text-lg font-bold flex items-center">
                       <Gem className="h-5 w-5 text-cyan-400 mr-2" />
                       {betAmount}
                     </div>
                   </div>
                   
-                  <div className="col-span-1 bg-purple-900/20 rounded-lg p-4 border border-purple-900/40">
+                  <div className="col-span-1 bg-purple-900/20 rounded-lg p-3 border border-purple-900/40">
                     <div className="text-sm text-muted-foreground mb-1">Current Multiplier</div>
-                    <div className="text-2xl font-bold">{currentMultiplier}x</div>
+                    <div className="text-lg font-bold flex justify-between">
+                      <span>{currentMultiplier}x</span>
+                      <span className="text-blue-300">
+                        {currentMultiplier > 1 && `${betAmount} × ${currentMultiplier}`}
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="col-span-1 bg-green-900/20 rounded-lg p-4 border border-green-900/40">
+                  <div className="col-span-1 bg-green-900/20 rounded-lg p-3 border border-green-900/40">
                     <div className="text-sm text-muted-foreground mb-1">Potential Win</div>
-                    <div className="text-2xl font-bold flex items-center">
+                    <div className="text-lg font-bold flex items-center">
                       <Gem className="h-5 w-5 text-cyan-400 mr-2" />
                       {currentWinnings}
                     </div>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-5 gap-2 mb-6">
+                <div className="grid grid-cols-5 gap-2 mb-4">
                   {tiles.map((tile, index) => (
                     <button
                       key={index}
@@ -324,14 +344,18 @@ const Mines: React.FC = () => {
                       className={`aspect-square rounded-lg border ${
                         tile === 'hidden'
                           ? 'bg-black/30 border-white/20 hover:bg-black/40 hover:border-white/30'
-                          : tile === 'gem'
-                            ? 'bg-green-900/30 border-green-500 text-green-400'
-                            : 'bg-red-900/30 border-red-500 text-red-400'
+                          : tile === 'gem' || tile === 'revealed-gem'
+                            ? tile === 'revealed-gem' 
+                              ? 'bg-green-900/60 border-green-500 text-green-400'
+                              : 'bg-green-900/30 border-green-500 text-green-400'
+                            : tile === 'revealed-bomb'
+                              ? 'bg-red-900/60 border-red-500 text-red-400 animate-pulse'
+                              : 'bg-red-900/30 border-red-500 text-red-400'
                       } flex items-center justify-center transition-all`}
                     >
                       {tile === 'hidden' ? (
                         <span className="text-2xl">?</span>
-                      ) : tile === 'gem' ? (
+                      ) : tile === 'gem' || tile === 'revealed-gem' ? (
                         <Gem className="h-6 w-6" />
                       ) : (
                         <Bomb className="h-6 w-6" />
@@ -355,7 +379,7 @@ const Mines: React.FC = () => {
                       onClick={cashOut}
                       disabled={revealedCount === 0}
                     >
-                      Cash Out ({currentWinnings})
+                      Cash Out ({currentWinnings} gems)
                     </Button>
                   )}
                 </div>
@@ -380,6 +404,13 @@ const Mines: React.FC = () => {
                         currentBet={betAmount}
                         currentMineCount={mineCount}
                         isGameActive={gameActive}
+                        bet={betAmount}
+                        setBet={setBetAmount}
+                        mines={mineCount}
+                        setMines={setMineCount}
+                        maxBet={user?.balance || 0}
+                        minBet={1}
+                        disabled={gameActive}
                       />
                     </TabsContent>
                     
@@ -400,6 +431,13 @@ const Mines: React.FC = () => {
                         currentMineCount={mineCount}
                         isGameActive={gameActive}
                         hideMineButtons={true}
+                        bet={betAmount}
+                        setBet={setBetAmount}
+                        mines={mineCount}
+                        setMines={setMineCount}
+                        maxBet={user?.balance || 0}
+                        minBet={1}
+                        disabled={gameActive}
                       />
                     </TabsContent>
                   </Tabs>
