@@ -2,6 +2,8 @@
 import React from 'react';
 import { toast } from '../hooks/use-toast';
 import { CheckCircle, XCircle } from 'lucide-react';
+import { playSound } from '../utils/soundEffects';
+import { SOUNDS } from '../utils/soundEffects';
 
 interface GameResultProps {
   success: boolean;
@@ -11,6 +13,13 @@ interface GameResultProps {
 }
 
 export const showGameResult = ({ success, message, multiplier, amount }: GameResultProps) => {
+  // Play appropriate sound
+  if (success) {
+    playSound(SOUNDS.CASH_OUT);
+  } else {
+    playSound(SOUNDS.MINE_HIT);
+  }
+
   toast({
     title: success ? 'Success!' : 'Game Over',
     description: (
