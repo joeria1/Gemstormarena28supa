@@ -17,6 +17,7 @@ import DepositButton from './components/DepositButton';
 import Tower from './pages/Tower';
 import Rewards from './pages/Rewards';
 import Crash from './pages/Crash';
+import RakeBack from './pages/RakeBack';
 
 function App() {
   const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function App() {
             <Route path="/tower" element={<Tower />} />
             <Route path="/rewards" element={<Rewards />} />
             <Route path="/crash" element={<Crash />} />
+            <Route path="/rakeback" element={<RakeBack />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
@@ -6,6 +5,7 @@ import { Input } from '../components/ui/input';
 import { useSound } from '../components/SoundManager';
 import { showGameResult } from '../components/GameResultNotification';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { SOUNDS, playSound } from '../utils/soundEffects';
 
 enum DifficultyLevel {
   EASY = 'easy',
@@ -75,7 +75,7 @@ const Tower: React.FC = () => {
     setMultiplier(1);
     setLastBombHit(null);
     generateTower();
-    playSound('/sounds/button-click.mp3');
+    playSound(SOUNDS.BUTTON_CLICK);
   };
   
   const handleTileClick = (tileIndex: number) => {
@@ -98,7 +98,7 @@ const Tower: React.FC = () => {
     // Check if bomb hit
     if (currentTowerLevel.bombs.includes(tileIndex)) {
       // Game over - hit a bomb
-      playSound('/sounds/explosion.mp3');
+      playSound(SOUNDS.TOWER_WRONG);
       setLastBombHit({ level: currentLevel, tileIndex });
       
       showGameResult({
@@ -107,18 +107,19 @@ const Tower: React.FC = () => {
         multiplier: multiplier,
         amount: bet
       });
+      // Keep game active to show the bomb hit, but disable interactions
       setGameActive(false);
     } else {
       // Safe tile
-      playSound('/sounds/correct.mp3');
+      playSound(SOUNDS.TOWER_CORRECT);
       
       // In Easy mode, proceed to the next level after hitting ANY safe tile
       if (difficulty === DifficultyLevel.EASY) {
-        // Level completed
+        // Level completed immediately after hitting a safe tile
         if (currentLevel + 1 >= maxLevel) {
           // Game won
           const finalMultiplier = calculateMultiplier(currentLevel + 1);
-          playSound('/sounds/big-win.mp3');
+          playSound(SOUNDS.CASH_OUT);
           showGameResult({
             success: true,
             message: "Tower conquered!",
@@ -143,7 +144,7 @@ const Tower: React.FC = () => {
           if (currentLevel + 1 >= maxLevel) {
             // Game won
             const finalMultiplier = calculateMultiplier(currentLevel + 1);
-            playSound('/sounds/big-win.mp3');
+            playSound(SOUNDS.CASH_OUT);
             showGameResult({
               success: true,
               message: "Tower conquered!",
@@ -172,7 +173,7 @@ const Tower: React.FC = () => {
     if (!gameActive || currentLevel === 0) return;
     
     const winAmount = bet * multiplier;
-    playSound('/sounds/cashout.mp3');
+    playSound(SOUNDS.CASH_OUT);
     showGameResult({
       success: true,
       message: `Cashed out at level ${currentLevel + 1}!`,
@@ -187,8 +188,8 @@ const Tower: React.FC = () => {
       const isCurrentLevel = levelIndex === currentLevel;
       const isPastLevel = levelIndex < currentLevel;
       const isDisabled = !isCurrentLevel || !gameActive;
-      const isGameOver = lastBombHit && !gameActive;
-      const isVisibleLevel = Math.abs(levelIndex - currentLevel) <= 2; // Only render levels near current
+      const isGameOver = lastBombHit !== null && !gameActive;
+      const isVisibleLevel = Math.abs(levelIndex - currentLevel) <= 2 || isGameOver; // Only render levels near current
       
       if (!isVisibleLevel && !isGameOver) return null;
       

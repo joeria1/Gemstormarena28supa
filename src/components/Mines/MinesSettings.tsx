@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../ui/slider';
+import { SOUNDS, playSound } from '../../utils/soundEffects';
 
 interface MinesSettingsProps {
   bet: number;
@@ -27,6 +28,20 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
   handleCashout,
   currentMultiplier
 }) => {
+  const handleBetChange = (value: number) => {
+    playSound(SOUNDS.BUTTON_CLICK);
+    if (value > 0) {
+      setBet(value);
+    }
+  };
+  
+  const handleMinesChange = (value: number) => {
+    if (value >= 1 && value <= maxMines) {
+      setMines(value);
+      playSound(SOUNDS.BUTTON_CLICK);
+    }
+  };
+  
   return (
     <div className="space-y-4">
       <div>
@@ -46,7 +61,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => setBet(bet / 2)}
+              onClick={() => handleBetChange(bet / 2)}
               disabled={isGameActive || bet <= 1}
             >
               ½
@@ -54,7 +69,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => setBet(bet * 2)}
+              onClick={() => handleBetChange(bet * 2)}
               disabled={isGameActive}
             >
               2×
@@ -71,7 +86,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
           <Slider
             id="mines"
             value={[mines]}
-            onValueChange={(value) => setMines(value[0])}
+            onValueChange={(value) => handleMinesChange(value[0])}
             min={1}
             max={maxMines}
             step={1}
@@ -83,9 +98,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
             value={mines}
             onChange={(e) => {
               const value = parseInt(e.target.value);
-              if (!isNaN(value) && value >= 1 && value <= maxMines) {
-                setMines(value);
-              }
+              handleMinesChange(value);
             }}
             min={1}
             max={maxMines}
@@ -102,7 +115,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
               variant="outline"
               size="sm"
               disabled={isGameActive || num > maxMines}
-              onClick={() => setMines(num)}
+              onClick={() => handleMinesChange(num)}
               className={mines === num ? "border-primary" : ""}
             >
               {num}

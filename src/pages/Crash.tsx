@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
@@ -6,6 +5,7 @@ import { Input } from '../components/ui/input';
 import { useSound } from '../components/SoundManager';
 import { showGameResult } from '../components/GameResultNotification';
 import { Rocket, TrendingUp, Clock, ArrowRight, Users } from 'lucide-react';
+import { SOUNDS, playSound } from '../utils/soundEffects';
 
 interface Player {
   name: string;
@@ -85,11 +85,11 @@ const Crash: React.FC = () => {
       console.log('Crash point:', crashPoint);
       
       const updateMultiplier = (currentTime: number) => {
-        // Calculate time elapsed in seconds
-        const elapsed = (currentTime - startTime) / 1000;
+        // Calculate time elapsed in seconds - SLOWED DOWN by factor of 3
+        const elapsed = (currentTime - startTime) / 3000;
         
         // Calculate new multiplier (slower at first, then accelerating)
-        const newMultiplier = 1 + Math.pow(elapsed, 1.2) / 2;
+        const newMultiplier = 1 + Math.pow(elapsed, 1.1) / 2;
         const roundedMultiplier = parseFloat(newMultiplier.toFixed(2));
         
         // Check if we should crash
@@ -110,7 +110,7 @@ const Crash: React.FC = () => {
         simulateBotCashouts(roundedMultiplier);
         
         // Play tick sound every 0.5 seconds
-        if (currentTime - lastTickTime >= 250) {
+        if (currentTime - lastTickTime >= 500) {
           playSound('/sounds/tick.mp3', 0.1);
           lastTickTime = currentTime;
         }
@@ -222,9 +222,9 @@ const Crash: React.FC = () => {
     }, 3000);
   };
 
-  // Calculate rocket height percentage based on multiplier
+  // Calculate rocket height percentage based on multiplier - Adjusted for slower rise
   const getRocketHeight = () => {
-    const percentage = Math.min(((multiplier - 1) / 9) * 100, 100);
+    const percentage = Math.min(((multiplier - 1) / 9) * 80, 80);
     return `${percentage}%`;
   };
 
@@ -286,7 +286,7 @@ const Crash: React.FC = () => {
                 {/* Rocket */}
                 {gameState !== 'waiting' && (
                   <div 
-                    className="absolute transition-all duration-100 ease-out w-20" 
+                    className="absolute transition-all duration-300 ease-out w-20" 
                     style={{ 
                       bottom: '60px', 
                       height: getRocketHeight(),

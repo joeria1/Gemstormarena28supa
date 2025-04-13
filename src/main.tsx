@@ -3,7 +3,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from "./components/ui/theme-provider";
 import { BrowserRouter } from 'react-router-dom';
 import { UserProvider } from './context/UserContext';
@@ -11,7 +10,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { SoundProvider } from './components/ui/sound-context';
 import { ChatProvider } from './context/ChatContext';
 
-const queryClient = new QueryClient();
+// Prevent automatic scrolling to bottom
+if (typeof window !== 'undefined') {
+  const originalScrollRestoration = window.history.scrollRestoration;
+  if (originalScrollRestoration) {
+    window.history.scrollRestoration = 'manual';
+  }
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -12,12 +12,36 @@ const Navbar = () => {
   const { user } = useUser();
   const [balance, setBalance] = useState<number>(0);
 
+  // Listen for local storage changes to update gems display
   useEffect(() => {
-    // Update balance whenever user data changes
-    if (user && user.balance) {
+    const updateBalanceFromStorage = () => {
+      const storedGems = localStorage.getItem('userGems');
+      if (storedGems) {
+        setBalance(Number(storedGems));
+      } else if (user?.balance) {
+        setBalance(user.balance);
+      }
+    };
+
+    // Initial update
+    updateBalanceFromStorage();
+
+    // Update when user changes
+    if (user) {
       setBalance(user.balance);
     }
-  }, [user?.balance]);
+
+    // Listen for storage events
+    window.addEventListener('storage', updateBalanceFromStorage);
+    
+    // Check balance regularly in case it changes
+    const intervalId = setInterval(updateBalanceFromStorage, 1000);
+
+    return () => {
+      window.removeEventListener('storage', updateBalanceFromStorage);
+      clearInterval(intervalId);
+    };
+  }, [user]);
 
   const closeMenu = () => setIsOpen(false);
 
@@ -28,7 +52,8 @@ const Navbar = () => {
     { label: 'Blackjack', path: '/blackjack' },
     { label: 'Tower', path: '/tower' },
     { label: 'Rewards', path: '/rewards' },
-    { label: 'Crash', path: '/crash' }
+    { label: 'Crash', path: '/crash' },
+    { label: 'RakeBack', path: '/rakeback' }
   ];
 
   return (

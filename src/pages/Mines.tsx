@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import MinesSettings from '../components/Mines/MinesSettings';
-import { playSound } from '../utils/soundEffects';
-import { SOUNDS } from '../utils/soundEffects';
+import { SOUNDS, playSound } from '../utils/soundEffects';
 import { showGameResult } from '../components/GameResultNotification';
 
 const GRID_SIZE = 5;
@@ -51,6 +50,7 @@ const Mines: React.FC = () => {
     setClickedTiles([]);
     setIsGameActive(true);
     setCurrentMultiplier(1);
+    playSound(SOUNDS.BUTTON_CLICK);
   };
 
   const calculateNextMultiplier = (safeTilesClicked: number) => {

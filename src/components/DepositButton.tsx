@@ -13,6 +13,7 @@ import { CircleDollarSign, Bitcoin, Coins, Info, CopyIcon } from 'lucide-react';
 import { useSound } from './ui/sound-context';
 import { toast } from '../hooks/use-toast';
 import { useUser } from '../context/UserContext';
+import { SOUNDS, playSound } from '../utils/soundEffects';
 
 const cryptoOptions = [
   { name: 'Bitcoin', symbol: 'BTC', icon: Bitcoin, address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' },
@@ -52,11 +53,10 @@ const getFreeDailyGems = (updateUserBalance: (amount: number) => void) => {
 
 const DepositButton: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const { playSound } = useSound();
   const { updateBalance } = useUser();
 
   const handleDeposit = () => {
-    playSound('/sounds/deposit.mp3');
+    playSound(SOUNDS.DEPOSIT);
     setOpen(false);
     toast({
       title: 'Deposit Initiated',
@@ -67,6 +67,7 @@ const DepositButton: React.FC = () => {
   
   const handleCopy = (address: string, symbol: string) => {
     navigator.clipboard.writeText(address);
+    playSound(SOUNDS.BUTTON_CLICK);
     toast({ 
       title: 'Address Copied',
       description: `${symbol} address copied to clipboard.`,
@@ -80,10 +81,10 @@ const DepositButton: React.FC = () => {
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className="bg-primary text-white hover:bg-primary/90 shadow-lg"
+          className="bg-gradient-to-r from-primary to-violet-700 text-white hover:bg-primary/90 shadow-lg border-2 border-violet-400/30"
         >
-          <CircleDollarSign className="mr-2 h-4 w-4" />
-          <span>Deposit</span>
+          <CircleDollarSign className="mr-2 h-5 w-5" />
+          <span className="font-bold">Deposit</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -92,12 +93,12 @@ const DepositButton: React.FC = () => {
         </DialogHeader>
         
         {/* Conversion Rate Banner */}
-        <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/30 rounded-md p-4 mb-4 flex items-center gap-3">
-          <Info className="h-6 w-6 text-amber-500 flex-shrink-0" />
+        <div className="bg-gradient-to-r from-amber-500/30 to-amber-600/30 border-2 border-amber-500/40 rounded-md p-4 mb-4 flex items-center gap-3">
+          <Info className="h-6 w-6 text-amber-400 flex-shrink-0" />
           <div>
-            <p className="font-medium text-amber-200">Conversion Rate</p>
+            <p className="font-medium text-amber-200 text-lg">Conversion Rate</p>
             <p className="text-sm">
-              5.2 euros = 1,000 gems
+              <span className="bg-black/40 px-2 py-1 rounded font-mono">5.2 euros = 1,000 gems</span>
             </p>
           </div>
         </div>
@@ -112,7 +113,7 @@ const DepositButton: React.FC = () => {
               {cryptoOptions.map((crypto) => (
                 <div 
                   key={crypto.symbol}
-                  className="flex flex-col space-y-3 rounded-md border border-white/10 p-4 bg-black/40"
+                  className="flex flex-col space-y-3 rounded-md border-2 border-violet-500/20 p-4 bg-gradient-to-r from-black/80 to-violet-950/20"
                 >
                   <div className="flex items-center space-x-2">
                     <crypto.icon className="h-5 w-5 text-primary" />
@@ -146,7 +147,7 @@ const DepositButton: React.FC = () => {
             </div>
           </TabsContent>
           <TabsContent value="free" className="space-y-4">
-            <div className="rounded-md border border-primary/30 bg-black/40 p-6">
+            <div className="rounded-md border-2 border-primary/30 bg-gradient-to-r from-black/80 to-violet-950/20 p-6">
               <div className="flex flex-col items-center justify-center space-y-4">
                 <Coins className="h-16 w-16 text-yellow-500" />
                 <h3 className="text-xl font-bold">Free Daily Gems</h3>
@@ -154,7 +155,10 @@ const DepositButton: React.FC = () => {
                   Claim 100 free gems daily to try out our platform!
                 </p>
                 <Button 
-                  onClick={() => getFreeDailyGems(updateBalance)} 
+                  onClick={() => {
+                    getFreeDailyGems(updateBalance);
+                    playSound(SOUNDS.REWARD);
+                  }} 
                   size="lg" 
                   className="bg-primary hover:bg-primary/90 text-white"
                 >
