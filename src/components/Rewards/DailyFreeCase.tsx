@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock } from 'lucide-react';
+import { Clock, Gift, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/context/UserContext';
 import CaseSlider from '../CaseSlider/CaseSlider';
@@ -18,13 +18,13 @@ const DAILY_ITEMS: SliderItem[] = [
 ];
 
 const DailyFreeCase: React.FC = () => {
-  const { user, updateBalance } = useUser();
-  const [isAvailable, setIsAvailable] = useState(false);
+  const { user, updateBalance, addXp } = useUser();
+  const [isAvailable, setIsAvailable] = useState(true);
   const [timeUntilNext, setTimeUntilNext] = useState<number>(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [lastReward, setLastReward] = useState<SliderItem | null>(null);
   
-  // Check if daily case is available
+  // Check if daily case is available - proper time checking
   useEffect(() => {
     const checkAvailability = () => {
       const lastClaimTime = localStorage.getItem('lastDailyClaim');
@@ -77,11 +77,7 @@ const DailyFreeCase: React.FC = () => {
       return;
     }
     
-    if (!isAvailable) {
-      toast.error('Daily case is not yet available');
-      return;
-    }
-    
+    // Always set to spinning here - availability is checked before button is enabled
     setIsSpinning(true);
     playSound('https://assets.mixkit.co/sfx/preview/mixkit-slot-machine-spin-1084.mp3');
   };
@@ -91,13 +87,16 @@ const DailyFreeCase: React.FC = () => {
     setLastReward(item);
     updateBalance(item.price);
     
-    // Set last claim time
+    // Add XP reward - 50 XP per daily claim
+    addXp(50);
+    
+    // Set last claim time to current timestamp
     localStorage.setItem('lastDailyClaim', Date.now().toString());
     setIsAvailable(false);
     setTimeUntilNext(24 * 60 * 60); // 24 hours in seconds
     
     toast.success(`Daily reward claimed: ${item.name}`, {
-      description: `Worth ${item.price} gems!`
+      description: `Worth ${item.price} gems and 50 XP!`
     });
     
     playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
@@ -106,7 +105,10 @@ const DailyFreeCase: React.FC = () => {
   return (
     <Card className="bg-black/40 border-white/10 p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Daily Free Case</h2>
+        <div className="flex items-center">
+          <Gift className="h-5 w-5 text-green-500 mr-2" />
+          <h2 className="text-xl font-semibold">Daily Free Case</h2>
+        </div>
         
         {!isAvailable && (
           <div className="flex items-center text-muted-foreground">
@@ -126,13 +128,20 @@ const DailyFreeCase: React.FC = () => {
       
       <div className="mt-6 text-center">
         <Button 
-          className="btn-primary"
+          className="bg-green-600 hover:bg-green-700 text-white"
           onClick={claimDailyCase}
           disabled={!isAvailable || isSpinning || !user}
         >
           {isSpinning ? "Opening..." : isAvailable ? "Claim Daily Case" : "Case Already Claimed"}
         </Button>
       </div>
+      
+      {!isAvailable && !lastReward && (
+        <div className="mt-4 p-3 rounded-lg bg-blue-900/20 flex items-center">
+          <AlertTriangle className="h-4 w-4 text-blue-400 mr-2" />
+          <p className="text-sm text-blue-300">Come back tomorrow for another reward!</p>
+        </div>
+      )}
       
       {lastReward && (
         <div className="mt-6 p-4 rounded-lg bg-black/20">
@@ -155,7 +164,7 @@ const DailyFreeCase: React.FC = () => {
             </div>
             <div>
               <h3 className="text-white font-medium">{lastReward.name}</h3>
-              <p className="text-sm text-gray-300">{lastReward.price} gems</p>
+              <p className="text-sm text-gray-300">{lastReward.price} gems + 50 XP</p>
             </div>
           </div>
         </div>

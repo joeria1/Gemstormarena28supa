@@ -1,9 +1,9 @@
 
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RocketLogo } from './RocketLogo';
 import DepositButton from './DepositButton';
-import { UserContext } from '../context/UserContext';
+import { useUser } from '../context/UserContext';
 import { useLocation } from 'react-router-dom';
 import { 
   DollarSign, 
@@ -16,7 +16,8 @@ import {
   ChevronDown,
   CreditCard,
   Gift,
-  User
+  User,
+  Award
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -32,10 +33,11 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
+import { Progress } from '@/components/ui/progress';
 
 const Navbar = () => {
   const location = useLocation();
-  const { user } = useContext(UserContext);
+  const { user } = useUser();
   const [open, setOpen] = useState(false);
 
   const isActive = (path: string) => {
@@ -128,7 +130,10 @@ const Navbar = () => {
             <div className="hidden md:flex items-center">
               <div className="mr-3">
                 <div className="flex items-center text-xs text-gray-400">
-                  <span className="mr-1">Level {level}</span>
+                  <div className="flex items-center mr-1">
+                    <Award className="w-3 h-3 text-yellow-500 mr-1" />
+                    <span>Level {level}</span>
+                  </div>
                   <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-blue-600 to-green-500"

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useContext } from 'react';
-import { UserContext } from '../context/UserContext';
+import { useUser } from '../context/UserContext';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -18,7 +18,7 @@ const horses = [
 ];
 
 const HorseRacing = () => {
-  const { user, updateUser } = useContext(UserContext);
+  const { user, updateUser, addBet } = useUser();
   const [betAmount, setBetAmount] = useState<number>(5);
   const [selectedHorse, setSelectedHorse] = useState<number | null>(null);
   const [isRacing, setIsRacing] = useState<boolean>(false);
@@ -27,9 +27,10 @@ const HorseRacing = () => {
   const [raceCompleted, setRaceCompleted] = useState<boolean>(false);
   const [timeToNextRace, setTimeToNextRace] = useState<number>(10);
   const [isAutoRacing, setIsAutoRacing] = useState<boolean>(true);
+  const [hasBet, setHasBet] = useState<boolean>(false);
 
+  // Initialize horse positions
   useEffect(() => {
-    // Initialize horse positions
     resetPositions();
     
     // Start the auto racing cycle
@@ -52,6 +53,7 @@ const HorseRacing = () => {
   const resetPositions = () => {
     setPositions(horses.map(horse => ({ id: horse.id, position: 0 })));
     setWinner(null);
+    setHasBet(false);
   }
 
   const handleBet = (amount: number) => {
@@ -60,6 +62,28 @@ const HorseRacing = () => {
 
   const handleSelectHorse = (horseId: number) => {
     setSelectedHorse(horseId);
+  };
+  
+  const placeBet = () => {
+    if (!selectedHorse) {
+      toast.error("Please select a horse first");
+      return;
+    }
+    
+    if (user.balance < betAmount) {
+      toast.error("Insufficient balance");
+      return;
+    }
+    
+    // Deduct the bet amount from balance
+    updateUser({ ...user, balance: user.balance - betAmount });
+    
+    // Add to wagered amount and increase XP
+    addBet(betAmount);
+    
+    setHasBet(true);
+    
+    toast.success(`Bet placed on ${horses.find(h => h.id === selectedHorse)?.name}`);
   };
 
   const startAutoRace = () => {
@@ -92,7 +116,7 @@ const HorseRacing = () => {
           setWinner(finishedHorse.id);
           
           // Handle winning logic for the user if they placed a bet
-          if (selectedHorse !== null) {
+          if (selectedHorse !== null && hasBet) {
             if (finishedHorse.id === selectedHorse) {
               const winningHorse = horses.find(h => h.id === selectedHorse);
               if (winningHorse) {
@@ -172,9 +196,9 @@ const HorseRacing = () => {
                     transition: 'left 0.3s ease-in-out'
                   }}
                 >
-                  <div className={`w-10 h-6 ${horse.color} rounded-md flex items-center justify-center relative ${isSelected ? 'ring-2 ring-yellow-500' : ''}`}>
+                  <div className={`w-10 h-6 ${horse.color} rounded-md flex items-center justify-center relative ${isSelected && hasBet ? 'ring-2 ring-yellow-500' : ''}`}>
                     <HorseIcon className="text-white w-4 h-4" />
-                    {isSelected && (
+                    {isSelected && hasBet && (
                       <div className="absolute -top-5 left-1/2 transform -translate-x-1/2">
                         <div className="bg-yellow-500 text-xs px-1 rounded text-black font-bold">
                           YOU
@@ -200,9 +224,9 @@ const HorseRacing = () => {
                 Race Results
               </h3>
               <p className="mt-2">
-                {winner === selectedHorse 
+                {winner === selectedHorse && hasBet
                   ? `Congratulations! ${horses.find(h => h.id === winner)?.name} won the race!` 
-                  : `${horses.find(h => h.id === winner)?.name} won the race. Better luck next time!`}
+                  : `${horses.find(h => h.id === winner)?.name} won the race. ${hasBet ? "Better luck next time!" : ""}`}
               </p>
             </div>
           )}
@@ -222,6 +246,7 @@ const HorseRacing = () => {
                       variant={betAmount === amount ? "default" : "outline"}
                       className={betAmount === amount ? "bg-green-600 hover:bg-green-700" : "border-gray-700 text-white"}
                       onClick={() => handleBet(amount)}
+                      disabled={isRacing || hasBet}
                     >
                       ${amount}
                     </Button>
@@ -242,7 +267,7 @@ const HorseRacing = () => {
                           ? 'bg-gray-800 border-green-500' 
                           : 'bg-gray-800 border-gray-700 hover:border-gray-500'
                       }`}
-                      onClick={() => handleSelectHorse(horse.id)}
+                      onClick={() => !isRacing && !hasBet && handleSelectHorse(horse.id)}
                     >
                       <div className="flex items-center">
                         <div className={`w-6 h-6 ${horse.color} rounded-md mr-3 flex items-center justify-center`}>
@@ -265,19 +290,29 @@ const HorseRacing = () => {
                 )}
               </div>
               
-              {!selectedHorse && (
+              <div className="mt-4">
+                <Button 
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={!selectedHorse || isRacing || hasBet || user.balance < betAmount}
+                  onClick={placeBet}
+                >
+                  Place Bet
+                </Button>
+              </div>
+              
+              {!selectedHorse && !hasBet && (
                 <div className="mt-4 bg-blue-900/50 p-3 rounded text-blue-300 text-sm">
                   Select a horse to place your bet before the next race starts!
                 </div>
               )}
               
-              {selectedHorse && user.balance < betAmount && (
+              {selectedHorse && !hasBet && user.balance < betAmount && (
                 <div className="mt-4 bg-red-900/50 p-3 rounded text-red-300 text-sm">
                   Insufficient balance to place this bet.
                 </div>
               )}
               
-              {selectedHorse && user.balance >= betAmount && (
+              {hasBet && selectedHorse && (
                 <div className="mt-4 bg-green-900/50 p-3 rounded text-green-300 text-sm flex items-center">
                   <Trophy className="w-4 h-4 mr-2" />
                   Your bet on {horses.find(h => h.id === selectedHorse)?.name} is ready!

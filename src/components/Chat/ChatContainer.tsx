@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { useUser } from '@/context/UserContext';
 import { Input } from '@/components/ui/input';
-import { Gem, CloudRain, Clock, X } from 'lucide-react';
+import { Gem, CloudRain, Clock, X, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -28,7 +28,7 @@ const ChatContainer = () => {
     claimRain,
     setRainActive
   } = useChat();
-  const { user, updateBalance } = useUser();
+  const { user, updateBalance, isUserEligibleForRain } = useUser();
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -111,6 +111,12 @@ const ChatContainer = () => {
       return;
     }
     
+    // Check if user is eligible (at least level 3)
+    if (!isUserEligibleForRain()) {
+      toast.error('You must be at least level 3 to claim rain gems');
+      return;
+    }
+    
     // Add gems to user balance
     updateBalance(rainAmount);
     setHasClaimed(true);
@@ -162,6 +168,7 @@ const ChatContainer = () => {
     <div className="fixed right-0 top-0 w-80 md:w-96 h-full z-40 bg-black/90 border-l border-blue-900/50 backdrop-blur flex flex-col overflow-hidden">
       <div className="p-3 border-b border-blue-900/40 flex justify-between items-center bg-blue-950/80">
         <div className="flex items-center">
+          <MessageSquare className="h-4 w-4 text-blue-400 mr-2" />
           <h3 className="font-semibold text-white">Live Chat</h3>
         </div>
         <div className="flex items-center gap-2">
@@ -202,11 +209,17 @@ const ChatContainer = () => {
               size="sm" 
               className="bg-green-600 hover:bg-green-700 text-xs h-7 px-2"
               onClick={handleClaimRain}
-              disabled={hasClaimed}
+              disabled={hasClaimed || !isUserEligibleForRain()}
+              title={!isUserEligibleForRain() ? "You must be at least level 3" : ""}
             >
               {hasClaimed ? 'Claimed' : 'Claim Gems'}
             </Button>
           </div>
+          {!isUserEligibleForRain() && (
+            <p className="text-xs text-yellow-300 mt-1">
+              Must be at least level 3 to claim
+            </p>
+          )}
         </div>
       )}
       

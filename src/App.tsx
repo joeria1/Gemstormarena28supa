@@ -16,6 +16,10 @@ import Rewards from './pages/Rewards';
 import NotFound from './pages/NotFound';
 import Tower from './pages/Tower';
 import RakeBack from './pages/RakeBack';
+import { ChatProvider } from './context/ChatContext';
+import ChatContainer from './components/Chat/ChatContainer';
+import ChatToggle from './components/Chat/ChatToggle';
+import Profile from './pages/Profile';
 
 const App = () => {
   const [theme, setTheme] = useState('dark');
@@ -23,24 +27,29 @@ const App = () => {
   return (
     <BrowserRouter>
       <UserProvider>
-        <Navbar />
-        
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/blackjack" element={<Blackjack />} />
-          <Route path="/case-battles" element={<CaseBattles />} />
-          <Route path="/cases" element={<Cases />} />
-          <Route path="/crash" element={<Crash />} />
-          <Route path="/mines" element={<Mines />} />
-          <Route path="/affiliates" element={<Affiliates />} />
-          <Route path="/horse-racing" element={<HorseRacing />} />
-          <Route path="/rewards" element={<Rewards />} />
-          <Route path="/tower" element={<Tower />} />
-          <Route path="/rake-back" element={<RakeBack />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      
-        <Toaster richColors closeButton />
+        <ChatProvider>
+          <Navbar />
+          
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/blackjack" element={<Blackjack />} />
+            <Route path="/case-battles" element={<CaseBattles />} />
+            <Route path="/cases" element={<Cases />} />
+            <Route path="/crash" element={<Crash />} />
+            <Route path="/mines" element={<Mines />} />
+            <Route path="/affiliates" element={<Affiliates />} />
+            <Route path="/horse-racing" element={<HorseRacing />} />
+            <Route path="/rewards" element={<Rewards />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/tower" element={<Tower />} />
+            <Route path="/rake-back" element={<RakeBack />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          
+          <ChatContainer />
+          <ChatToggle />
+          <Toaster richColors closeButton />
+        </ChatProvider>
       </UserProvider>
     </BrowserRouter>
   );

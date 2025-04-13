@@ -15,7 +15,9 @@ interface UserContextType {
   };
   updateUser: (user: any) => void;
   updateBalance: (amount: number) => void;
-  addBet?: (amount: number) => void;
+  addBet: (amount: number) => void;
+  addXp: (amount: number) => void;
+  isUserEligibleForRain: () => boolean;
 }
 
 export const UserContext = createContext<UserContextType>({
@@ -33,6 +35,8 @@ export const UserContext = createContext<UserContextType>({
   updateUser: () => {},
   updateBalance: () => {},
   addBet: () => {},
+  addXp: () => {},
+  isUserEligibleForRain: () => false,
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
@@ -60,14 +64,53 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const addBet = (amount: number) => {
+    // Add to wagered amount
+    const newWagered = (user.wagered || 0) + amount;
+    
+    // Add XP - 1 XP for every dollar wagered
+    const xpToAdd = Math.floor(amount);
+    const newXp = (user.xp || 0) + xpToAdd;
+    
+    // Calculate new level - simple formula: level up every 1000 XP
+    const currentLevel = user.level || 1;
+    const xpForNextLevel = currentLevel * 1000;
+    const newLevel = newXp >= xpForNextLevel ? currentLevel + 1 : currentLevel;
+    
     setUser(prevUser => ({
       ...prevUser,
-      wagered: (prevUser.wagered || 0) + amount
+      wagered: newWagered,
+      xp: newXp,
+      level: newLevel
     }));
+  };
+  
+  const addXp = (amount: number) => {
+    const newXp = (user.xp || 0) + amount;
+    const currentLevel = user.level || 1;
+    const xpForNextLevel = currentLevel * 1000;
+    const newLevel = newXp >= xpForNextLevel ? currentLevel + 1 : currentLevel;
+    
+    setUser(prevUser => ({
+      ...prevUser,
+      xp: newXp,
+      level: newLevel
+    }));
+  };
+  
+  const isUserEligibleForRain = () => {
+    // User needs to be at least level 3 to claim rain
+    return (user.level || 1) >= 3;
   };
 
   return (
-    <UserContext.Provider value={{ user, updateUser, updateBalance, addBet }}>
+    <UserContext.Provider value={{ 
+      user, 
+      updateUser, 
+      updateBalance, 
+      addBet, 
+      addXp,
+      isUserEligibleForRain
+    }}>
       {children}
     </UserContext.Provider>
   );

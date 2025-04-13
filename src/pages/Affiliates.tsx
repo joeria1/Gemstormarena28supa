@@ -1,19 +1,45 @@
-import React, { useState, useContext } from 'react';
-import { UserContext } from '../context/UserContext';
-import { Copy, Users, DollarSign, Heart, Gift, CheckCircle2 } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { useUser } from '../context/UserContext';
+import { Copy, Users, DollarSign, Heart, Gift, CheckCircle2, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
 
+interface AffiliateCode {
+  id: string;
+  code: string;
+  createdAt: Date;
+  uses: number;
+}
+
 const Affiliates = () => {
-  const { user } = useContext(UserContext);
+  const { user } = useUser();
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [enteredCode, setEnteredCode] = useState('');
+  const [customCodes, setCustomCodes] = useState<AffiliateCode[]>([]);
   
   const affiliateUrl = `https://dump.fun/ref/${user.username?.toLowerCase() || 'user'}`;
+  
+  // Load custom codes from localStorage
+  useEffect(() => {
+    const savedCodes = localStorage.getItem('customAffiliateCodes');
+    if (savedCodes) {
+      try {
+        setCustomCodes(JSON.parse(savedCodes));
+      } catch (error) {
+        console.error('Error parsing custom codes', error);
+      }
+    }
+  }, []);
+  
+  // Save custom codes to localStorage
+  useEffect(() => {
+    localStorage.setItem('customAffiliateCodes', JSON.stringify(customCodes));
+  }, [customCodes]);
   
   const handleCopyLink = () => {
     navigator.clipboard.writeText(affiliateUrl);
@@ -38,8 +64,27 @@ const Affiliates = () => {
       return;
     }
     
+    // Check if code already exists
+    if (customCodes.some(c => c.code.toLowerCase() === code.toLowerCase())) {
+      toast.error('This code already exists');
+      return;
+    }
+    
+    const newCode: AffiliateCode = {
+      id: Date.now().toString(),
+      code: code,
+      createdAt: new Date(),
+      uses: 0
+    };
+    
+    setCustomCodes([...customCodes, newCode]);
     toast.success(`Affiliate code "${code}" created successfully!`);
     setCode('');
+  };
+  
+  const handleDeleteCode = (id: string) => {
+    setCustomCodes(customCodes.filter(c => c.id !== id));
+    toast.success('Custom code deleted');
   };
   
   return (
@@ -122,11 +167,11 @@ const Affiliates = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-sm text-gray-400">Total Referrals</p>
-                      <p className="text-xl font-bold">0</p>
+                      <p className="text-xl font-bold">{user.referrals || 0}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-400">Active Referrals</p>
-                      <p className="text-xl font-bold">0</p>
+                      <p className="text-xl font-bold">{Math.floor((user.referrals || 0) * 0.7)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-400">Total Earned</p>
@@ -160,17 +205,51 @@ const Affiliates = () => {
                     <Button 
                       className="ml-2 bg-green-600 hover:bg-green-700"
                       onClick={handleCreateCode}
+                      disabled={customCodes.length >= 3}
                     >
                       Create
                     </Button>
                   </div>
+                  {customCodes.length >= 3 && (
+                    <p className="text-amber-400 text-xs mt-2">
+                      Maximum of 3 custom codes allowed. Delete an existing code to create a new one.
+                    </p>
+                  )}
                 </div>
                 
                 <div className="bg-gray-800 p-4 rounded-lg">
                   <h3 className="font-bold mb-2">Your Custom Codes</h3>
-                  <div className="text-center text-gray-400 py-8">
-                    You haven't created any custom codes yet.
-                  </div>
+                  {customCodes.length > 0 ? (
+                    <div className="space-y-3">
+                      {customCodes.map(customCode => (
+                        <div key={customCode.id} className="flex items-center justify-between bg-gray-700 p-3 rounded-lg">
+                          <div>
+                            <div className="font-medium">{customCode.code}</div>
+                            <div className="text-xs text-gray-400">
+                              Created: {new Date(customCode.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-gray-400 text-sm">
+                              {customCode.uses} uses
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                              onClick={() => handleDeleteCode(customCode.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-400 py-8">
+                      You haven't created any custom codes yet.
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
