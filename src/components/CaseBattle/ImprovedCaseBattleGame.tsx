@@ -23,7 +23,7 @@ interface Battle {
   totalValue: number;
   cases: number;
   players: Player[];
-  status: 'waiting' | 'in-progress' | 'completed';
+  status: 'waiting' | 'starting' | 'in-progress' | 'completed';
   createdAt: Date;
   winnerId?: string;
 }
