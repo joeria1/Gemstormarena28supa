@@ -1,111 +1,113 @@
 
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
-import { Menu, Coins } from 'lucide-react';
-import { RocketLogo } from './RocketLogo';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from './ui/sheet';
+import { Menu, X } from 'lucide-react';
+import DepositButton from './DepositButton';
+import RocketLogo from './RocketLogo';
 import { useUser } from '../context/UserContext';
 
 const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const { user } = useUser();
-  const [balance, setBalance] = useState<number>(0);
+  const { pathname } = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, login, logout } = useUser();
 
-  // Listen for local storage changes to update gems display
-  useEffect(() => {
-    const updateBalanceFromStorage = () => {
-      const storedGems = localStorage.getItem('userGems');
-      if (storedGems) {
-        setBalance(Number(storedGems));
-      } else if (user?.balance) {
-        setBalance(user.balance);
-      }
-    };
-
-    // Initial update
-    updateBalanceFromStorage();
-
-    // Update when user changes
-    if (user) {
-      setBalance(user.balance);
-    }
-
-    // Listen for storage events
-    window.addEventListener('storage', updateBalanceFromStorage);
-    
-    // Check balance regularly in case it changes
-    const intervalId = setInterval(updateBalanceFromStorage, 1000);
-
-    return () => {
-      window.removeEventListener('storage', updateBalanceFromStorage);
-      clearInterval(intervalId);
-    };
-  }, [user]);
-
-  const closeMenu = () => setIsOpen(false);
-
-  const navItems = [
-    { label: 'Home', path: '/' },
-    { label: 'Cases', path: '/cases' },
-    { label: 'Mines', path: '/mines' },
-    { label: 'Blackjack', path: '/blackjack' },
-    { label: 'Tower', path: '/tower' },
-    { label: 'Rewards', path: '/rewards' },
-    { label: 'Crash', path: '/crash' },
-    { label: 'RakeBack', path: '/rakeback' }
+  const navLinks = [
+    { name: 'Cases', path: '/cases' },
+    { name: 'Case Battles', path: '/case-battles' },
+    { name: 'Crash', path: '/crash' },
+    { name: 'Mines', path: '/mines' },
+    { name: 'Tower', path: '/tower' },
+    { name: 'Blackjack', path: '/blackjack' },
+    { name: 'Rewards', path: '/rewards' },
+    { name: 'Rakeback', path: '/rakeback' },
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-black via-black to-violet-950/40 border-b border-violet-950/20 shadow-lg backdrop-blur-sm">
-      <div className="container mx-auto flex items-center justify-between px-4 h-16">
-        <div className="flex items-center">
-          <Link to="/" className="flex items-center gap-2 mr-8">
-            <RocketLogo />
-            <span className="text-xl font-bold text-white">DUMP.FUN</span>
+    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center">
+        <div className="mr-4 hidden md:flex">
+          <Link to="/" className="flex items-center space-x-2">
+            <RocketLogo className="h-6 w-6" />
+            <span className="font-bold">DUMP.FUN</span>
           </Link>
-          
-          <nav className="hidden md:flex space-x-1">
-            {navItems.map((item) => (
+          <nav className="flex items-center space-x-4 lg:space-x-6 mx-6">
+            {navLinks.map((link) => (
               <Link
-                key={item.path}
-                to={item.path}
-                className="px-3 py-2 text-sm rounded-md hover:bg-violet-900/20 text-gray-200 hover:text-white transition-all"
+                key={link.name}
+                to={link.path}
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  pathname === link.path
+                    ? 'text-foreground'
+                    : 'text-muted-foreground'
+                }`}
               >
-                {item.label}
+                {link.name}
               </Link>
             ))}
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* User Balance Display - Always visible */}
-          <div className="flex items-center gap-1 bg-black/40 rounded-full px-3 py-1.5 border border-violet-800/30">
-            <Coins className="h-4 w-4 text-yellow-500" />
-            <span className="font-medium text-white">{balance.toLocaleString()}</span>
-          </div>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+          <SheetTrigger asChild className="md:hidden">
+            <Button
+              variant="outline"
+              size="icon"
+              className="mr-2"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle Menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="pr-0 sm:max-w-xs">
+            <SheetHeader>
+              <SheetTitle className="flex items-center space-x-2">
+                <RocketLogo className="h-6 w-6" />
+                <span>DUMP.FUN</span>
+              </SheetTitle>
+            </SheetHeader>
+            <nav className="flex flex-col gap-2 mt-4">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-md ${
+                    pathname === link.path
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-foreground'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </nav>
+          </SheetContent>
+        </Sheet>
 
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild className="block md:hidden">
-              <Button size="icon" variant="outline" className="md:hidden">
-                <Menu className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left">
-              <div className="flex flex-col space-y-1 mt-8">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className="px-3 py-2 text-sm rounded-md hover:bg-violet-900/20"
-                    onClick={closeMenu}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            </SheetContent>
-          </Sheet>
+        <Link to="/" className="md:hidden mr-auto flex items-center space-x-2">
+          <RocketLogo className="h-6 w-6" />
+          <span className="font-bold">DUMP.FUN</span>
+        </Link>
+
+        <div className="flex flex-1 items-center justify-end space-x-2">
+          <DepositButton />
+
+          {user ? (
+            <Button variant="outline" onClick={logout}>
+              Logout
+            </Button>
+          ) : (
+            <Button onClick={login}>Sign In</Button>
+          )}
         </div>
       </div>
     </header>

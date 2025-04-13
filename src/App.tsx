@@ -1,70 +1,60 @@
 
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { Toaster } from "@/components/ui/toaster";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
+
+import './App.css';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import { ThemeProvider } from './components/ui/theme-provider';
+import { ChatToggle } from './components/Chat/ChatToggle';
+import { ChatContainer } from './components/Chat/ChatContainer';
+import { UserProvider } from './context/UserContext';
+import { ChatProvider } from './context/ChatContext';
+import SoundManager from './components/SoundManager';
 
 import Index from './pages/Index';
 import Cases from './pages/Cases';
-import Mines from './pages/Mines';
-import Blackjack from './pages/Blackjack';
-import NotFound from './pages/NotFound';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import SoundManager from './components/SoundManager';
-import ChatContainer from './components/Chat/ChatContainer';
-import ChatToggle from './components/Chat/ChatToggle';
-import DepositButton from './components/DepositButton';
-import Tower from './pages/Tower';
-import Rewards from './pages/Rewards';
 import Crash from './pages/Crash';
+import Mines from './pages/Mines';
+import Tower from './pages/Tower';
+import Blackjack from './pages/Blackjack';
 import RakeBack from './pages/RakeBack';
-import { disableScrollRestoration } from './utils/scrollFix';
-import { useChat } from './context/ChatContext';
-
-function AppContent() {
-  const { isChatOpen, toggleChat } = useChat();
-  
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <div className="flex-1 pt-16 overflow-x-hidden">
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/cases" element={<Cases />} />
-          <Route path="/mines" element={<Mines />} />
-          <Route path="/blackjack" element={<Blackjack />} />
-          <Route path="/tower" element={<Tower />} />
-          <Route path="/rewards" element={<Rewards />} />
-          <Route path="/crash" element={<Crash />} />
-          <Route path="/rakeback" element={<RakeBack />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </div>
-      <Footer />
-      {isChatOpen && <ChatContainer />}
-      <ChatToggle isOpen={isChatOpen} onToggle={toggleChat} />
-      <div className="fixed top-16 right-4 z-30">
-        <DepositButton />
-      </div>
-      <SoundManager />
-      <Toaster />
-    </div>
-  );
-}
+import Rewards from './pages/Rewards';
+import CaseBattles from './pages/CaseBattles';
+import NotFound from './pages/NotFound';
 
 function App() {
-  const queryClient = new QueryClient();
-  
-  // Disable automatic scroll restoration
-  React.useEffect(() => {
-    disableScrollRestoration();
-  }, []);
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppContent />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <UserProvider>
+        <ChatProvider>
+          <Router>
+            <SoundManager />
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <main className="flex-grow">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/cases" element={<Cases />} />
+                  <Route path="/case-battles" element={<CaseBattles />} />
+                  <Route path="/crash" element={<Crash />} />
+                  <Route path="/mines" element={<Mines />} />
+                  <Route path="/tower" element={<Tower />} />
+                  <Route path="/blackjack" element={<Blackjack />} />
+                  <Route path="/rakeback" element={<RakeBack />} />
+                  <Route path="/rewards" element={<Rewards />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
+            <ChatToggle />
+            <ChatContainer />
+            <Toaster position="top-right" />
+          </Router>
+        </ChatProvider>
+      </UserProvider>
+    </ThemeProvider>
   );
 }
 
