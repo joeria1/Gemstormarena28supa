@@ -3,12 +3,14 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useChat, ChatContext } from '../../context/ChatContext';
 import RainEffect from '../Rain/RainEffect';
 import { useUser, UserContext } from '../../context/UserContext';
-import { MessageSquare, X, UserPlus } from 'lucide-react';
+import { MessageSquare, X, UserPlus, CloudRain } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Avatar } from '../ui/avatar';
 import { Separator } from '../ui/separator';
 import { cn } from '../../lib/utils';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 
 type Message = {
   id: string;
@@ -21,11 +23,11 @@ type Message = {
 };
 
 const ImprovedChatContainer = () => {
-  const { isChatOpen, toggleChat } = useContext(ChatContext);
-  const { user } = useContext(UserContext);
-  const [isRaining, setIsRaining] = useState(false);
+  const { isChatOpen, toggleChat, isRainActive, rainTimeRemaining, rainAmount, claimRain, rainStatus } = useContext(ChatContext);
+  const { user, updateBalance } = useContext(UserContext);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [hasClaimedRain, setHasClaimedRain] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const onlineUsers = 1234; // Mock data
   
@@ -63,6 +65,12 @@ const ImprovedChatContainer = () => {
     scrollToBottom();
   }, [messages, isChatOpen]);
 
+  useEffect(() => {
+    if (rainStatus === 'inactive') {
+      setHasClaimedRain(false);
+    }
+  }, [rainStatus]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -76,6 +84,7 @@ const ImprovedChatContainer = () => {
       const amount = parseInt(inputValue.split(' ')[1], 10);
       if (!isNaN(amount) && amount > 0 && user.balance >= amount) {
         // Deduct from user balance would happen here
+        updateBalance(-amount);
         startRain(amount);
       } else {
         const newErrorMessage: Message = {
@@ -102,8 +111,6 @@ const ImprovedChatContainer = () => {
   };
 
   const startRain = (amount: number) => {
-    setIsRaining(true);
-    
     // Add rain message
     const rainMessage: Message = {
       id: Date.now().toString(),
@@ -116,16 +123,24 @@ const ImprovedChatContainer = () => {
     };
     
     setMessages([...messages, rainMessage]);
+  };
+
+  const handleClaimRain = () => {
+    if (hasClaimedRain) return;
     
-    // Stop rain after 5 seconds
-    setTimeout(() => {
-      setIsRaining(false);
-    }, 5000);
+    setHasClaimedRain(true);
+    claimRain();
+    
+    // Give user some gems
+    const claimAmount = Math.floor(rainAmount / 10);
+    updateBalance(claimAmount);
+    
+    toast.success(`You claimed ${claimAmount} gems from the rain!`);
   };
 
   return (
     <>
-      {isRaining && <RainEffect />}
+      {isRainActive && <RainEffect />}
       
       {!isChatOpen && (
         <Button
@@ -151,6 +166,24 @@ const ImprovedChatContainer = () => {
                 {onlineUsers} online
               </div>
             </div>
+            
+            {rainStatus === 'active' && (
+              <div className="flex items-center">
+                <CloudRain className="h-4 w-4 text-blue-400 mr-1 animate-pulse" />
+                <span className="text-xs text-blue-400 mr-2">Rain: {rainTimeRemaining}s</span>
+                {!hasClaimedRain && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-6 py-0 px-2 bg-blue-900 border-blue-700 text-xs"
+                    onClick={handleClaimRain}
+                  >
+                    Claim
+                  </Button>
+                )}
+              </div>
+            )}
+            
             <Button
               variant="ghost"
               size="icon"

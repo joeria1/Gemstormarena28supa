@@ -2,10 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import EnhancedCaseBattleCreator from '@/components/CaseBattle/EnhancedCaseBattleCreator';
-import CaseBattlesList, { Battle, BattleParticipant } from '@/components/CaseBattle/CaseBattlesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { SliderItem } from '@/types/slider';
@@ -15,6 +12,9 @@ import CaseSlider from '@/components/CaseSlider/CaseSlider';
 import { useChat } from '@/context/ChatContext';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import ImprovedCaseBattleCreator from '@/components/CaseBattle/ImprovedCaseBattleCreator';
+import CaseBattlesList from '@/components/CaseBattle/CaseBattlesList';
+import ImprovedCaseBattleGame from '@/components/CaseBattle/ImprovedCaseBattleGame';
 
 const caseItems: Record<string, SliderItem[]> = {
   standard: [
@@ -71,9 +71,46 @@ const rerollItem: SliderItem = {
   isReroll: true
 };
 
+// Add reroll item to all case types
 Object.keys(caseItems).forEach(caseType => {
   caseItems[caseType].push(rerollItem);
 });
+
+type Battle = {
+  id: string;
+  type: '1v1' | '2v2' | '1v1v1' | '1v1v1v1';
+  caseType: string;
+  rounds: number;
+  cursedMode: boolean;
+  creator: {
+    id: string;
+    name: string;
+    username: string;
+    avatar: string;
+  };
+  players: {
+    id: string;
+    name: string;
+    username: string;
+    avatar: string;
+  }[];
+  maxPlayers: number;
+  cost: number;
+  status: 'waiting' | 'starting' | 'in-progress' | 'completed';
+  createdAt: Date;
+  winner?: {
+    id: string;
+    name: string;
+    username: string;
+    avatar: string;
+  };
+  cases: {
+    id: string;
+    name: string;
+    image: string;
+    price: number;
+  }[];
+};
 
 const Cases: React.FC = () => {
   const { user, updateBalance } = useUser();
@@ -83,7 +120,7 @@ const Cases: React.FC = () => {
   const [activeBattle, setActiveBattle] = useState<string | null>(null);
   const [battleWinners, setBattleWinners] = useState<Record<string, SliderItem>>({});
   const [battles, setBattles] = useState<Battle[]>([]);
-  const [mainTab, setMainTab] = useState('caseBattles');
+  const [mainTab, setMainTab] = useState('cases'); // Changed default to 'cases'
   const [battleTab, setBattleTab] = useState('join');
   const [showBattleCreator, setShowBattleCreator] = useState(false);
   const [activeBattleView, setActiveBattleView] = useState<Battle | null>(null);
@@ -183,6 +220,8 @@ const Cases: React.FC = () => {
   };
 
   const handleSpinComplete = (item: SliderItem) => {
+    setIsSpinning(false);
+    
     if (item.isReroll) {
       toast.success('Reroll! Rolling again for a better item!', {
         description: 'You will get at least an uncommon item!'
@@ -242,6 +281,7 @@ const Cases: React.FC = () => {
     
     updateBalance(-battle.cost);
     
+    // Update battles with the new player
     const updatedBattles = battles.map(b => {
       if (b.id === battleId) {
         const updatedPlayers = [...b.players, {
@@ -256,7 +296,7 @@ const Cases: React.FC = () => {
         return {
           ...b,
           players: updatedPlayers,
-          status: battleReady ? 'starting' as const : 'waiting' as const
+          status: battleReady ? 'starting' : 'waiting'
         };
       }
       return b;
@@ -280,34 +320,54 @@ const Cases: React.FC = () => {
     });
   };
 
-  const createBattle = (battleData: Battle) => {
-    setBattles(prev => [battleData, ...prev]);
+  const createBattle = (battleData: any) => {
+    const newBattle: Battle = {
+      id: `battle-${Date.now()}`,
+      type: battleData.mode,
+      caseType: 'standard',
+      rounds: battleData.cases.length,
+      cursedMode: false,
+      creator: {
+        id: user.id,
+        name: user.username,
+        username: user.username,
+        avatar: user.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=Creator'
+      },
+      players: [{
+        id: user.id,
+        name: user.username,
+        username: user.username,
+        avatar: user.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=Creator'
+      }],
+      maxPlayers: battleData.mode === '1v1' ? 2 : (battleData.mode === '2v2' ? 4 : (battleData.mode === '1v1v1' ? 3 : 4)),
+      cost: battleData.totalCost,
+      status: 'waiting',
+      createdAt: new Date(),
+      cases: battleData.cases
+    };
+    
+    setBattles(prev => [newBattle, ...prev]);
     
     if (user) {
-      updateBalance(-battleData.cost);
+      updateBalance(-battleData.totalCost);
     }
     
     setShowBattleCreator(false);
+    setActiveBattleView(newBattle);
     
-    setActiveBattleView(battleData);
-    
-    if (battleData.status === 'in-progress' || battleData.status === 'starting') {
-      setTimeout(() => {
-        startBattle(battleData.id);
-      }, 3000);
-    }
+    toast.success("Battle created successfully!");
   };
 
   const startBattle = (battleId: string) => {
     setBattles(prev => prev.map(b => 
-      b.id === battleId ? { ...b, status: 'in-progress' as const } : b
+      b.id === battleId ? { ...b, status: 'in-progress' } : b
     ));
     
     const updatedBattle = battles.find(b => b.id === battleId);
     if (updatedBattle) {
       setActiveBattleView({
         ...updatedBattle,
-        status: 'in-progress' as const
+        status: 'in-progress'
       });
     }
     
@@ -322,7 +382,7 @@ const Cases: React.FC = () => {
       const updatedBattles = battles.map(b => 
         b.id === battleId ? { 
           ...b, 
-          status: 'completed' as const, 
+          status: 'completed', 
           winner: winner 
         } : b
       );
@@ -332,7 +392,7 @@ const Cases: React.FC = () => {
       if (activeBattleView && activeBattleView.id === battleId) {
         setActiveBattleView({
           ...activeBattleView,
-          status: 'completed' as const,
+          status: 'completed',
           winner: winner
         });
       }
@@ -376,127 +436,56 @@ const Cases: React.FC = () => {
     setAffiliateInput('');
   };
 
+  // Render the active battle view
   if (activeBattleView) {
     return (
       <div className="container py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <Button variant="outline" onClick={() => setActiveBattleView(null)} className="flex items-center">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Battles
-            </Button>
-            <h2 className="text-xl font-bold">{activeBattleView.type} Battle</h2>
-            <div className="flex items-center">
-              <span className="font-bold mr-2">Total Value</span>
-              <div className="bg-black/40 px-3 py-1.5 rounded-md flex items-center">
-                <span className="text-yellow-400 font-bold">
-                  {activeBattleView.cost * activeBattleView.maxPlayers}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-b from-blue-950 to-black/90 rounded-xl p-6 border border-blue-900/50">
-            <div className="flex justify-between items-center mb-8">
-              <div className="bg-green-600/20 text-green-400 border border-green-600/30 px-4 py-1 rounded-md">
-                {activeBattleView.type}
-              </div>
-              <div className="text-white/70 text-sm">
-                {activeBattleView.rounds} Rounds • {activeBattleView.caseType} Case
-              </div>
-              {activeBattleView.cursedMode && (
-                <Badge variant="destructive" className="ml-2 bg-red-900/50">
-                  Cursed Mode
-                </Badge>
-              )}
-              <div className="text-white/70 text-sm">
-                Waiting for players ({activeBattleView.players.length}/{activeBattleView.maxPlayers})
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-              {Array.from({ length: activeBattleView.maxPlayers }).map((_, index) => {
-                const player = activeBattleView.players[index];
-                
-                return (
-                  <div key={index} className="relative">
-                    <div className="bg-blue-950/60 rounded-lg border border-blue-900/50 overflow-hidden">
-                      <div className="flex items-center gap-2 p-3 border-b border-blue-900/50">
-                        <div className="flex items-center gap-2">
-                          {player ? (
-                            <>
-                              <img 
-                                src={player.avatar} 
-                                alt={player.name} 
-                                className="w-8 h-8 rounded-full"
-                              />
-                              <div className="text-white">0</div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="w-8 h-8 rounded-full bg-blue-900/30 flex items-center justify-center">
-                                <span className="text-blue-400">?</span>
-                              </div>
-                              <div className="text-white">0</div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="h-40 flex items-center justify-center">
-                        {player ? (
-                          <div className="text-xs text-blue-400">Waiting to open cases...</div>
-                        ) : (
-                          <div className="text-xs text-blue-400">Empty slot</div>
-                        )}
-                      </div>
-                      
-                      <div className="p-3 border-t border-blue-900/50">
-                        {player ? (
-                          <div className="text-sm text-center text-blue-300">
-                            {player.name}
-                          </div>
-                        ) : (
-                          <Button 
-                            className="w-full bg-green-500 hover:bg-green-600"
-                            onClick={() => handleJoinBattle(activeBattleView.id)}
-                          >
-                            <PlusSquare className="mr-1 h-3 w-3" />
-                            Join Battle
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {index > 0 && index < activeBattleView.maxPlayers && index % 2 === 1 && (
-                      <div className="absolute -left-6 top-1/2 transform -translate-y-1/2 z-10">
-                        <div className="bg-blue-800 text-blue-200 px-2 py-1 rounded text-xs font-bold">
-                          VS
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <ImprovedCaseBattleGame
+          battle={{
+            id: activeBattleView.id,
+            creator: activeBattleView.creator,
+            mode: activeBattleView.type,
+            totalValue: activeBattleView.cost * activeBattleView.maxPlayers,
+            cases: activeBattleView.rounds,
+            players: activeBattleView.players.map(p => ({
+              username: p.username,
+              avatar: p.avatar,
+              team: activeBattleView.type === '2v2' ? 
+                (activeBattleView.players.indexOf(p) < 2 ? 1 : 2) : 
+                activeBattleView.players.indexOf(p) + 1
+            })),
+            status: activeBattleView.status,
+            createdAt: activeBattleView.createdAt,
+            winnerId: activeBattleView.winner?.id
+          }}
+          onClose={() => setActiveBattleView(null)}
+          currentUser={user.username}
+        />
       </div>
     );
   }
 
+  // Main render for cases
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Case Battles</h1>
+        <h1 className="text-3xl font-bold">Cases & Battles</h1>
         <div className="flex items-center gap-2">
           <Button 
-            variant="outline" 
+            variant={mainTab === 'cases' ? "default" : "outline"} 
             size="sm" 
             className="flex items-center gap-2"
             onClick={() => setMainTab('cases')}
           >
             <span>Open Cases</span>
+          </Button>
+          <Button 
+            variant={mainTab === 'caseBattles' ? "default" : "outline"}
+            size="sm" 
+            onClick={() => setMainTab('caseBattles')}
+            className="flex items-center gap-2"
+          >
+            <span>Case Battles</span>
           </Button>
           <Button 
             size="sm" 
@@ -512,113 +501,236 @@ const Cases: React.FC = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="join" className="w-full" onValueChange={(value) => setBattleTab(value)}>
-        <div className="flex justify-between items-center mb-4">
-          <TabsList className="grid grid-cols-3 w-[400px]">
-            <TabsTrigger value="join">Join Battles</TabsTrigger>
-            <TabsTrigger value="create">Create Battle</TabsTrigger>
-            <TabsTrigger value="affiliate">Affiliate</TabsTrigger>
-          </TabsList>
-          
-          {user && (
-            <div className="flex items-center bg-gray-800 rounded-md px-3 py-1.5 border border-gray-700">
-              <Gem className="h-5 w-5 text-yellow-400 mr-2" />
-              <span className="text-white font-bold">{user.balance}</span>
-            </div>
-          )}
-        </div>
-
-        <TabsContent value="join" className="space-y-4">
-          <div className="grid grid-cols-1 gap-8">
-            <CaseBattlesList 
-              battles={battles} 
-              onJoinBattle={handleJoinBattle} 
-              onSpectate={handleSpectateBattle} 
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="create">
-          {showBattleCreator ? (
-            <EnhancedCaseBattleCreator />
-          ) : (
-            <div className="text-center py-20">
-              <Button 
-                onClick={() => setShowBattleCreator(true)} 
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <PlusSquare className="h-5 w-5 mr-2" />
-                Create a New Battle
-              </Button>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="affiliate">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6 mb-8">
-              <h2 className="text-2xl font-bold mb-4">Affiliate Program</h2>
-              <p className="mb-6 text-gray-200">
-                Share your affiliate code with friends and earn 5% of their deposits. 
-                When they use your code, you both get bonus gems!
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <h3 className="text-xl font-semibold mb-3">Your Affiliate Code</h3>
-                  <div className="flex items-center">
-                    <div className="flex-1 bg-gray-800 border border-gray-700 rounded-l-md p-4 font-mono text-xl text-center">
-                      {affiliateCode}
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      className="rounded-l-none h-full bg-gray-700 border border-gray-600"
-                      onClick={copyAffiliateCode}
-                    >
-                      <Copy className="h-5 w-5" />
-                    </Button>
+      {mainTab === 'cases' && (
+        <div className="max-w-4xl mx-auto">
+          <Tabs defaultValue={activeCase} onValueChange={(value) => setActiveCase(value)}>
+            <TabsList className="grid grid-cols-3 w-[300px] mb-6">
+              <TabsTrigger value="standard">Standard</TabsTrigger>
+              <TabsTrigger value="premium">Premium</TabsTrigger>
+              <TabsTrigger value="battle">Battle</TabsTrigger>
+            </TabsList>
+            
+            {Object.keys(caseItems).map((caseType) => (
+              <TabsContent key={caseType} value={caseType}>
+                <div className="bg-gradient-to-b from-blue-950 to-black/90 rounded-xl p-6 border border-blue-900/50">
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold">{caseNames[caseType as keyof typeof caseNames]}</h2>
+                    <p className="text-gray-400 mt-1">
+                      Price: <span className="text-yellow-400 font-bold">${casePrices[caseType as keyof typeof casePrices]}</span>
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm text-gray-300">
-                    Share this code to earn 5% of your referrals' deposits
-                  </p>
-                </div>
                 
-                <div>
-                  <h3 className="text-xl font-semibold mb-3">Redeem Code</h3>
-                  <div className="flex items-center">
-                    <Input
-                      placeholder="Enter affiliate code"
-                      value={affiliateInput}
-                      onChange={(e) => setAffiliateInput(e.target.value)}
-                      className="rounded-r-none"
-                    />
+                  <div className="relative mb-6 h-44">
+                    {isSpinning ? (
+                      <CaseSlider 
+                        items={caseItems[caseType]} 
+                        onComplete={handleSpinComplete}
+                      />
+                    ) : (
+                      <div className="grid grid-cols-5 gap-2 h-full">
+                        {caseItems[caseType].slice(0, 5).map((item) => (
+                          <div 
+                            key={item.id} 
+                            className={`
+                              bg-gray-800 p-2 rounded flex flex-col items-center justify-between
+                              ${item.rarity === 'legendary' ? 'ring-2 ring-yellow-500' : ''}
+                              ${item.rarity === 'mythical' ? 'ring-2 ring-purple-500' : ''}
+                            `}
+                          >
+                            <div className="font-bold text-xs mb-1 truncate w-full text-center">
+                              {item.name}
+                            </div>
+                            <div className="w-16 h-16 bg-gray-700 rounded flex items-center justify-center mb-1">
+                              <img src={item.image} alt={item.name} className="max-w-full max-h-full" />
+                            </div>
+                            <div className={`text-xs px-2 py-0.5 rounded ${
+                              item.rarity === 'common' ? 'bg-gray-600' :
+                              item.rarity === 'uncommon' ? 'bg-blue-600' :
+                              item.rarity === 'rare' ? 'bg-purple-600' :
+                              item.rarity === 'epic' ? 'bg-yellow-600' :
+                              item.rarity === 'legendary' ? 'bg-yellow-500' :
+                              'bg-red-600'
+                            }`}>
+                              {item.rarity.toUpperCase()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="text-center">
                     <Button 
-                      variant="default"
-                      className="rounded-l-none h-full"
-                      onClick={redeemAffiliateCode}
+                      size="lg" 
+                      onClick={openCase}
+                      disabled={isSpinning}
+                      className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg"
                     >
-                      Redeem
+                      {isSpinning ? 'Opening...' : 'Open Case'}
                     </Button>
                   </div>
-                  <p className="mt-2 text-sm text-gray-300">
-                    Get 500 gems when you redeem an affiliate code
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </div>
+      )}
+
+      {mainTab === 'caseBattles' && (
+        <div>
+          <Tabs defaultValue={battleTab} onValueChange={(value) => setBattleTab(value)}>
+            <TabsList className="grid grid-cols-3 w-[400px] mb-6">
+              <TabsTrigger value="join">Join Battles</TabsTrigger>
+              <TabsTrigger value="create">Create Battle</TabsTrigger>
+              <TabsTrigger value="affiliate">Affiliate</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="join" className="space-y-4">
+              {battles.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {battles.map(battle => (
+                    <Card key={battle.id} className="bg-gray-900 border-gray-800 p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <img 
+                              src={battle.creator.avatar} 
+                              alt={battle.creator.name} 
+                              className="w-8 h-8 rounded-full"
+                            />
+                            <div>
+                              <p className="font-medium">{battle.creator.name}</p>
+                              <p className="text-xs text-gray-400">
+                                {new Date(battle.createdAt).toLocaleTimeString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="bg-blue-900/30 text-blue-400 border border-blue-800/40 rounded px-3 py-1 text-sm font-medium">
+                            {battle.type}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {battle.rounds} rounds
+                          </p>
+                        </div>
+                        
+                        <div className="text-center">
+                          <p className="text-sm text-gray-400">Total Value</p>
+                          <p className="font-bold text-yellow-500">${battle.cost * battle.maxPlayers}</p>
+                        </div>
+                        
+                        <div className="text-center">
+                          <p className="text-sm text-gray-400">Players</p>
+                          <p className="font-medium">{battle.players.length}/{battle.maxPlayers}</p>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          {battle.players.length < battle.maxPlayers ? (
+                            <Button 
+                              onClick={() => handleJoinBattle(battle.id)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Join (${battle.cost})
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleSpectateBattle(battle.id)}
+                              variant="outline"
+                            >
+                              Spectate
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-900 rounded-lg">
+                  <p className="text-gray-400">No battles available. Create one!</p>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="create">
+              {showBattleCreator ? (
+                <ImprovedCaseBattleCreator 
+                  onCreateBattle={createBattle}
+                  onCancel={() => setShowBattleCreator(false)}
+                  userBalance={user.balance}
+                />
+              ) : (
+                <div className="text-center py-20 bg-gray-900 rounded-lg">
+                  <Button 
+                    onClick={() => setShowBattleCreator(true)} 
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <PlusSquare className="h-5 w-5 mr-2" />
+                    Create a New Battle
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="affiliate">
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6 mb-8">
+                  <h2 className="text-2xl font-bold mb-4">Affiliate Program</h2>
+                  <p className="mb-6 text-gray-200">
+                    Share your affiliate code with friends and earn 5% of their deposits. 
+                    When they use your code, you both get bonus gems!
                   </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <h3 className="text-xl font-semibold mb-3">Your Affiliate Code</h3>
+                      <div className="flex items-center">
+                        <div className="flex-1 bg-gray-800 border border-gray-700 rounded-l-md p-4 font-mono text-xl text-center">
+                          {affiliateCode}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="rounded-l-none h-full bg-gray-700 border border-gray-600"
+                          onClick={copyAffiliateCode}
+                        >
+                          <Copy className="h-5 w-5" />
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-300">
+                        Share this code to earn 5% of your referrals' deposits
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-xl font-semibold mb-3">Redeem Code</h3>
+                      <div className="flex items-center">
+                        <Input
+                          placeholder="Enter affiliate code"
+                          value={affiliateInput}
+                          onChange={(e) => setAffiliateInput(e.target.value)}
+                          className="rounded-r-none"
+                        />
+                        <Button 
+                          variant="default"
+                          className="rounded-l-none h-full"
+                          onClick={redeemAffiliateCode}
+                        >
+                          Redeem
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-300">
+                        Get 500 gems when you redeem an affiliate code
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              
-              <div className="mt-8 bg-blue-950/50 border border-blue-800 rounded-md p-4">
-                <h4 className="font-bold mb-2">Affiliate Benefits</h4>
-                <ul className="list-disc list-inside space-y-1 text-sm text-gray-300">
-                  <li>Earn 5% of all deposits made by your referrals</li>
-                  <li>Your referrals get 5% bonus on their first deposit</li>
-                  <li>Track your earnings in real-time</li>
-                  <li>Instant payouts to your balance</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 };

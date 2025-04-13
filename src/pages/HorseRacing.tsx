@@ -28,10 +28,12 @@ const HorseRacing = () => {
 
   useEffect(() => {
     // Initialize horse positions
-    if (!isRacing && positions.length === 0) {
-      setPositions(horses.map(horse => ({ id: horse.id, position: 0 })));
-    }
-  }, [isRacing, positions.length]);
+    resetPositions();
+  }, []);
+
+  const resetPositions = () => {
+    setPositions(horses.map(horse => ({ id: horse.id, position: 0 })));
+  }
 
   const handleBet = (amount: number) => {
     setBetAmount(amount);
@@ -61,7 +63,7 @@ const HorseRacing = () => {
     setWinner(null);
     
     // Reset positions
-    setPositions(horses.map(horse => ({ id: horse.id, position: 0 })));
+    resetPositions();
     
     // Race simulation logic
     const raceInterval = setInterval(() => {
@@ -102,6 +104,12 @@ const HorseRacing = () => {
     }, 100);
     
     return () => clearInterval(raceInterval);
+  };
+
+  const handleResetRace = () => {
+    setRaceCompleted(false);
+    setWinner(null);
+    resetPositions();
   };
 
   return (
@@ -188,6 +196,13 @@ const HorseRacing = () => {
                   ? `Congratulations! ${horses.find(h => h.id === winner)?.name} won the race!` 
                   : `${horses.find(h => h.id === winner)?.name} won the race. Better luck next time!`}
               </p>
+              <Button 
+                onClick={handleResetRace} 
+                variant="outline" 
+                className="mt-4 border-gray-600"
+              >
+                New Race
+              </Button>
             </div>
           )}
         </div>

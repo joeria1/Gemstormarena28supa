@@ -1,17 +1,36 @@
 
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RocketLogo } from './RocketLogo';
 import DepositButton from './DepositButton';
 import { UserContext } from '../context/UserContext';
 import { useLocation } from 'react-router-dom';
-import { DollarSign, Sword, Boxes, Coins, Target, Trophy, GitBranch, User, Users } from 'lucide-react';
+import { 
+  DollarSign, 
+  Sword, 
+  Boxes, 
+  Coins, 
+  Target, 
+  Trophy, 
+  GitBranch, 
+  Users, 
+  ChevronDown,
+  Cards
+} from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import HorseIcon from './HorseRacing/HorseIcon';
 
 const Navbar = () => {
   const location = useLocation();
   const { user } = useContext(UserContext);
+  const [open, setOpen] = useState(false);
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -27,21 +46,53 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden md:flex space-x-1">
+            <NavLink to="/blackjack" isActive={isActive("/blackjack")} icon={<Cards className="w-4 h-4" />}>
+              Blackjack
+            </NavLink>
             <NavLink to="/case-battles" isActive={isActive("/case-battles")} icon={<Sword className="w-4 h-4" />}>
               Battles
             </NavLink>
             <NavLink to="/cases" isActive={isActive("/cases")} icon={<Boxes className="w-4 h-4" />}>
               Cases
             </NavLink>
-            <NavLink to="/crash" isActive={isActive("/crash")} icon={<Target className="w-4 h-4" />}>
-              Crash
-            </NavLink>
-            <NavLink to="/mines" isActive={isActive("/mines")} icon={<Coins className="w-4 h-4" />}>
-              Mines
-            </NavLink>
-            <NavLink to="/horse-racing" isActive={isActive("/horse-racing")} icon={<User className="w-4 h-4" />}>
-              Racing
-            </NavLink>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "h-10 px-4 py-2 rounded flex items-center",
+                    isActive("/crash") || isActive("/mines") || isActive("/horse-racing")
+                      ? "bg-gray-800 text-white"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  )}
+                >
+                  <span className="mr-1">More Games</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                <DropdownMenuItem asChild>
+                  <Link to="/crash" className="flex items-center text-gray-200 hover:text-white hover:bg-gray-700 cursor-pointer">
+                    <Target className="w-4 h-4 mr-2" />
+                    Crash
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/mines" className="flex items-center text-gray-200 hover:text-white hover:bg-gray-700 cursor-pointer">
+                    <Coins className="w-4 h-4 mr-2" />
+                    Mines
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/horse-racing" className="flex items-center text-gray-200 hover:text-white hover:bg-gray-700 cursor-pointer">
+                    <HorseIcon className="w-4 h-4 mr-2" />
+                    Racing
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <NavLink to="/affiliates" isActive={isActive("/affiliates")} icon={<Users className="w-4 h-4" />}>
               Affiliates
             </NavLink>
