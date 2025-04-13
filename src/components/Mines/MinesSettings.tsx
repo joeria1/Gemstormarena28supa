@@ -6,15 +6,15 @@ import { Slider } from '../ui/slider';
 import { SOUNDS, playSound } from '../../utils/soundEffects';
 
 interface MinesSettingsProps {
-  bet: number;
-  setBet: (bet: number) => void;
-  mines: number;
-  setMines: (mines: number) => void;
-  maxMines: number;
+  bet?: number;
+  setBet?: (bet: number) => void;
+  mines?: number;
+  setMines?: (mines: number) => void;
+  maxMines?: number;
   isGameActive: boolean;
-  handleStart: () => void;
-  handleCashout: () => void;
-  currentMultiplier: number;
+  handleStart?: () => void;
+  handleCashout?: () => void;
+  currentMultiplier?: number;
   // Add these new props to match usage in Mines.tsx
   onBetChange?: (amount: number) => void;
   onMineCountChange?: (count: number) => void; 
@@ -24,15 +24,15 @@ interface MinesSettingsProps {
 }
 
 const MinesSettings: React.FC<MinesSettingsProps> = ({
-  bet,
-  setBet,
-  mines,
-  setMines,
-  maxMines,
+  bet = 10,
+  setBet = () => {},
+  mines = 5,
+  setMines = () => {},
+  maxMines = 24,
   isGameActive,
-  handleStart,
-  handleCashout,
-  currentMultiplier,
+  handleStart = () => {},
+  handleCashout = () => {},
+  currentMultiplier = 1.0,
   onBetChange,
   onMineCountChange,
   currentBet,
@@ -69,7 +69,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
           <Input
             id="bet"
             type="number"
-            value={bet}
+            value={displayBet}
             onChange={(e) => setBet(Number(e.target.value))}
             min={1}
             disabled={isGameActive}
@@ -78,15 +78,15 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handleBetChange(bet / 2)}
-              disabled={isGameActive || bet <= 1}
+              onClick={() => handleBetChange(displayBet / 2)}
+              disabled={isGameActive || displayBet <= 1}
             >
               ½
             </Button>
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handleBetChange(bet * 2)}
+              onClick={() => handleBetChange(displayBet * 2)}
               disabled={isGameActive}
             >
               2×
@@ -97,12 +97,12 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
       
       <div>
         <label htmlFor="mines" className="text-sm font-medium mb-1 block">
-          Mines: {mines}
+          Mines: {displayMines}
         </label>
         <div className="flex space-x-2 items-center">
           <Slider
             id="mines"
-            value={[mines]}
+            value={[displayMines]}
             onValueChange={(value) => handleMinesChange(value[0])}
             min={1}
             max={maxMines}
@@ -112,7 +112,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
           <Input
             type="number"
             className="w-16"
-            value={mines}
+            value={displayMines}
             onChange={(e) => {
               const value = parseInt(e.target.value);
               handleMinesChange(value);
@@ -124,22 +124,24 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
         </div>
       </div>
 
-      <div>
-        <div className="grid grid-cols-3 gap-2 mt-4">
-          {[1, 3, 5, 10, 15, 20].map((num) => (
-            <Button
-              key={num}
-              variant="outline"
-              size="sm"
-              disabled={isGameActive || num > maxMines}
-              onClick={() => handleMinesChange(num)}
-              className={mines === num ? "border-primary" : ""}
-            >
-              {num}
-            </Button>
-          ))}
+      {!hideMineButtons && (
+        <div>
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            {[1, 3, 5, 10, 15, 20].map((num) => (
+              <Button
+                key={num}
+                variant="outline"
+                size="sm"
+                disabled={isGameActive || num > maxMines}
+                onClick={() => handleMinesChange(num)}
+                className={displayMines === num ? "border-primary" : ""}
+              >
+                {num}
+              </Button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-6">
         {!isGameActive ? (
