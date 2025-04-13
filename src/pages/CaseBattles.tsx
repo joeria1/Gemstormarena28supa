@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
@@ -9,6 +8,7 @@ import { showGameResult } from '../components/GameResultNotification';
 import { Users, ArrowRight, TrendingUp, Clock } from 'lucide-react';
 import { SOUNDS } from '../utils/soundEffects';
 import CaseSlider from '../components/CaseSlider/CaseSlider';
+import { SliderItem } from '../types/slider';
 
 interface Player {
   id: string;
@@ -49,7 +49,6 @@ const CaseBattles: React.FC = () => {
   const { playSound } = useSound();
   const sliderRef = useRef<HTMLDivElement>(null);
 
-  // Sample cases data with properly typed rarities
   const availableCases = [
     {
       id: "case1",
@@ -80,13 +79,11 @@ const CaseBattles: React.FC = () => {
   ];
 
   useEffect(() => {
-    // Set default selected case
     if (availableCases.length > 0 && !selectedCase) {
       setSelectedCase(availableCases[0] as Case);
     }
   }, []);
 
-  // Handle countdown and game state
   useEffect(() => {
     if (gameState === 'waiting' && countdownSeconds > 0 && players.length === maxPlayers && players.every(p => p.isReady)) {
       const timer = setTimeout(() => {
@@ -98,7 +95,6 @@ const CaseBattles: React.FC = () => {
     }
   }, [countdownSeconds, gameState, players, maxPlayers]);
 
-  // Create a battle
   const createBattle = () => {
     if (!selectedCase) return;
     
@@ -106,7 +102,6 @@ const CaseBattles: React.FC = () => {
     setBattleId(newBattleId);
     setIsCreator(true);
     
-    // Add player to the battle
     const newPlayer: Player = {
       id: "user-1",
       name: "You",
@@ -124,11 +119,9 @@ const CaseBattles: React.FC = () => {
     });
   };
 
-  // Join a battle
   const joinBattle = () => {
     if (players.length >= maxPlayers) return;
     
-    // Simulate joining as another player
     const newPlayer: Player = {
       id: `user-${players.length + 1}`,
       name: `Player ${players.length + 1}`,
@@ -139,7 +132,6 @@ const CaseBattles: React.FC = () => {
     
     setPlayers([...players, newPlayer]);
     
-    // Simulate player becoming ready after a short delay
     setTimeout(() => {
       setPlayers(prevPlayers => 
         prevPlayers.map(p => 
@@ -151,23 +143,19 @@ const CaseBattles: React.FC = () => {
     playSound('/sounds/button-click.mp3');
   };
 
-  // Start spinning the cases
   const startSpinning = () => {
     setGameState('spinning');
     playSound('/sounds/button-click.mp3');
     
-    // Simulate spinning for all players
     setTimeout(() => {
       completeSpinning();
-    }, 5000); // 5 seconds to simulate spinning
+    }, 5000);
   };
 
-  // Complete the spinning and determine results
   const completeSpinning = () => {
     if (!selectedCase) return;
     
     const updatedPlayers = players.map(player => {
-      // Randomly select an item from the case for each player
       const randomItemIndex = Math.floor(Math.random() * selectedCase.items.length);
       const wonItem = selectedCase.items[randomItemIndex];
       
@@ -180,12 +168,10 @@ const CaseBattles: React.FC = () => {
     setPlayers(updatedPlayers);
     setGameState('completed');
     
-    // Determine the winner
     const winner = [...updatedPlayers].sort((a, b) => 
       (b.winAmount || 0) - (a.winAmount || 0)
     )[0];
     
-    // Show result if the user won
     if (winner.id === "user-1") {
       playSound('/sounds/cashout.mp3');
       showGameResult({
@@ -202,7 +188,6 @@ const CaseBattles: React.FC = () => {
       });
     }
     
-    // Update history
     setCaseBattleHistory([
       {
         id: battleId,
@@ -213,19 +198,42 @@ const CaseBattles: React.FC = () => {
       ...caseBattleHistory.slice(0, 4)
     ]);
     
-    // Reset for next game
     setTimeout(() => {
       resetBattle();
     }, 3000);
   };
 
-  // Reset battle
   const resetBattle = () => {
     setGameState('waiting');
     setCountdownSeconds(5);
     setPlayers([]);
     setBattleId('');
     setIsCreator(false);
+  };
+
+  const mapCaseItemsToSliderItems = (items: CaseItem[]): SliderItem[] => {
+    return items.map(item => ({
+      id: item.id,
+      name: item.name,
+      image: item.image,
+      rarity: item.rarity,
+      price: item.value
+    }));
+  };
+
+  const getSliderItems = (): SliderItem[] => {
+    if (!selectedCase) return [];
+    
+    return Array(10).fill(null).map((_, i) => {
+      const item = selectedCase.items[i % selectedCase.items.length];
+      return {
+        id: `spin-${i}`,
+        name: item.name,
+        image: item.image,
+        rarity: item.rarity,
+        price: item.value
+      };
+    });
   };
 
   return (
@@ -254,7 +262,6 @@ const CaseBattles: React.FC = () => {
             </CardHeader>
             
             <CardContent className="p-0 h-[400px] relative bg-gradient-to-b from-black to-violet-950/20">
-              {/* Battle Arena */}
               <div className="absolute inset-0 flex items-center justify-center">
                 {gameState === 'waiting' && players.length === 0 && (
                   <div className="text-center p-6">
@@ -354,15 +361,10 @@ const CaseBattles: React.FC = () => {
                       <div className="w-full overflow-hidden" ref={sliderRef}>
                         {selectedCase && (
                           <CaseSlider
-                            items={Array(10).fill(null).map((_, i) => ({
-                              id: `spin-${i}`,
-                              name: selectedCase.items[i % selectedCase.items.length].name,
-                              image: selectedCase.items[i % selectedCase.items.length].image,
-                              rarity: selectedCase.items[i % selectedCase.items.length].rarity,
-                              value: selectedCase.items[i % selectedCase.items.length].value
-                            }))}
+                            items={getSliderItems()}
                             autoSpin={true}
                             spinDuration={4000}
+                            onComplete={(item) => {/* Handler logic */}}
                             caseName={selectedCase.name}
                           />
                         )}
