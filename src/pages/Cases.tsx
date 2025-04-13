@@ -1,17 +1,20 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import CaseBattleCreator from '@/components/CaseBattle/CaseBattleCreator';
+import EnhancedCaseBattleCreator from '@/components/CaseBattle/EnhancedCaseBattleCreator';
 import CaseBattlesList, { Battle, BattleParticipant } from '@/components/CaseBattle/CaseBattlesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft } from 'lucide-react';
+import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { SliderItem } from '@/types/slider';
 import { useUser } from '@/context/UserContext';
 import { playButtonSound } from "@/utils/sounds";
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
 import { useChat } from '@/context/ChatContext';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 const caseItems: Record<string, SliderItem[]> = {
   standard: [
@@ -80,11 +83,13 @@ const Cases: React.FC = () => {
   const [activeBattle, setActiveBattle] = useState<string | null>(null);
   const [battleWinners, setBattleWinners] = useState<Record<string, SliderItem>>({});
   const [battles, setBattles] = useState<Battle[]>([]);
-  const [mainTab, setMainTab] = useState('cases');
+  const [mainTab, setMainTab] = useState('caseBattles');
   const [battleTab, setBattleTab] = useState('join');
   const [showBattleCreator, setShowBattleCreator] = useState(false);
   const [activeBattleView, setActiveBattleView] = useState<Battle | null>(null);
   const { toggleChat } = useChat();
+  const [affiliateCode, setAffiliateCode] = useState(user?.id ? `${user.id.substring(0, 8)}` : 'NOTLOGGEDIN');
+  const [affiliateInput, setAffiliateInput] = useState('');
 
   useEffect(() => {
     const demoBattles: Battle[] = [
@@ -111,7 +116,12 @@ const Cases: React.FC = () => {
         maxPlayers: 2,
         cost: 300,
         status: 'waiting',
-        createdAt: new Date(Date.now() - 300000)
+        createdAt: new Date(Date.now() - 300000),
+        cases: [
+          { id: 'case1', name: 'Standard Case', image: '/placeholder.svg', price: 100 },
+          { id: 'case2', name: 'Premium Case', image: '/placeholder.svg', price: 500 },
+          { id: 'case1', name: 'Standard Case', image: '/placeholder.svg', price: 100 },
+        ]
       },
       { 
         id: 'battle-2', 
@@ -142,7 +152,11 @@ const Cases: React.FC = () => {
         maxPlayers: 4,
         cost: 1000,
         status: 'waiting',
-        createdAt: new Date(Date.now() - 600000)
+        createdAt: new Date(Date.now() - 600000),
+        cases: [
+          { id: 'case2', name: 'Premium Case', image: '/placeholder.svg', price: 500 },
+          { id: 'case2', name: 'Premium Case', image: '/placeholder.svg', price: 500 },
+        ]
       }
     ];
     
@@ -340,6 +354,28 @@ const Cases: React.FC = () => {
     }
   };
 
+  const copyAffiliateCode = () => {
+    navigator.clipboard.writeText(affiliateCode);
+    toast.success("Affiliate code copied to clipboard!");
+  };
+
+  const redeemAffiliateCode = () => {
+    if (affiliateInput.trim() === '') {
+      toast.error("Please enter an affiliate code");
+      return;
+    }
+    
+    if (affiliateInput.trim() === affiliateCode) {
+      toast.error("You can't redeem your own affiliate code");
+      return;
+    }
+    
+    toast.success(`Affiliate code ${affiliateInput} redeemed!`);
+    toast("You've earned 500 gems!");
+    updateBalance(500);
+    setAffiliateInput('');
+  };
+
   if (activeBattleView) {
     return (
       <div className="container py-8">
@@ -368,6 +404,11 @@ const Cases: React.FC = () => {
               <div className="text-white/70 text-sm">
                 {activeBattleView.rounds} Rounds • {activeBattleView.caseType} Case
               </div>
+              {activeBattleView.cursedMode && (
+                <Badge variant="destructive" className="ml-2 bg-red-900/50">
+                  Cursed Mode
+                </Badge>
+              )}
               <div className="text-white/70 text-sm">
                 Waiting for players ({activeBattleView.players.length}/{activeBattleView.maxPlayers})
               </div>
@@ -427,7 +468,7 @@ const Cases: React.FC = () => {
                       </div>
                     </div>
                     
-                    {index > 0 && index < activeBattleView.maxPlayers && index % 2 === 1 && activeBattleView.maxPlayers > 2 && (
+                    {index > 0 && index < activeBattleView.maxPlayers && index % 2 === 1 && (
                       <div className="absolute -left-6 top-1/2 transform -translate-y-1/2 z-10">
                         <div className="bg-blue-800 text-blue-200 px-2 py-1 rounded text-xs font-bold">
                           VS
@@ -445,175 +486,139 @@ const Cases: React.FC = () => {
   }
 
   return (
-    <div className="container py-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
-            DUMP.FUN Cases
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Open cases to win valuable items or join case battles against other players
-          </p>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Case Battles</h1>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={() => setMainTab('cases')}
+          >
+            <span>Open Cases</span>
+          </Button>
+          <Button 
+            size="sm" 
+            onClick={() => {
+              setMainTab('caseBattles');
+              setShowBattleCreator(true);
+            }}
+            className={`bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white flex items-center gap-2`}
+          >
+            <PlusSquare className="h-4 w-4" />
+            <span>Create Battle</span>
+          </Button>
         </div>
-        
-        <Tabs defaultValue="cases" className="w-full" onValueChange={value => setMainTab(value)}>
-          <TabsList className="grid grid-cols-3 mb-6 w-full sm:w-[400px]">
-            <TabsTrigger value="cases">Cases</TabsTrigger>
-            <TabsTrigger value="battles">Battles</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
+      </div>
+
+      <Tabs defaultValue="join" className="w-full" onValueChange={(value) => setBattleTab(value)}>
+        <div className="flex justify-between items-center mb-4">
+          <TabsList className="grid grid-cols-3 w-[400px]">
+            <TabsTrigger value="join">Join Battles</TabsTrigger>
+            <TabsTrigger value="create">Create Battle</TabsTrigger>
+            <TabsTrigger value="affiliate">Affiliate</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="cases" className="space-y-6 py-4">
-            <div className="grid grid-cols-3 gap-4">
-              {Object.keys(caseItems).map(caseKey => (
-                <Card 
-                  key={caseKey}
-                  className={`bg-black/40 border cursor-pointer transition-all overflow-hidden ${
-                    activeCase === caseKey 
-                      ? 'border-primary shadow-lg shadow-primary/20' 
-                      : 'border-white/10 hover:border-white/30'
-                  }`}
-                  onClick={() => setActiveCase(caseKey)}
-                >
-                  <div className="p-4 text-center">
-                    <h3 className="font-medium text-sm md:text-base">{caseNames[caseKey as keyof typeof caseNames]}</h3>
-                    <div className="flex items-center justify-center gap-1 mt-1">
-                      <Gem className="h-3 w-3 text-cyan-400" />
-                      <span className="text-sm">{casePrices[caseKey as keyof typeof casePrices]}</span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+          {user && (
+            <div className="flex items-center bg-gray-800 rounded-md px-3 py-1.5 border border-gray-700">
+              <Gem className="h-5 w-5 text-yellow-400 mr-2" />
+              <span className="text-white font-bold">{user.balance}</span>
             </div>
-            
-            <Card className="bg-black/40 border-white/10 p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold">{caseNames[activeCase as keyof typeof caseNames]}</h2>
-                <div className="text-muted-foreground flex items-center">
-                  <Gem className="h-4 w-4 text-cyan-400 mr-1" />
-                  <span>{casePrices[activeCase as keyof typeof casePrices]}</span>
-                </div>
-              </div>
-              
-              <CaseSlider 
-                items={caseItems[activeCase]} 
-                onComplete={handleSpinComplete}
-                spinDuration={5000}
-                isSpinning={isSpinning}
-                setIsSpinning={setIsSpinning}
-              />
-              
-              <div className="mt-6 text-center">
-                <Button 
-                  className="btn-primary"
-                  onClick={openCase}
-                  disabled={isSpinning || !user || (user && user.balance < casePrices[activeCase as keyof typeof casePrices])}
-                >
-                  {isSpinning 
-                    ? "Opening..." 
-                    : `Open Case (${casePrices[activeCase as keyof typeof casePrices]} gems)`}
-                </Button>
-              </div>
-            </Card>
-            
-            {lastWon && (
-              <Card className="bg-black/40 border-white/10 p-6">
-                <h2 className="text-lg font-semibold mb-4">Last Item Won</h2>
-                <div className="flex items-center gap-4">
-                  <div 
-                    className={`w-16 h-16 rounded bg-gradient-to-b p-2 
-                      ${lastWon.rarity === 'common' ? 'from-gray-500 to-gray-400' : 
-                        lastWon.rarity === 'uncommon' ? 'from-green-600 to-green-500' : 
-                        lastWon.rarity === 'rare' ? 'from-blue-700 to-blue-600' :
-                        lastWon.rarity === 'epic' ? 'from-purple-700 to-purple-600' :
-                        lastWon.rarity === 'legendary' ? 'from-amber-600 to-amber-500' :
-                        'from-red-700 to-red-600'}`
-                    }
-                  >
-                    <img 
-                      src={lastWon.image} 
-                      alt={lastWon.name} 
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.src = '/placeholder.svg';
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-medium">{lastWon.name}</h3>
-                    <p className={`text-sm font-bold capitalize ${
-                      lastWon.rarity === 'common' ? 'text-gray-300' :
-                      lastWon.rarity === 'uncommon' ? 'text-green-300' :
-                      lastWon.rarity === 'rare' ? 'text-blue-300' :
-                      lastWon.rarity === 'epic' ? 'text-purple-300' :
-                      lastWon.rarity === 'legendary' ? 'text-amber-300' :
-                      'text-red-300'
-                    }`}>
-                      {lastWon.rarity}
-                    </p>
-                    <div className="flex items-center mt-1">
-                      <Gem className="h-3 w-3 text-cyan-400 mr-1" />
-                      <span>{lastWon.price}</span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="battles">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Case Battles</h2>
-              <Button onClick={() => setShowBattleCreator(true)}>
-                <PlusSquare className="mr-2 h-4 w-4" />
-                Create Battle
-              </Button>
-            </div>
+          )}
+        </div>
 
+        <TabsContent value="join" className="space-y-4">
+          <div className="grid grid-cols-1 gap-8">
             <CaseBattlesList 
               battles={battles} 
               onJoinBattle={handleJoinBattle} 
               onSpectate={handleSpectateBattle} 
             />
-          </TabsContent>
-          
-          <TabsContent value="inventory">
-            <Card className="bg-black/40 border-white/10 p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Inventory</h2>
-                <div className="text-muted-foreground flex items-center">
-                  <Gem className="h-4 w-4 text-cyan-400 mr-1" />
-                  <span>0</span>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="create">
+          {showBattleCreator ? (
+            <EnhancedCaseBattleCreator />
+          ) : (
+            <div className="text-center py-20">
+              <Button 
+                onClick={() => setShowBattleCreator(true)} 
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <PlusSquare className="h-5 w-5 mr-2" />
+                Create a New Battle
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="affiliate">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6 mb-8">
+              <h2 className="text-2xl font-bold mb-4">Affiliate Program</h2>
+              <p className="mb-6 text-gray-200">
+                Share your affiliate code with friends and earn 5% of their deposits. 
+                When they use your code, you both get bonus gems!
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-xl font-semibold mb-3">Your Affiliate Code</h3>
+                  <div className="flex items-center">
+                    <div className="flex-1 bg-gray-800 border border-gray-700 rounded-l-md p-4 font-mono text-xl text-center">
+                      {affiliateCode}
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="rounded-l-none h-full bg-gray-700 border border-gray-600"
+                      onClick={copyAffiliateCode}
+                    >
+                      <Copy className="h-5 w-5" />
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-300">
+                    Share this code to earn 5% of your referrals' deposits
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-xl font-semibold mb-3">Redeem Code</h3>
+                  <div className="flex items-center">
+                    <Input
+                      placeholder="Enter affiliate code"
+                      value={affiliateInput}
+                      onChange={(e) => setAffiliateInput(e.target.value)}
+                      className="rounded-r-none"
+                    />
+                    <Button 
+                      variant="default"
+                      className="rounded-l-none h-full"
+                      onClick={redeemAffiliateCode}
+                    >
+                      Redeem
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-300">
+                    Get 500 gems when you redeem an affiliate code
+                  </p>
                 </div>
               </div>
               
-              <div className="mt-6 text-center">
-                <Button 
-                  className="btn-primary"
-                  onClick={() => setShowBattleCreator(true)}
-                >
-                  <Rocket className="mr-2 h-4 w-4" />
-                  Create Battle
-                </Button>
+              <div className="mt-8 bg-blue-950/50 border border-blue-800 rounded-md p-4">
+                <h4 className="font-bold mb-2">Affiliate Benefits</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-300">
+                  <li>Earn 5% of all deposits made by your referrals</li>
+                  <li>Your referrals get 5% bonus on their first deposit</li>
+                  <li>Track your earnings in real-time</li>
+                  <li>Instant payouts to your balance</li>
+                </ul>
               </div>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      <Dialog open={showBattleCreator} onOpenChange={setShowBattleCreator}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Battle</DialogTitle>
-            <DialogDescription>
-              Create a new battle to challenge other players.
-            </DialogDescription>
-          </DialogHeader>
-          <CaseBattleCreator onBattleCreate={createBattle} />
-        </DialogContent>
-      </Dialog>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

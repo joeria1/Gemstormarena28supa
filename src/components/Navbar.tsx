@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from './ui/sheet';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Gem } from 'lucide-react';
 import DepositButton from './DepositButton';
 import { RocketLogo } from './RocketLogo';
 import { useUser } from '../context/UserContext';
@@ -17,18 +17,7 @@ import { useUser } from '../context/UserContext';
 const Navbar = () => {
   const { pathname } = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, updateBalance } = useUser();
-
-  // Add login and logout functions
-  const login = () => {
-    // For now, just a placeholder login function
-    console.log('Login functionality will be implemented');
-  };
-  
-  const logout = () => {
-    // For now, just a placeholder logout function
-    console.log('Logout functionality will be implemented');
-  };
+  const { user, logout, login } = useUser();
 
   const navLinks = [
     { name: 'Cases', path: '/cases' },
@@ -109,16 +98,24 @@ const Navbar = () => {
           <span className="font-bold">DUMP.FUN</span>
         </Link>
 
-        <div className="flex flex-1 items-center justify-end space-x-2">
-          <DepositButton />
-
-          {user ? (
-            <Button variant="outline" onClick={logout}>
-              Logout
-            </Button>
-          ) : (
-            <Button onClick={login}>Sign In</Button>
+        <div className="flex flex-1 items-center justify-end space-x-4">
+          {user && (
+            <div className="flex items-center mr-2 bg-gray-800 rounded-md px-3 py-1.5 border border-gray-700">
+              <Gem className="h-5 w-5 text-yellow-400 mr-2" />
+              <span className="text-white font-bold">{user.balance}</span>
+            </div>
           )}
+          
+          <div className="flex items-center space-x-2">
+            <DepositButton />
+            {user ? (
+              <Button variant="outline" onClick={logout}>
+                Logout
+              </Button>
+            ) : (
+              <Button onClick={login}>Sign In</Button>
+            )}
+          </div>
         </div>
       </div>
     </header>
