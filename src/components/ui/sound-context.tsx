@@ -58,4 +58,5 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
+// Explicitly export useSound hook
 export const useSound = () => useContext(SoundContext);

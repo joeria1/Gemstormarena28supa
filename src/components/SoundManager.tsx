@@ -12,4 +12,7 @@ const SoundManager: React.FC = () => {
   );
 };
 
+// Re-export useSound
+export { useSound };
+
 export default SoundManager;
