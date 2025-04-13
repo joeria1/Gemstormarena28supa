@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { useUser } from '@/context/UserContext';
@@ -11,7 +10,7 @@ import RainFeature from './RainFeature';
 import { preventAutoScroll } from '@/utils/scrollFix';
 
 const ChatContainer = () => {
-  const { isChatOpen: isOpen, messages, sendMessage } = useChat();
+  const { isChatOpen, messages, sendMessage } = useChat();
   const { user } = useUser();
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -78,7 +77,7 @@ const ChatContainer = () => {
     }
   }, [messages, userScrolled]);
 
-  if (!isOpen) return null;
+  if (!isChatOpen) return null;
 
   return (
     <div className="flex flex-col h-full bg-black/60 backdrop-blur">

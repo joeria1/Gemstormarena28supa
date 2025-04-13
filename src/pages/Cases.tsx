@@ -2,11 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import CaseBattleCreator from '@/components/CaseBattle/CaseBattleCreator';
-import CaseBattlesList, { Battle } from '@/components/CaseBattle/CaseBattlesList';
+import CaseBattlesList, { Battle, BattleParticipant } from '@/components/CaseBattle/CaseBattlesList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowRight, PlusSquare, Rocket, Users } from 'lucide-react';
+import { ArrowRight, PlusSquare, Rocket, Users, Gem } from 'lucide-react';
 import { toast } from 'sonner';
+import { SliderItem } from '@/types/slider';
+import { useUser } from '@/context/UserContext';
+import { playButtonSound } from "@/utils/sounds";
+import ChatWindow from '@/components/Chat/ChatWindow';
+import CaseSlider from '@/components/CaseSlider/CaseSlider';
 
 // Demo case items
 const caseItems: Record<string, SliderItem[]> = {
@@ -95,12 +100,14 @@ const Cases: React.FC = () => {
         creator: {
           id: 'user-1',
           name: 'CryptoKing',
+          username: 'CryptoKing',
           avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=CryptoKing'
         },
         players: [
           { 
             id: 'user-1', 
-            name: 'CryptoKing', 
+            name: 'CryptoKing',
+            username: 'CryptoKing',
             avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=CryptoKing' 
           }
         ],
@@ -118,17 +125,20 @@ const Cases: React.FC = () => {
         creator: {
           id: 'user-3',
           name: 'DiamondHands',
+          username: 'DiamondHands',
           avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DiamondHands'
         },
         players: [
           { 
-            id: 'user-3', 
-            name: 'DiamondHands', 
+            id: 'user-3',
+            name: 'DiamondHands',
+            username: 'DiamondHands',
             avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DiamondHands' 
           },
           { 
-            id: 'user-4', 
-            name: 'MoonShooter', 
+            id: 'user-4',
+            name: 'MoonShooter',
+            username: 'MoonShooter',
             avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=MoonShooter' 
           }
         ],
@@ -226,6 +236,7 @@ const Cases: React.FC = () => {
         const updatedPlayers = [...b.players, {
           id: user.id,
           name: user.username,
+          username: user.username,
           avatar: user.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=Shiny'
         }];
         
@@ -234,7 +245,7 @@ const Cases: React.FC = () => {
         return {
           ...b,
           players: updatedPlayers,
-          status: battleReady ? 'starting' as const : 'waiting' as const
+          status: battleReady ? 'starting' : 'waiting'
         };
       }
       return b;
@@ -247,6 +258,7 @@ const Cases: React.FC = () => {
       description: "The battle will start when all slots are filled."
     });
     
+    const updatedBattle = updatedBattles.find(b => b.id === battleId);
     if (updatedBattle && updatedBattle.status === 'starting') {
       setTimeout(() => {
         startBattle(battleId);
@@ -445,7 +457,7 @@ const Cases: React.FC = () => {
                 </div>
 
                 <CaseBattlesList 
-                  battles={[]} 
+                  battles={battles} 
                   onJoinBattle={handleJoinBattle} 
                   onSpectate={handleSpectateBattle} 
                 />

@@ -10,7 +10,7 @@ import { useUser } from "@/context/UserContext";
 import { playButtonSound } from "@/utils/sounds";
 import { Box, Plus, Minus, Skull, Users, Bot, Dice1, RotateCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Battle } from './CaseBattlesList';
+import { Battle, BattleParticipant } from './CaseBattlesList';
 
 // Case types
 interface CaseType {
@@ -92,11 +92,13 @@ const CaseBattleCreator: React.FC<CaseBattleCreatorProps> = ({ onBattleCreate })
       creator: {
         id: user.id,
         name: user.username,
+        username: user.username,
         avatar: user.avatar
       },
       players: [{
         id: user.id,
         name: user.username,
+        username: user.username,
         avatar: user.avatar
       }],
       maxPlayers: currentBattleConfig.maxPlayers,
@@ -110,9 +112,11 @@ const CaseBattleCreator: React.FC<CaseBattleCreatorProps> = ({ onBattleCreate })
       const botNames = ['Bot_Master', 'CryptoBot', 'LuckyBot', 'BotLegend'];
       
       for (let i = 1; i < currentBattleConfig.maxPlayers; i++) {
+        const botName = botNames[Math.floor(Math.random() * botNames.length)];
         battleData.players.push({
           id: `bot-${i}`,
-          name: botNames[Math.floor(Math.random() * botNames.length)],
+          name: botName,
+          username: botName,
           avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=Bot${i}`,
           isBot: true
         });
