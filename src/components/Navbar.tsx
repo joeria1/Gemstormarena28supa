@@ -1,124 +1,88 @@
 
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Button } from './ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from './ui/sheet';
-import { Menu, X, Gem } from 'lucide-react';
+import React, { useContext } from 'react';
+import { Link } from 'react-router-dom';
+import RocketLogo from './RocketLogo';
 import DepositButton from './DepositButton';
-import { RocketLogo } from './RocketLogo';
-import { useUser } from '../context/UserContext';
+import { UserContext } from '../context/UserContext';
+import { useLocation } from 'react-router-dom';
+import { DollarSign, Sword, Boxes, Coins, Target, Trophy, GitBranch, Horse, Users } from 'lucide-react';
+import { Button } from './ui/button';
+import { cn } from '../lib/utils';
 
 const Navbar = () => {
-  const { pathname } = useLocation();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, logout, login } = useUser();
+  const location = useLocation();
+  const { user } = useContext(UserContext);
 
-  const navLinks = [
-    { name: 'Cases', path: '/cases' },
-    { name: 'Case Battles', path: '/case-battles' },
-    { name: 'Crash', path: '/crash' },
-    { name: 'Mines', path: '/mines' },
-    { name: 'Tower', path: '/tower' },
-    { name: 'Blackjack', path: '/blackjack' },
-    { name: 'Rewards', path: '/rewards' },
-    { name: 'Rakeback', path: '/rakeback' },
-  ];
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
-        <div className="mr-4 hidden md:flex">
-          <Link to="/" className="flex items-center space-x-2">
-            <RocketLogo className="h-6 w-6" />
-            <span className="font-bold">DUMP.FUN</span>
+    <div className="bg-[#0F1623] border-b border-gray-800 py-2 px-4 sticky top-0 z-30">
+      <div className="container mx-auto flex justify-between items-center h-16">
+        <div className="flex items-center space-x-4">
+          <Link to="/" className="flex items-center">
+            <RocketLogo className="h-8 w-8 text-green-500" />
+            <span className="ml-2 text-xl font-bold">DUMP.FUN</span>
           </Link>
-          <nav className="flex items-center space-x-4 lg:space-x-6 mx-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.path}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === link.path
-                    ? 'text-foreground'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {link.name}
-              </Link>
-            ))}
-          </nav>
-        </div>
 
-        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-          <SheetTrigger asChild className="md:hidden">
-            <Button
-              variant="outline"
-              size="icon"
-              className="mr-2"
-              onClick={() => setIsMobileMenuOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle Menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="pr-0 sm:max-w-xs">
-            <SheetHeader>
-              <SheetTitle className="flex items-center space-x-2">
-                <RocketLogo className="h-6 w-6" />
-                <span>DUMP.FUN</span>
-              </SheetTitle>
-            </SheetHeader>
-            <nav className="flex flex-col gap-2 mt-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.path}
-                  className={`px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-md ${
-                    pathname === link.path
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-foreground'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </nav>
-          </SheetContent>
-        </Sheet>
-
-        <Link to="/" className="md:hidden mr-auto flex items-center space-x-2">
-          <RocketLogo className="h-6 w-6" />
-          <span className="font-bold">DUMP.FUN</span>
-        </Link>
-
-        <div className="flex flex-1 items-center justify-end space-x-4">
-          {user && (
-            <div className="flex items-center mr-2 bg-gray-800 rounded-md px-3 py-1.5 border border-gray-700">
-              <Gem className="h-5 w-5 text-yellow-400 mr-2" />
-              <span className="text-white font-bold">{user.balance}</span>
-            </div>
-          )}
-          
-          <div className="flex items-center space-x-2">
-            <DepositButton />
-            {user ? (
-              <Button variant="outline" onClick={logout}>
-                Logout
-              </Button>
-            ) : (
-              <Button onClick={login}>Sign In</Button>
-            )}
+          <div className="hidden md:flex space-x-1">
+            <NavLink to="/case-battles" isActive={isActive("/case-battles")} icon={<Sword className="w-4 h-4" />}>
+              Battles
+            </NavLink>
+            <NavLink to="/cases" isActive={isActive("/cases")} icon={<Boxes className="w-4 h-4" />}>
+              Cases
+            </NavLink>
+            <NavLink to="/crash" isActive={isActive("/crash")} icon={<Target className="w-4 h-4" />}>
+              Crash
+            </NavLink>
+            <NavLink to="/mines" isActive={isActive("/mines")} icon={<Coins className="w-4 h-4" />}>
+              Mines
+            </NavLink>
+            <NavLink to="/horse-racing" isActive={isActive("/horse-racing")} icon={<Horse className="w-4 h-4" />}>
+              Racing
+            </NavLink>
+            <NavLink to="/affiliates" isActive={isActive("/affiliates")} icon={<Users className="w-4 h-4" />}>
+              Affiliates
+            </NavLink>
           </div>
         </div>
+
+        <div className="flex items-center space-x-4">
+          <div className="bg-gray-800 px-4 py-2 rounded flex items-center">
+            <DollarSign className="text-green-500 w-4 h-4 mr-1" />
+            <span className="font-bold">${user.balance.toFixed(2)}</span>
+          </div>
+          <DepositButton />
+        </div>
       </div>
-    </header>
+    </div>
+  );
+};
+
+interface NavLinkProps {
+  to: string;
+  isActive: boolean;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const NavLink = ({ to, isActive, icon, children }: NavLinkProps) => {
+  return (
+    <Link to={to}>
+      <Button
+        variant="ghost"
+        className={cn(
+          "h-10 px-4 py-2 rounded flex items-center",
+          isActive
+            ? "bg-gray-800 text-white"
+            : "text-gray-400 hover:text-white hover:bg-gray-800"
+        )}
+      >
+        {icon && <span className="mr-2">{icon}</span>}
+        <span>{children}</span>
+      </Button>
+    </Link>
   );
 };
 

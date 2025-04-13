@@ -1,552 +1,703 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useContext } from 'react';
+import { UserContext } from '../context/UserContext';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Slider } from '../components/ui/slider'; 
-import { useSound } from '../components/SoundManager';
-import { showGameResult } from '../components/GameResultNotification';
-import { Users, ArrowRight, TrendingUp, Clock } from 'lucide-react';
-import { SOUNDS } from '../utils/soundEffects';
-import CaseSlider from '../components/CaseSlider/CaseSlider';
-import { SliderItem } from '../types/slider';
+import { Card } from '../components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Sword, Users, Plus, DollarSign, Clock, Trophy, User } from 'lucide-react';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import ImprovedCaseBattleCreator from '../components/CaseBattle/ImprovedCaseBattleCreator';
+import ImprovedCaseBattleGame from '../components/CaseBattle/ImprovedCaseBattleGame';
 
-interface Player {
+interface Battle {
   id: string;
-  name: string;
-  avatar: string;
-  betAmount: number;
-  winAmount?: number;
-  isReady: boolean;
+  creator: {
+    username: string;
+    avatar: string;
+  };
+  mode: '1v1' | '2v2' | '1v1v1' | '1v1v1v1';
+  totalValue: number;
+  cases: number;
+  players: {
+    username: string;
+    avatar: string;
+    team: number;
+  }[];
+  status: 'waiting' | 'in-progress' | 'completed';
+  createdAt: Date;
+  winnerId?: string;
 }
 
-interface Case {
-  id: string;
-  name: string;
-  image: string;
-  price: number;
-  items: CaseItem[];
-}
-
-interface CaseItem {
-  id: string;
-  name: string;
-  image: string;
-  value: number;
-  rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
-}
-
-const CaseBattles: React.FC = () => {
-  const [gameState, setGameState] = useState<'waiting' | 'spinning' | 'completed'>('waiting');
-  const [betAmount, setBetAmount] = useState<number>(10);
-  const [numberOfCases, setNumberOfCases] = useState<number>(1);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [maxPlayers, setMaxPlayers] = useState<number>(2);
-  const [battleId, setBattleId] = useState<string>('');
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(5);
-  const [isCreator, setIsCreator] = useState<boolean>(false);
-  const [selectedCase, setSelectedCase] = useState<Case | null>(null);
-  const [caseBattleHistory, setCaseBattleHistory] = useState<any[]>([]);
-  const { playSound } = useSound();
-  const sliderRef = useRef<HTMLDivElement>(null);
-
-  const availableCases = [
-    {
-      id: "case1",
-      name: "Starter Case",
-      image: "/placeholder.svg",
-      price: 10,
-      items: [
-        { id: "item1", name: "Common Item", image: "/placeholder.svg", value: 5, rarity: "common" as const },
-        { id: "item2", name: "Uncommon Item", image: "/placeholder.svg", value: 15, rarity: "uncommon" as const },
-        { id: "item3", name: "Rare Item", image: "/placeholder.svg", value: 30, rarity: "rare" as const },
-        { id: "item4", name: "Epic Item", image: "/placeholder.svg", value: 50, rarity: "epic" as const },
-        { id: "item5", name: "Legendary Item", image: "/placeholder.svg", value: 100, rarity: "legendary" as const }
-      ]
-    },
-    {
-      id: "case2",
-      name: "Pro Case",
-      image: "/placeholder.svg",
-      price: 25,
-      items: [
-        { id: "item6", name: "Pro Common", image: "/placeholder.svg", value: 15, rarity: "common" as const },
-        { id: "item7", name: "Pro Uncommon", image: "/placeholder.svg", value: 30, rarity: "uncommon" as const },
-        { id: "item8", name: "Pro Rare", image: "/placeholder.svg", value: 60, rarity: "rare" as const },
-        { id: "item9", name: "Pro Epic", image: "/placeholder.svg", value: 100, rarity: "epic" as const },
-        { id: "item10", name: "Pro Legendary", image: "/placeholder.svg", value: 200, rarity: "legendary" as const }
-      ]
-    }
-  ];
+const CaseBattles = () => {
+  const { user, updateUser } = useContext(UserContext);
+  const [battles, setBattles] = useState<Battle[]>([]);
+  const [activeBattle, setActiveBattle] = useState<Battle | null>(null);
+  const [isCreatingBattle, setIsCreatingBattle] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
-    if (availableCases.length > 0 && !selectedCase) {
-      setSelectedCase(availableCases[0] as Case);
-    }
+    // Mock data for battles
+    const mockBattles: Battle[] = [
+      {
+        id: '1',
+        creator: {
+          username: 'CryptoKing',
+          avatar: 'https://i.pravatar.cc/150?img=1',
+        },
+        mode: '1v1',
+        totalValue: 45.50,
+        cases: 2,
+        players: [
+          {
+            username: 'CryptoKing',
+            avatar: 'https://i.pravatar.cc/150?img=1',
+            team: 1,
+          }
+        ],
+        status: 'waiting',
+        createdAt: new Date(Date.now() - 300000),
+      },
+      {
+        id: '2',
+        creator: {
+          username: 'GambleGod',
+          avatar: 'https://i.pravatar.cc/150?img=4',
+        },
+        mode: '2v2',
+        totalValue: 120.75,
+        cases: 4,
+        players: [
+          {
+            username: 'GambleGod',
+            avatar: 'https://i.pravatar.cc/150?img=4',
+            team: 1,
+          },
+          {
+            username: 'LuckyPlayer',
+            avatar: 'https://i.pravatar.cc/150?img=5',
+            team: 1,
+          },
+          {
+            username: 'BetMaster',
+            avatar: 'https://i.pravatar.cc/150?img=6',
+            team: 2,
+          }
+        ],
+        status: 'waiting',
+        createdAt: new Date(Date.now() - 120000),
+      },
+      {
+        id: '3',
+        creator: {
+          username: 'HighRoller',
+          avatar: 'https://i.pravatar.cc/150?img=7',
+        },
+        mode: '1v1v1',
+        totalValue: 75.25,
+        cases: 3,
+        players: [
+          {
+            username: 'HighRoller',
+            avatar: 'https://i.pravatar.cc/150?img=7',
+            team: 1,
+          },
+          {
+            username: 'CasinoWhale',
+            avatar: 'https://i.pravatar.cc/150?img=8',
+            team: 2,
+          },
+          {
+            username: 'GamblingPro',
+            avatar: 'https://i.pravatar.cc/150?img=9',
+            team: 3,
+          }
+        ],
+        status: 'in-progress',
+        createdAt: new Date(Date.now() - 60000),
+      },
+      {
+        id: '4',
+        creator: {
+          username: 'SlotKing',
+          avatar: 'https://i.pravatar.cc/150?img=10',
+        },
+        mode: '1v1',
+        totalValue: 50.00,
+        cases: 2,
+        players: [
+          {
+            username: 'SlotKing',
+            avatar: 'https://i.pravatar.cc/150?img=10',
+            team: 1,
+          },
+          {
+            username: 'RouletteMaster',
+            avatar: 'https://i.pravatar.cc/150?img=11',
+            team: 2,
+          }
+        ],
+        status: 'completed',
+        createdAt: new Date(Date.now() - 30000),
+        winnerId: 'SlotKing',
+      }
+    ];
+    
+    setBattles(mockBattles);
   }, []);
 
-  useEffect(() => {
-    if (gameState === 'waiting' && countdownSeconds > 0 && players.length === maxPlayers && players.every(p => p.isReady)) {
-      const timer = setTimeout(() => {
-        setCountdownSeconds(countdownSeconds - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (gameState === 'waiting' && countdownSeconds === 0 && players.length === maxPlayers) {
-      startSpinning();
+  const handleCreateBattle = (battleDetails: any) => {
+    if (user.balance < battleDetails.totalCost) {
+      toast.error("Insufficient balance!");
+      return;
     }
-  }, [countdownSeconds, gameState, players, maxPlayers]);
 
-  const createBattle = () => {
-    if (!selectedCase) return;
-    
-    const newBattleId = `battle-${Date.now()}`;
-    setBattleId(newBattleId);
-    setIsCreator(true);
-    
-    const newPlayer: Player = {
-      id: "user-1",
-      name: "You",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=you",
-      betAmount: selectedCase.price * numberOfCases,
-      isReady: true
-    };
-    
-    setPlayers([newPlayer]);
-    playSound('/sounds/deposit.mp3');
-    showGameResult({
-      success: true,
-      message: "Battle created! Waiting for players...",
-      amount: selectedCase.price * numberOfCases
+    // Deduct the cost from the user's balance
+    updateUser({
+      ...user,
+      balance: user.balance - battleDetails.totalCost
     });
-  };
 
-  const joinBattle = () => {
-    if (players.length >= maxPlayers) return;
-    
-    const newPlayer: Player = {
-      id: `user-${players.length + 1}`,
-      name: `Player ${players.length + 1}`,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${players.length + 1}`,
-      betAmount: selectedCase ? selectedCase.price * numberOfCases : 10 * numberOfCases,
-      isReady: false
-    };
-    
-    setPlayers([...players, newPlayer]);
-    
-    setTimeout(() => {
-      setPlayers(prevPlayers => 
-        prevPlayers.map(p => 
-          p.id === newPlayer.id ? {...p, isReady: true} : p
-        )
-      );
-    }, 1500);
-
-    playSound('/sounds/button-click.mp3');
-  };
-
-  const startSpinning = () => {
-    setGameState('spinning');
-    playSound('/sounds/button-click.mp3');
-    
-    setTimeout(() => {
-      completeSpinning();
-    }, 5000);
-  };
-
-  const completeSpinning = () => {
-    if (!selectedCase) return;
-    
-    const updatedPlayers = players.map(player => {
-      const randomItemIndex = Math.floor(Math.random() * selectedCase.items.length);
-      const wonItem = selectedCase.items[randomItemIndex];
-      
-      return {
-        ...player,
-        winAmount: wonItem.value * numberOfCases
-      };
-    });
-    
-    setPlayers(updatedPlayers);
-    setGameState('completed');
-    
-    const winner = [...updatedPlayers].sort((a, b) => 
-      (b.winAmount || 0) - (a.winAmount || 0)
-    )[0];
-    
-    if (winner.id === "user-1") {
-      playSound('/sounds/cashout.mp3');
-      showGameResult({
-        success: true,
-        message: "You won the battle!",
-        amount: winner.winAmount || 0
-      });
-    } else {
-      playSound('/sounds/explosion.mp3');
-      showGameResult({
-        success: false,
-        message: `${winner.name} won the battle!`,
-        amount: betAmount * numberOfCases
-      });
-    }
-    
-    setCaseBattleHistory([
-      {
-        id: battleId,
-        players: updatedPlayers,
-        winner: winner.name,
-        totalValue: updatedPlayers.reduce((sum, p) => sum + (p.winAmount || 0), 0)
+    const newBattle: Battle = {
+      id: Date.now().toString(),
+      creator: {
+        username: user.username || 'Anonymous',
+        avatar: user.avatar || 'https://i.pravatar.cc/150?img=3',
       },
-      ...caseBattleHistory.slice(0, 4)
-    ]);
+      mode: battleDetails.mode,
+      totalValue: battleDetails.totalCost,
+      cases: battleDetails.cases.length,
+      players: [
+        {
+          username: user.username || 'Anonymous',
+          avatar: user.avatar || 'https://i.pravatar.cc/150?img=3',
+          team: 1,
+        }
+      ],
+      status: 'waiting',
+      createdAt: new Date(),
+    };
     
-    setTimeout(() => {
-      resetBattle();
-    }, 3000);
+    setBattles([newBattle, ...battles]);
+    setIsCreatingBattle(false);
+    toast.success("Battle created successfully!");
   };
 
-  const resetBattle = () => {
-    setGameState('waiting');
-    setCountdownSeconds(5);
-    setPlayers([]);
-    setBattleId('');
-    setIsCreator(false);
-  };
-
-  const mapCaseItemsToSliderItems = (items: CaseItem[]): SliderItem[] => {
-    return items.map(item => ({
-      id: item.id,
-      name: item.name,
-      image: item.image,
-      rarity: item.rarity,
-      price: item.value
-    }));
-  };
-
-  const getSliderItems = (): SliderItem[] => {
-    if (!selectedCase) return [];
+  const handleJoinBattle = (battleId: string) => {
+    const battle = battles.find(b => b.id === battleId);
+    if (!battle) return;
     
-    return Array(10).fill(null).map((_, i) => {
-      const item = selectedCase.items[i % selectedCase.items.length];
-      return {
-        id: `spin-${i}`,
-        name: item.name,
-        image: item.image,
-        rarity: item.rarity,
-        price: item.value
-      };
+    // Check if the user has enough balance
+    const costPerPlayer = battle.totalValue / battle.mode.split('v').length;
+    if (user.balance < costPerPlayer) {
+      toast.error("Insufficient balance!");
+      return;
+    }
+
+    // Deduct the cost from the user's balance
+    updateUser({
+      ...user,
+      balance: user.balance - costPerPlayer
     });
+    
+    // Get the next available team
+    const teams = battle.players.map(p => p.team);
+    const availableTeams = Array.from({ length: battle.mode.split('v').length }, (_, i) => i + 1)
+      .filter(team => !teams.includes(team));
+    
+    const nextTeam = availableTeams.length > 0 ? availableTeams[0] : 1;
+    
+    // Add the user to the battle
+    const updatedBattle = {
+      ...battle,
+      players: [
+        ...battle.players,
+        {
+          username: user.username || 'Anonymous',
+          avatar: user.avatar || 'https://i.pravatar.cc/150?img=3',
+          team: nextTeam,
+        }
+      ]
+    };
+    
+    // Check if the battle is now full
+    const requiredPlayers = battle.mode.split('v').length;
+    const isFull = updatedBattle.players.length === requiredPlayers;
+    
+    // Update the battle status if it's full
+    const finalBattle = {
+      ...updatedBattle,
+      status: isFull ? 'in-progress' : 'waiting'
+    };
+    
+    // Update the battles list
+    setBattles(battles.map(b => b.id === battleId ? finalBattle : b));
+    
+    // If the battle is now full, simulate the battle outcome after a delay
+    if (isFull) {
+      setActiveBattle(finalBattle);
+      toast.success("Battle starting!");
+      
+      // After battle simulation is complete...
+      setTimeout(() => {
+        const randomWinnerIndex = Math.floor(Math.random() * finalBattle.players.length);
+        const winner = finalBattle.players[randomWinnerIndex];
+        
+        // Calculate winnings (everyone's contribution minus a small fee)
+        const winnings = finalBattle.totalValue * 0.95;
+        
+        // If the current user is the winner, update their balance
+        if (winner.username === user.username) {
+          updateUser({
+            ...user,
+            balance: user.balance + winnings
+          });
+          toast.success(`You won $${winnings.toFixed(2)}!`);
+        }
+        
+        // Update the battle with the winner
+        const completedBattle = {
+          ...finalBattle,
+          status: 'completed',
+          winnerId: winner.username
+        };
+        
+        // Update the battles list
+        setBattles(battles.map(b => b.id === battleId ? completedBattle : b));
+        
+        setTimeout(() => {
+          setActiveBattle(null);
+        }, 5000); // Close the battle view after 5 seconds
+      }, 10000); // Run for 10 seconds
+    } else {
+      toast.success("Joined battle successfully!");
+    }
+  };
+
+  const handleViewBattle = (battle: Battle) => {
+    setActiveBattle(battle);
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-8">Case Battles</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card className="h-[500px] overflow-hidden">
-            <CardHeader className="p-4 bg-gradient-to-r from-black to-purple-900/40">
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Case Battle
-                  {battleId && <span className="text-xs ml-2 opacity-50">#{battleId}</span>}
-                </CardTitle>
-                <div className="text-lg font-mono">
-                  {gameState === 'waiting' && players.length === maxPlayers && players.every(p => p.isReady) && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      <span>{countdownSeconds}s</span>
-                    </div>
-                  )}
-                </div>
+    <div className="container mx-auto py-6 px-4">
+      {activeBattle ? (
+        <ImprovedCaseBattleGame 
+          battle={activeBattle} 
+          onClose={() => setActiveBattle(null)} 
+          currentUser={user.username || 'Anonymous'}
+        />
+      ) : isCreatingBattle ? (
+        <ImprovedCaseBattleCreator 
+          onCreateBattle={handleCreateBattle} 
+          onCancel={() => setIsCreatingBattle(false)}
+          userBalance={user.balance}
+        />
+      ) : (
+        <div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div className="flex items-center">
+              <Sword className="w-8 h-8 text-green-500 mr-2" />
+              <h1 className="text-2xl font-bold">Case Battles</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="bg-gray-800 p-2 rounded-lg flex items-center">
+                <DollarSign className="text-yellow-500 w-5 h-5 mr-1" />
+                <span className="text-white font-bold">${user.balance.toFixed(2)}</span>
               </div>
-            </CardHeader>
+              <Button 
+                onClick={() => setIsCreatingBattle(true)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="h-5 w-5 mr-1" />
+                Create Battle
+              </Button>
+            </div>
+          </div>
+          
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full bg-gray-800 mb-6">
+              <TabsTrigger value="all" className="flex-1">All Battles</TabsTrigger>
+              <TabsTrigger value="my" className="flex-1">My Battles</TabsTrigger>
+              <TabsTrigger value="history" className="flex-1">History</TabsTrigger>
+            </TabsList>
             
-            <CardContent className="p-0 h-[400px] relative bg-gradient-to-b from-black to-violet-950/20">
-              <div className="absolute inset-0 flex items-center justify-center">
-                {gameState === 'waiting' && players.length === 0 && (
-                  <div className="text-center p-6">
-                    <h3 className="text-xl font-semibold mb-4">Create a Case Battle</h3>
-                    <p className="text-muted-foreground mb-4">Choose a case, set the number of cases and create your battle!</p>
-                    <div className="flex gap-4 justify-center">
-                      {availableCases.map(caseItem => (
-                        <div 
-                          key={caseItem.id}
-                          onClick={() => setSelectedCase(caseItem)}
-                          className={`p-2 border rounded-lg cursor-pointer transition-all ${
-                            selectedCase?.id === caseItem.id ? 'border-primary bg-primary/20' : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <img src={caseItem.image} alt={caseItem.name} className="w-20 h-20 object-contain mb-2" />
-                          <p className="text-sm font-medium">{caseItem.name}</p>
-                          <p className="text-xs">${caseItem.price}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {gameState === 'waiting' && players.length > 0 && (
-                  <div className="w-full h-full flex flex-col">
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="grid grid-cols-2 gap-8 w-full max-w-2xl px-4">
-                        {Array.from({length: maxPlayers}).map((_, i) => {
-                          const player = players[i];
-                          return (
-                            <div 
-                              key={i}
-                              className={`border rounded-lg p-4 flex flex-col items-center ${
-                                player ? 'border-primary/50 bg-primary/5' : 'border-dashed border-muted-foreground/30'
-                              }`}
-                            >
-                              {player ? (
-                                <>
-                                  <img 
-                                    src={player.avatar} 
-                                    alt={player.name} 
-                                    className="w-16 h-16 rounded-full mb-2" 
-                                  />
-                                  <h3 className="font-medium">{player.name}</h3>
-                                  <p className="text-sm text-muted-foreground mb-1">Bet: ${player.betAmount}</p>
-                                  <div className={`px-2 py-1 rounded text-xs ${
-                                    player.isReady ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
-                                  }`}>
-                                    {player.isReady ? 'Ready' : 'Getting ready...'}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                                  <Users className="h-8 w-8 mb-2 opacity-50" />
-                                  <p>Waiting for player...</p>
-                                  {players.length > 0 && !isCreator && (
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="mt-2"
-                                      onClick={joinBattle}
-                                    >
-                                      Join Battle
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
+            <TabsContent value="all">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {battles.filter(b => b.status !== 'completed').map(battle => (
+                  <motion.div 
+                    key={battle.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card className="bg-gray-900 border-none shadow-lg overflow-hidden">
+                      <div className="p-4 border-b border-gray-800">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-blue-600 text-white font-bold text-xs px-2 py-1 rounded">
+                              {battle.mode}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 bg-black/20 border-t border-border/50 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium">Battle Details</p>
-                        <p className="text-xs text-muted-foreground">
-                          {selectedCase?.name} x {numberOfCases} | Total value: ${selectedCase ? selectedCase.price * numberOfCases * players.length : 0}
-                        </p>
+                            <div className="flex items-center text-xs text-gray-400">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {Math.floor((Date.now() - battle.createdAt.getTime()) / 60000)} min ago
+                            </div>
+                          </div>
+                          <div className="flex items-center text-yellow-500 font-bold">
+                            <DollarSign className="h-4 w-4" />
+                            {battle.totalValue.toFixed(2)}
+                          </div>
+                        </div>
                       </div>
                       
-                      {players.length < maxPlayers && (
-                        <Button 
-                          variant="outline"
-                          onClick={joinBattle}
-                        >
-                          Join Battle
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {gameState === 'spinning' && (
-                  <div className="w-full h-full flex flex-col justify-center">
-                    <div className="w-full h-48 flex items-center justify-center">
-                      <div className="w-full overflow-hidden" ref={sliderRef}>
-                        {selectedCase && (
-                          <CaseSlider
-                            items={getSliderItems()}
-                            autoSpin={true}
-                            spinDuration={4000}
-                            onComplete={(item) => {/* Handler logic */}}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {gameState === 'completed' && (
-                  <div className="w-full h-full flex flex-col">
-                    <div className="flex-1 flex items-center justify-center p-4">
-                      <div className="grid grid-cols-2 gap-8 w-full max-w-2xl">
-                        {players.map((player, i) => (
-                          <div 
-                            key={i}
-                            className={`border rounded-lg p-4 flex flex-col items-center ${
-                              player.winAmount === Math.max(...players.map(p => p.winAmount || 0)) 
-                                ? 'border-green-500 bg-green-500/10'
-                                : 'border-primary/50 bg-primary/5'
-                            }`}
-                          >
-                            <img 
-                              src={player.avatar} 
-                              alt={player.name} 
-                              className="w-16 h-16 rounded-full mb-2" 
-                            />
-                            <h3 className="font-medium">{player.name}</h3>
-                            <p className="text-sm text-muted-foreground mb-1">Bet: ${player.betAmount}</p>
-                            <div className="mt-2 flex items-center">
-                              <span className="text-sm font-mono">Won: </span>
-                              <span className={`ml-1 text-lg font-bold ${
-                                player.winAmount === Math.max(...players.map(p => p.winAmount || 0))
-                                  ? 'text-green-400'
-                                  : ''
-                              }`}>
-                                ${player.winAmount}
-                              </span>
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className="relative h-8 w-8 rounded-full overflow-hidden bg-gray-800">
+                              <img 
+                                src={battle.creator.avatar} 
+                                alt={battle.creator.username}
+                                className="h-full w-full object-cover"
+                              />
                             </div>
-                            
-                            {player.winAmount === Math.max(...players.map(p => p.winAmount || 0)) && (
-                              <div className="mt-2 px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-bold">
-                                WINNER
-                              </div>
-                            )}
+                            <div>
+                              <p className="text-sm font-medium">{battle.creator.username}</p>
+                              <p className="text-xs text-gray-400">Creator</p>
+                            </div>
                           </div>
-                        ))}
+                          <div className="bg-gray-800 px-2 py-1 rounded flex items-center">
+                            <Users className="h-4 w-4 mr-1 text-blue-500" />
+                            <span className="text-xs">
+                              {battle.players.length}/{battle.mode.split('v').length}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                          {battle.mode.split('v').map((_, teamIndex) => {
+                            const teamPlayers = battle.players.filter(p => p.team === teamIndex + 1);
+                            const isTeamFull = teamPlayers.length >= 1;
+                            
+                            return (
+                              <div key={teamIndex} className="bg-gray-800 p-2 rounded">
+                                <p className="text-xs text-gray-400 mb-1">Team {teamIndex + 1}</p>
+                                {isTeamFull ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-full overflow-hidden bg-gray-700">
+                                      <img 
+                                        src={teamPlayers[0].avatar} 
+                                        alt={teamPlayers[0].username}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </div>
+                                    <p className="text-sm truncate">{teamPlayers[0].username}</p>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 opacity-50">
+                                    <div className="h-6 w-6 rounded-full bg-gray-700 flex items-center justify-center">
+                                      <User className="h-3 w-3" />
+                                    </div>
+                                    <p className="text-sm">Waiting...</p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-gray-400">Cases</p>
+                            <p className="text-sm font-medium">{battle.cases} items</p>
+                          </div>
+                          
+                          {battle.status === 'waiting' && battle.players.every(p => p.username !== user.username) && (
+                            <Button 
+                              className="bg-green-600 hover:bg-green-700"
+                              size="sm"
+                              onClick={() => handleJoinBattle(battle.id)}
+                            >
+                              Join Battle
+                            </Button>
+                          )}
+                          
+                          {battle.status === 'in-progress' && (
+                            <Button 
+                              className="bg-blue-600 hover:bg-blue-700"
+                              size="sm"
+                              onClick={() => handleViewBattle(battle)}
+                            >
+                              Watch
+                            </Button>
+                          )}
+                          
+                          {battle.status === 'waiting' && battle.players.some(p => p.username === user.username) && (
+                            <Button 
+                              className="bg-blue-600 hover:bg-blue-700"
+                              size="sm"
+                              disabled
+                            >
+                              Waiting...
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-            
-            <CardFooter className="bg-black/40 p-4 flex justify-between items-center">
-              <div className="flex items-center gap-2 overflow-x-auto w-full">
-                <TrendingUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="flex gap-2">
-                  {caseBattleHistory.map((battle, index) => (
-                    <div 
-                      key={index} 
-                      className="px-2 py-1 rounded text-xs font-mono bg-primary/20"
-                    >
-                      {battle.winner} won ${battle.totalValue}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardFooter>
-          </Card>
-        </div>
-        
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Battle</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm mb-1">Select Case</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {availableCases.map(caseItem => (
-                    <div 
-                      key={caseItem.id}
-                      onClick={() => setSelectedCase(caseItem)}
-                      className={`p-2 border rounded-lg cursor-pointer transition-all ${
-                        selectedCase?.id === caseItem.id ? 'border-primary bg-primary/20' : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <p className="text-sm font-medium">{caseItem.name}</p>
-                      <p className="text-xs">${caseItem.price}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm mb-1">Number of Cases: {numberOfCases}</label>
-                <Slider
-                  defaultValue={[1]}
-                  max={5}
-                  step={1}
-                  value={[numberOfCases]}
-                  onValueChange={(val) => setNumberOfCases(val[0])}
-                  className="py-4"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm mb-1">Players</label>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setMaxPlayers(prev => Math.max(2, prev - 1))}
-                    disabled={maxPlayers <= 2}
-                  >
-                    -
-                  </Button>
-                  <div className="flex-1 text-center">{maxPlayers} Players</div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setMaxPlayers(prev => Math.min(4, prev + 1))}
-                    disabled={maxPlayers >= 4}
-                  >
-                    +
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="pt-2">
-                {selectedCase && (
-                  <div className="text-sm text-muted-foreground mb-4">
-                    <p>Total Cost: ${selectedCase.price * numberOfCases}</p>
-                    <p>Battle Value: ${selectedCase.price * numberOfCases * maxPlayers}</p>
-                  </div>
-                )}
+                    </Card>
+                  </motion.div>
+                ))}
                 
-                <Button 
-                  className="w-full" 
-                  onClick={createBattle}
-                  disabled={players.length > 0 || !selectedCase}
-                >
-                  Create Battle
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Recent Battles
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {caseBattleHistory.length > 0 ? (
-                  caseBattleHistory.map((battle, i) => (
-                    <div key={i} className="flex items-center justify-between py-1 border-b border-border/30 last:border-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{battle.id.substring(0, 8)}...</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="text-sm mr-1">{battle.players.length} players</span>
-                        <ArrowRight className="h-3 w-3 mx-1" />
-                        <span className="text-sm font-mono text-green-500">${battle.totalValue}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-muted-foreground text-center py-4">
-                    No battle history yet
+                {battles.filter(b => b.status !== 'completed').length === 0 && (
+                  <div className="col-span-3 text-center py-10">
+                    <Trophy className="mx-auto h-10 w-10 text-gray-500 mb-2" />
+                    <p className="text-gray-500">No battles available. Create one!</p>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </TabsContent>
+            
+            <TabsContent value="my">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {battles.filter(b => 
+                  b.players.some(p => p.username === user.username) && 
+                  b.status !== 'completed'
+                ).map(battle => (
+                  <motion.div 
+                    key={battle.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card className="bg-gray-900 border-none shadow-lg overflow-hidden">
+                      <div className="p-4 border-b border-gray-800">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-blue-600 text-white font-bold text-xs px-2 py-1 rounded">
+                              {battle.mode}
+                            </div>
+                            <div className="flex items-center text-xs text-gray-400">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {Math.floor((Date.now() - battle.createdAt.getTime()) / 60000)} min ago
+                            </div>
+                          </div>
+                          <div className="flex items-center text-yellow-500 font-bold">
+                            <DollarSign className="h-4 w-4" />
+                            {battle.totalValue.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className="relative h-8 w-8 rounded-full overflow-hidden bg-gray-800">
+                              <img 
+                                src={battle.creator.avatar} 
+                                alt={battle.creator.username}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{battle.creator.username}</p>
+                              <p className="text-xs text-gray-400">Creator</p>
+                            </div>
+                          </div>
+                          <div className="bg-gray-800 px-2 py-1 rounded flex items-center">
+                            <Users className="h-4 w-4 mr-1 text-blue-500" />
+                            <span className="text-xs">
+                              {battle.players.length}/{battle.mode.split('v').length}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                          {battle.mode.split('v').map((_, teamIndex) => {
+                            const teamPlayers = battle.players.filter(p => p.team === teamIndex + 1);
+                            const isTeamFull = teamPlayers.length >= 1;
+                            
+                            return (
+                              <div 
+                                key={teamIndex} 
+                                className={`bg-gray-800 p-2 rounded ${
+                                  teamPlayers.some(p => p.username === user.username) ? 'ring-2 ring-green-500' : ''
+                                }`}
+                              >
+                                <p className="text-xs text-gray-400 mb-1">Team {teamIndex + 1}</p>
+                                {isTeamFull ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-full overflow-hidden bg-gray-700">
+                                      <img 
+                                        src={teamPlayers[0].avatar} 
+                                        alt={teamPlayers[0].username}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </div>
+                                    <p className="text-sm truncate">{teamPlayers[0].username}</p>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 opacity-50">
+                                    <div className="h-6 w-6 rounded-full bg-gray-700 flex items-center justify-center">
+                                      <User className="h-3 w-3" />
+                                    </div>
+                                    <p className="text-sm">Waiting...</p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-gray-400">Cases</p>
+                            <p className="text-sm font-medium">{battle.cases} items</p>
+                          </div>
+                          
+                          {battle.status === 'in-progress' && (
+                            <Button 
+                              className="bg-blue-600 hover:bg-blue-700"
+                              size="sm"
+                              onClick={() => handleViewBattle(battle)}
+                            >
+                              Watch
+                            </Button>
+                          )}
+                          
+                          {battle.status === 'waiting' && (
+                            <Button 
+                              className="bg-blue-600 hover:bg-blue-700"
+                              size="sm"
+                              disabled
+                            >
+                              Waiting...
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+                
+                {battles.filter(b => 
+                  b.players.some(p => p.username === user.username) && 
+                  b.status !== 'completed'
+                ).length === 0 && (
+                  <div className="col-span-3 text-center py-10">
+                    <Trophy className="mx-auto h-10 w-10 text-gray-500 mb-2" />
+                    <p className="text-gray-500">You haven't joined any battles yet</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="history">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {battles.filter(b => b.status === 'completed').map(battle => (
+                  <motion.div 
+                    key={battle.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card className="bg-gray-900 border-none shadow-lg overflow-hidden">
+                      <div className="p-4 border-b border-gray-800">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-blue-600 text-white font-bold text-xs px-2 py-1 rounded">
+                              {battle.mode}
+                            </div>
+                            <div className="flex items-center text-xs text-gray-400">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {Math.floor((Date.now() - battle.createdAt.getTime()) / 60000)} min ago
+                            </div>
+                          </div>
+                          <div className="flex items-center text-yellow-500 font-bold">
+                            <DollarSign className="h-4 w-4" />
+                            {battle.totalValue.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className="relative h-8 w-8 rounded-full overflow-hidden bg-gray-800">
+                              <img 
+                                src={battle.creator.avatar} 
+                                alt={battle.creator.username}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{battle.creator.username}</p>
+                              <p className="text-xs text-gray-400">Creator</p>
+                            </div>
+                          </div>
+                          <div className="bg-green-900 px-2 py-1 rounded flex items-center">
+                            <Trophy className="h-4 w-4 mr-1 text-yellow-500" />
+                            <span className="text-xs font-bold">
+                              {battle.winnerId}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                          {battle.players.map((player, index) => (
+                            <div 
+                              key={index} 
+                              className={`bg-gray-800 p-2 rounded ${
+                                player.username === battle.winnerId ? 'bg-green-900' : 
+                                (player.username === user.username ? 'ring-2 ring-red-500' : '')
+                              }`}
+                            >
+                              <p className="text-xs text-gray-400 mb-1">Team {player.team}</p>
+                              <div className="flex items-center gap-2">
+                                <div className="h-6 w-6 rounded-full overflow-hidden bg-gray-700">
+                                  <img 
+                                    src={player.avatar} 
+                                    alt={player.username}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                                <p className="text-sm truncate">
+                                  {player.username}
+                                  {player.username === battle.winnerId && (
+                                    <span className="ml-1 text-yellow-500">👑</span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-gray-400">Cases</p>
+                            <p className="text-sm font-medium">{battle.cases} items</p>
+                          </div>
+                          
+                          <Button 
+                            className="bg-blue-600 hover:bg-blue-700"
+                            size="sm"
+                            onClick={() => handleViewBattle(battle)}
+                          >
+                            View Details
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+                
+                {battles.filter(b => b.status === 'completed').length === 0 && (
+                  <div className="col-span-3 text-center py-10">
+                    <Trophy className="mx-auto h-10 w-10 text-gray-500 mb-2" />
+                    <p className="text-gray-500">No battle history yet</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
-      </div>
+      )}
     </div>
   );
 };
