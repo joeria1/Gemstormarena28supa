@@ -9,11 +9,10 @@ import {
   DialogTrigger,
 } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { CircleDollarSign, Bitcoin, Coins, Info } from 'lucide-react';
-import { playSound } from '../utils/soundEffects';
-import { SOUNDS } from '../utils/soundEffects';
-import { toast } from '../hooks/use-toast';
+import { CircleDollarSign, Bitcoin, Coins, Info, CopyIcon } from 'lucide-react';
 import { useSound } from './ui/sound-context';
+import { toast } from '../hooks/use-toast';
+import { useUser } from '../context/UserContext';
 
 const cryptoOptions = [
   { name: 'Bitcoin', symbol: 'BTC', icon: Bitcoin, address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' },
@@ -22,21 +21,18 @@ const cryptoOptions = [
 ];
 
 // Function to get free gems
-const getFreeDailyGems = () => {
+const getFreeDailyGems = (updateUserBalance: (amount: number) => void) => {
   const lastClaimedDate = localStorage.getItem('lastClaimedDate');
   const today = new Date().toDateString();
 
   if (lastClaimedDate !== today) {
     localStorage.setItem('lastClaimedDate', today);
     
-    // Get current gems or default to 0
-    const currentGems = parseInt(localStorage.getItem('userGems') || '0');
     const freeGems = 100;
     
-    // Add gems to user's account
-    localStorage.setItem('userGems', (currentGems + freeGems).toString());
+    // Add gems to user's account using context
+    updateUserBalance(freeGems);
     
-    playSound(SOUNDS.REWARD);
     toast({
       title: 'Daily Gems Claimed!',
       description: `You've received ${freeGems} free gems!`,
@@ -57,6 +53,7 @@ const getFreeDailyGems = () => {
 const DepositButton: React.FC = () => {
   const [open, setOpen] = useState(false);
   const { playSound } = useSound();
+  const { updateBalance } = useUser();
 
   const handleDeposit = () => {
     playSound('/sounds/deposit.mp3');
@@ -67,13 +64,23 @@ const DepositButton: React.FC = () => {
       variant: 'default',
     });
   };
+  
+  const handleCopy = (address: string, symbol: string) => {
+    navigator.clipboard.writeText(address);
+    toast({ 
+      title: 'Address Copied',
+      description: `${symbol} address copied to clipboard.`,
+      variant: 'default',
+      duration: 3000,
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className="bg-primary text-background hover:bg-primary/90 shadow-lg"
+          className="bg-primary text-white hover:bg-primary/90 shadow-lg"
         >
           <CircleDollarSign className="mr-2 h-4 w-4" />
           <span>Deposit</span>
@@ -81,19 +88,22 @@ const DepositButton: React.FC = () => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Deposit Funds</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">Deposit Funds</DialogTitle>
         </DialogHeader>
         
         {/* Conversion Rate Banner */}
-        <div className="bg-amber-500/20 border border-amber-500/30 rounded-md p-3 mb-4 flex items-center gap-2">
-          <Info className="h-5 w-5 text-amber-500" />
-          <p className="text-sm">
-            <strong>Conversion Rate:</strong> 5.2 euros = 1,000 gems
-          </p>
+        <div className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/30 rounded-md p-4 mb-4 flex items-center gap-3">
+          <Info className="h-6 w-6 text-amber-500 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-amber-200">Conversion Rate</p>
+            <p className="text-sm">
+              5.2 euros = 1,000 gems
+            </p>
+          </div>
         </div>
         
         <Tabs defaultValue="crypto" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="crypto">Cryptocurrency</TabsTrigger>
             <TabsTrigger value="free">Free Gems</TabsTrigger>
           </TabsList>
@@ -102,34 +112,33 @@ const DepositButton: React.FC = () => {
               {cryptoOptions.map((crypto) => (
                 <div 
                   key={crypto.symbol}
-                  className="flex flex-col space-y-2 rounded-md border p-4"
+                  className="flex flex-col space-y-3 rounded-md border border-white/10 p-4 bg-black/40"
                 >
                   <div className="flex items-center space-x-2">
-                    <crypto.icon className="h-5 w-5" />
+                    <crypto.icon className="h-5 w-5 text-primary" />
                     <span className="font-medium">{crypto.name} ({crypto.symbol})</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <input
-                      readOnly
-                      value={crypto.address}
-                      className="w-full bg-muted px-3 py-2 text-sm rounded-md"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(crypto.address);
-                        toast({ 
-                          title: 'Address Copied',
-                          description: `${crypto.symbol} address copied to clipboard.`,
-                          variant: 'default',
-                          duration: 3000,
-                        });
-                      }}
-                    >
-                      Copy
-                    </Button>
+                    <div className="relative w-full">
+                      <input
+                        readOnly
+                        value={crypto.address}
+                        className="w-full bg-black/60 px-3 py-2 text-sm rounded-md border border-white/10"
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="absolute right-1 top-1/2 -translate-y-1/2"
+                        onClick={() => handleCopy(crypto.address, crypto.symbol)}
+                      >
+                        <CopyIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <Button onClick={handleDeposit}>
+                  <Button 
+                    onClick={handleDeposit}
+                    className="bg-primary hover:bg-primary/90 text-white"
+                  >
                     Deposit with {crypto.symbol}
                   </Button>
                 </div>
@@ -137,14 +146,18 @@ const DepositButton: React.FC = () => {
             </div>
           </TabsContent>
           <TabsContent value="free" className="space-y-4">
-            <div className="rounded-md border p-6">
+            <div className="rounded-md border border-primary/30 bg-black/40 p-6">
               <div className="flex flex-col items-center justify-center space-y-4">
                 <Coins className="h-16 w-16 text-yellow-500" />
                 <h3 className="text-xl font-bold">Free Daily Gems</h3>
                 <p className="text-center text-muted-foreground">
                   Claim 100 free gems daily to try out our platform!
                 </p>
-                <Button onClick={() => getFreeDailyGems()} size="lg">
+                <Button 
+                  onClick={() => getFreeDailyGems(updateBalance)} 
+                  size="lg" 
+                  className="bg-primary hover:bg-primary/90 text-white"
+                >
                   Claim Free Gems
                 </Button>
               </div>

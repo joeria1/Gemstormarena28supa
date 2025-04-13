@@ -25,7 +25,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen flex-col">
         <Navbar />
-        <div className="flex-1 pt-16">
+        <div className="flex-1 pt-16 overflow-x-hidden">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/cases" element={<Cases />} />

@@ -3,10 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
-import { SOUNDS, playSound } from '../utils/soundEffects';
+import { useSound } from '../components/SoundManager';
 import { showGameResult } from '../components/GameResultNotification';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { useSound } from '../components/SoundManager';
 
 enum DifficultyLevel {
   EASY = 'easy',
@@ -71,7 +70,6 @@ const Tower: React.FC = () => {
   const startGame = () => {
     if (bet <= 0) return;
     
-    // Deduct bet from user's balance (implement actual balance logic)
     setGameActive(true);
     setCurrentLevel(0);
     setMultiplier(1);
@@ -99,8 +97,8 @@ const Tower: React.FC = () => {
     
     // Check if bomb hit
     if (currentTowerLevel.bombs.includes(tileIndex)) {
-      // Game over
-      playSound('/sounds/wrong.mp3');
+      // Game over - hit a bomb
+      playSound('/sounds/explosion.mp3');
       setLastBombHit({ level: currentLevel, tileIndex });
       
       showGameResult({
@@ -182,15 +180,17 @@ const Tower: React.FC = () => {
       amount: winAmount
     });
     setGameActive(false);
-    // Add winnings to user's balance (implement actual balance logic)
   };
   
-  const renderTower = () => {
+  const renderGrid = () => {
     return tower.map((level, levelIndex) => {
       const isCurrentLevel = levelIndex === currentLevel;
       const isPastLevel = levelIndex < currentLevel;
       const isDisabled = !isCurrentLevel || !gameActive;
       const isGameOver = lastBombHit && !gameActive;
+      const isVisibleLevel = Math.abs(levelIndex - currentLevel) <= 2; // Only render levels near current
+      
+      if (!isVisibleLevel && !isGameOver) return null;
       
       return (
         <div 
@@ -292,7 +292,7 @@ const Tower: React.FC = () => {
               
               <div className="flex space-x-2">
                 <Button 
-                  className="flex-1"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-white"
                   onClick={startGame}
                   disabled={gameActive || bet <= 0}
                 >
@@ -310,12 +310,12 @@ const Tower: React.FC = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-2">
-            <div className="w-full bg-muted rounded-md p-2">
+            <div className="w-full bg-black/40 rounded-md p-3 border border-white/10">
               <div className="text-sm font-medium">Difficulty Info</div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground space-y-1 mt-1">
                 <p>Easy: 1 bomb, 2 safe spots (only 1 needed)</p>
-                <p>Medium: 1 bomb, 1 safe spot</p>
-                <p>Hard: 2 bombs, 1 safe spot</p>
+                <p>Medium: 1 bomb, 1 safe spot (all needed)</p>
+                <p>Hard: 2 bombs, 1 safe spot (all needed)</p>
               </div>
             </div>
           </CardFooter>
@@ -324,14 +324,14 @@ const Tower: React.FC = () => {
         <Card className="lg:col-span-2">
           <CardContent className="pt-6 pb-6 h-[600px] overflow-y-auto">
             <div className="flex flex-col items-center space-y-2">
-              {gameActive || lastBombHit ? renderTower() : (
+              {gameActive || lastBombHit ? renderGrid() : (
                 <div className="flex flex-col items-center justify-center h-full">
                   <div className="text-center p-8">
                     <h3 className="text-xl font-bold mb-2">How to Play</h3>
                     <p className="text-muted-foreground mb-4">
                       Climb the tower by selecting safe tiles. Avoid bombs! The higher you climb, the bigger your reward.
                     </p>
-                    <Button onClick={startGame} disabled={bet <= 0}>
+                    <Button onClick={startGame} disabled={bet <= 0} className="bg-primary hover:bg-primary/90 text-white">
                       Start Game
                     </Button>
                   </div>

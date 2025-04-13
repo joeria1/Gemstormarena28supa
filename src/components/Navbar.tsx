@@ -13,14 +13,11 @@ const Navbar = () => {
   const [balance, setBalance] = useState<number>(0);
 
   useEffect(() => {
-    // Get user gems from localStorage or context
-    const userGems = localStorage.getItem('userGems');
-    if (userGems) {
-      setBalance(parseInt(userGems));
-    } else if (user && user.balance) {
+    // Update balance whenever user data changes
+    if (user && user.balance) {
       setBalance(user.balance);
     }
-  }, [user]);
+  }, [user?.balance]);
 
   const closeMenu = () => setIsOpen(false);
 
@@ -57,8 +54,8 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* User Balance Display */}
-          <div className="hidden md:flex items-center gap-1 bg-black/40 rounded-full px-3 py-1.5 border border-violet-800/30">
+          {/* User Balance Display - Always visible */}
+          <div className="flex items-center gap-1 bg-black/40 rounded-full px-3 py-1.5 border border-violet-800/30">
             <Coins className="h-4 w-4 text-yellow-500" />
             <span className="font-medium text-white">{balance.toLocaleString()}</span>
           </div>

@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 interface User {
@@ -22,7 +23,9 @@ const defaultUser: Omit<User, 'updateBalance'> = {
   id: 'user-1',
   username: 'GemHunter',
   avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=GemHunter',
-  balance: 5000
+  balance: 5000,
+  level: 1,
+  xp: 0
 };
 
 const UserContext = createContext<UserContextType>({
@@ -65,15 +68,21 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       const { updateBalance: _, ...userWithoutFunction } = user;
       localStorage.setItem('user', JSON.stringify(userWithoutFunction));
+      localStorage.setItem('userGems', user.balance.toString());
     }
   }, [user]);
 
   const updateBalance = (amount: number) => {
     setUser(prev => {
       if (!prev) return null;
+      const newBalance = prev.balance + amount;
+      
+      // Also update localStorage directly for other components
+      localStorage.setItem('userGems', newBalance.toString());
+      
       return {
         ...prev,
-        balance: prev.balance + amount,
+        balance: newBalance,
       };
     });
   };
@@ -87,6 +96,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('userGems');
     setUser(null);
   };
 
