@@ -1,4 +1,5 @@
-import React, { useContext, useState } from 'react';
+
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -12,6 +13,9 @@ import HorseRacing from './pages/HorseRacing';
 import { UserProvider } from './context/UserContext';
 import { Toaster } from 'sonner';
 import Rewards from './pages/Rewards';
+import NotFound from './pages/NotFound';
+import Tower from './pages/Tower';
+import RakeBack from './pages/RakeBack';
 
 const App = () => {
   const [theme, setTheme] = useState('dark');
@@ -30,12 +34,13 @@ const App = () => {
           <Route path="/mines" element={<Mines />} />
           <Route path="/affiliates" element={<Affiliates />} />
           <Route path="/horse-racing" element={<HorseRacing />} />
-        
-        <Route path="/rewards" element={<Rewards />} />
-        
+          <Route path="/rewards" element={<Rewards />} />
+          <Route path="/tower" element={<Tower />} />
+          <Route path="/rake-back" element={<RakeBack />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       
-      <Toaster richColors closeButton />
+        <Toaster richColors closeButton />
       </UserProvider>
     </BrowserRouter>
   );

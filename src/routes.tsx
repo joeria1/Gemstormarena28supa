@@ -1,4 +1,5 @@
-
+// This file is no longer used since routing is handled directly in App.tsx
+// Keeping this file for reference only
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Index from './pages/Index';
@@ -14,6 +15,7 @@ import Tower from './pages/Tower';
 import HorseRacing from './pages/HorseRacing';
 import Affiliates from './pages/Affiliates';
 
+// NOTE: This component is not used anymore, as routing is now directly handled in App.tsx
 const AppRoutes = () => {
   return (
     <Routes>
