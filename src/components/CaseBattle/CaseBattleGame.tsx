@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { ArrowLeft, Bot, Gem, Users } from 'lucide-react';
@@ -275,7 +276,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose, curs
     if (isPersonalCaseSpinning) return;
     
     if (!user) {
-      toast.error('Please login to open cases');
+      toast.error('Please log in to open cases');
       return;
     }
     
@@ -337,9 +338,18 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose, curs
             )}
           </div>
           
-          <div className="flex items-center">
-            <span className="text-gray-300 mr-2">Total Value:</span>
-            <span className="text-yellow-400 font-bold">{totalValue} gems</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center">
+              <span className="text-gray-300 mr-2">Total Value:</span>
+              <span className="text-yellow-400 font-bold">{totalValue} gems</span>
+            </div>
+            
+            {user && (
+              <div className="flex items-center bg-gray-800 px-3 py-1 rounded-md">
+                <Gem className="h-4 w-4 text-yellow-400 mr-1" />
+                <span className="text-white font-medium">{user.balance}</span>
+              </div>
+            )}
           </div>
         </div>
         
@@ -355,6 +365,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose, curs
                   spinDuration={5000}
                   isSpinning={isPersonalCaseSpinning}
                   setIsSpinning={setIsPersonalCaseSpinning}
+                  caseName="Standard Case"
                 />
                 
                 <div className="mt-4 flex justify-between">
@@ -367,7 +378,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose, curs
                   
                   <Button 
                     onClick={handleOpenPersonalCase}
-                    disabled={isPersonalCaseSpinning}
+                    disabled={isPersonalCaseSpinning || (user && user.balance < 100)}
                   >
                     {isPersonalCaseSpinning ? "Opening..." : "Open Case (100 gems)"}
                   </Button>
@@ -379,6 +390,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose, curs
                 <Button 
                   onClick={handleOpenPersonalCase}
                   className="bg-green-600 hover:bg-green-700"
+                  disabled={user && user.balance < 100}
                 >
                   Open Standard Case (100 gems)
                 </Button>
@@ -418,6 +430,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose, curs
                   autoSpin={true}
                   playerName={players.find(p => p.id === activePlayer)?.name}
                   highlightPlayer={activePlayer === '1'}
+                  caseName="Standard Case"
                 />
               </div>
             )}

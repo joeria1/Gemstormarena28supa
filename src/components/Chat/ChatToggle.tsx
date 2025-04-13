@@ -13,7 +13,13 @@ const ChatToggle: React.FC<ChatToggleProps> = ({ isOpen, onToggle }) => {
   const { isRainActive, rainTimeRemaining, toggleChat } = useChat();
   
   // If not provided via props, we'll use internal state or context
-  const handleToggle = onToggle || toggleChat;
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      toggleChat();
+    }
+  };
   
   return (
     <Button 
