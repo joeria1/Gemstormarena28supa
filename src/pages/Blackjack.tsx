@@ -1,958 +1,1136 @@
-import React, { useState, useEffect } from 'react';
-import { useUser } from '@/context/UserContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { useSound } from '@/components/SoundManager';
-import { CreditCard, ChevronsDown, ChevronsUp, Gem, Play, RefreshCw, Volume2, VolumeX, Users, Copy, Plus } from 'lucide-react';
-import ChatWindow from '@/components/Chat/ChatWindow';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useUser } from "@/context/UserContext";
+import { Card } from "@/components/ui/card";
+import { useSound } from "@/components/SoundManager";
+import { preventAutoScroll, disableScrollRestoration } from "@/utils/scrollFix";
+import { Gem } from "lucide-react";
 
-// Card suits: spades (♠), hearts (♥), diamonds (♦), clubs (♣)
-const suits = ['♠', '♥', '♦', '♣'];
-const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+// Card values and suits
+const CARD_VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const CARD_SUITS = ['♠', '♥', '♦', '♣'];
 
-interface PlayingCard {
-  suit: string;
+// Table data
+const TABLES = [
+  { id: 1, name: "Table 1", minBet: 50, maxBet: 500 },
+  { id: 2, name: "Table 2", minBet: 100, maxBet: 1000 },
+  { id: 3, name: "Table 3", minBet: 250, maxBet: 2500 },
+  { id: 4, name: "Table 4", minBet: 500, maxBet: 5000 },
+];
+
+// Define a card type
+type BlackjackCard = {
   value: string;
-  numericValue: number;
-}
+  suit: string;
+  hidden?: boolean;
+};
 
-interface Hand {
-  cards: PlayingCard[];
-  doubled: boolean;
-  stand: boolean;
+// Define a hand type
+type Hand = {
+  cards: BlackjackCard[];
   bet: number;
-}
+  standing: boolean;
+  busted: boolean;
+  blackjack: boolean;
+  finalValue?: number;
+};
 
-interface Player {
-  id: string;
+// Define a player spot
+type PlayerSpot = {
+  occupied: boolean;
+  isBot: boolean;
   name: string;
-  avatar: string;
   hands: Hand[];
-  position: 'left' | 'bottom' | 'right' | 'top';
-  isUser: boolean;
-}
+  activeHandIndex: number;
+};
 
-const Blackjack: React.FC = () => {
+// Define a table type
+type Table = {
+  id: number;
+  name: string;
+  minBet: number;
+  maxBet: number;
+  spots: PlayerSpot[];
+  dealer: {
+    cards: BlackjackCard[];
+    value: number;
+    busted: boolean;
+    blackjack: boolean;
+  };
+  deck: BlackjackCard[];
+  isActive: boolean;
+  countdown: number;
+  gameStarted: boolean;
+  roundFinished: boolean;
+};
+
+const Blackjack = () => {
   const { user, updateBalance } = useUser();
-  const { playSound, isMuted } = useSound();
-  const [betAmount, setBetAmount] = useState(100);
-  const [deck, setDeck] = useState<PlayingCard[]>([]);
-  const [dealerHand, setDealerHand] = useState<PlayingCard[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [activePlayerIndex, setActivePlayerIndex] = useState(0);
-  const [activeHandIndex, setActiveHandIndex] = useState(0);
-  const [gameState, setGameState] = useState<'betting' | 'playing' | 'dealer-turn' | 'complete'>('betting');
-  const [result, setResult] = useState<'pending' | 'player-blackjack' | 'player-win' | 'dealer-win' | 'push'>('pending');
-  const [showSettings, setShowSettings] = useState(false);
-  const [playerCount, setPlayerCount] = useState(1);
-  
-  // Calculate hand value
-  const calculateHandValue = (hand: PlayingCard[]): number => {
-    let value = 0;
-    let aceCount = 0;
-    
-    for (const card of hand) {
-      if (card.value === 'A') {
-        aceCount++;
-        value += 11;
-      } else {
-        value += card.numericValue;
+  const { playSound } = useSound();
+  const [tables, setTables] = useState<Table[]>([]);
+  const [activeTable, setActiveTable] = useState<number | null>(null);
+  const [currentBet, setCurrentBet] = useState<number>(100);
+  const [userSpots, setUserSpots] = useState<number[]>([]);
+
+  // Prevent automatic scrolling
+  useEffect(() => {
+    preventAutoScroll();
+    disableScrollRestoration();
+    initializeTables();
+  }, []);
+
+  // Initialize tables
+  const initializeTables = () => {
+    const initializedTables = TABLES.map(table => ({
+      ...table,
+      spots: Array(5).fill(null).map(() => ({
+        occupied: false,
+        isBot: false,
+        name: "",
+        hands: [],
+        activeHandIndex: 0
+      })),
+      dealer: {
+        cards: [],
+        value: 0,
+        busted: false,
+        blackjack: false
+      },
+      deck: [],
+      isActive: false,
+      countdown: 10,
+      gameStarted: false,
+      roundFinished: false
+    }));
+    setTables(initializedTables);
+  };
+
+  // Create a new deck and shuffle it
+  const createDeck = (): BlackjackCard[] => {
+    const deck: BlackjackCard[] = [];
+    for (const suit of CARD_SUITS) {
+      for (const value of CARD_VALUES) {
+        deck.push({ value, suit });
       }
     }
     
+    // Shuffle the deck (Fisher-Yates algorithm)
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    
+    return deck;
+  };
+
+  // Draw a card from the deck
+  const drawCard = (tableId: number, hidden = false): BlackjackCard => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return { value: '2', suit: '♠' }; // Fallback
+    
+    const updatedTables = [...tables];
+    let deck = [...updatedTables[tableIndex].deck];
+    
+    // If deck is running low, create a new deck
+    if (deck.length < 10) {
+      deck = createDeck();
+    }
+    
+    const card = { ...deck.pop()!, hidden };
+    updatedTables[tableIndex].deck = deck;
+    setTables(updatedTables);
+    
+    return card;
+  };
+
+  // Calculate the value of a hand
+  const calculateHandValue = (cards: BlackjackCard[]): number => {
+    let value = 0;
+    let aceCount = 0;
+
+    // Count visible cards only
+    for (const card of cards.filter(c => !c.hidden)) {
+      if (card.value === 'A') {
+        aceCount++;
+        value += 11;
+      } else if (['K', 'Q', 'J'].includes(card.value)) {
+        value += 10;
+      } else {
+        value += parseInt(card.value);
+      }
+    }
+
     // Adjust for aces
     while (value > 21 && aceCount > 0) {
       value -= 10;
       aceCount--;
     }
-    
+
     return value;
   };
-  
-  // Set up initial players
-  useEffect(() => {
-    resetPlayers();
-  }, []);
-  
-  const resetPlayers = () => {
-    const positions: ('left' | 'bottom' | 'right' | 'top')[] = ['bottom', 'left', 'right', 'top'];
-    const newPlayers: Player[] = [];
+
+  // Join a table at a specific spot
+  const joinTable = (tableId: number, spotIndex: number) => {
+    if (!user) {
+      toast.error("Please login to play");
+      return;
+    }
+
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
     
-    // Add user as the first player in bottom position
-    newPlayers.push({
-      id: user ? user.id : 'user',
-      name: user ? user.username : 'You',
-      avatar: user ? user.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=You' : 'https://api.dicebear.com/7.x/adventurer/svg?seed=You',
-      hands: [],
-      position: 'bottom',
-      isUser: true
-    });
+    const table = tables[tableIndex];
     
-    // Random AI names
-    const aiNames = ['GemHunter', 'CryptoKing', 'CardShark', 'LuckyDraw'];
-    
-    // Add AI players based on player count (exclude bottom position)
-    const aiPositions = positions.filter(p => p !== 'bottom');
-    for (let i = 0; i < Math.min(3, playerCount - 1); i++) {
-      newPlayers.push({
-        id: `ai-${i}`,
-        name: aiNames[i],
-        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${aiNames[i]}`,
-        hands: [],
-        position: aiPositions[i],
-        isUser: false
-      });
+    // Check if spot is available
+    if (table.spots[spotIndex].occupied) {
+      toast.error("This spot is already taken");
+      return;
     }
     
-    setPlayers(newPlayers);
-  };
-  
-  // Create a fresh shuffled deck
-  const createDeck = (): PlayingCard[] => {
-    const newDeck: PlayingCard[] = [];
+    // Check if player already has 3 spots
+    if (userSpots.filter(spot => Math.floor(spot / 10) === tableId).length >= 3) {
+      toast.error("You can only play with 3 hands per table");
+      return;
+    }
     
-    for (const suit of suits) {
-      for (const value of values) {
-        let numericValue: number;
-        
-        if (value === 'A') {
-          numericValue = 11;
-        } else if (['J', 'Q', 'K'].includes(value)) {
-          numericValue = 10;
-        } else {
-          numericValue = parseInt(value);
+    // Check if table is already playing
+    if (table.gameStarted && !table.roundFinished) {
+      toast.error("Game already in progress. Wait for next round");
+      return;
+    }
+    
+    const updatedTables = [...tables];
+    updatedTables[tableIndex].spots[spotIndex] = {
+      occupied: true,
+      isBot: false,
+      name: user.name || "Player",
+      hands: [],
+      activeHandIndex: 0
+    };
+    
+    // Mark table as active and start countdown if this is the first player
+    if (!updatedTables[tableIndex].isActive) {
+      updatedTables[tableIndex].isActive = true;
+      updatedTables[tableIndex].countdown = 10;
+      updatedTables[tableIndex].deck = createDeck();
+      
+      // Start countdown
+      startCountdown(tableId);
+    }
+    
+    setTables(updatedTables);
+    setActiveTable(tableId);
+    setUserSpots([...userSpots, tableId * 10 + spotIndex]);
+    
+    playSound('https://assets.mixkit.co/sfx/preview/mixkit-quick-win-video-game-notification-269.mp3');
+    toast.success(`Joined ${table.name} at spot ${spotIndex + 1}`);
+  };
+
+  // Add a bot to a table
+  const addBot = (tableId: number, spotIndex: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const table = tables[tableIndex];
+    
+    // Check if spot is available
+    if (table.spots[spotIndex].occupied) {
+      toast.error("This spot is already taken");
+      return;
+    }
+    
+    const updatedTables = [...tables];
+    const botNames = ["Bot Alice", "Bot Bob", "Bot Charlie", "Bot Dave", "Bot Eve"];
+    const randomName = botNames[Math.floor(Math.random() * botNames.length)];
+    
+    updatedTables[tableIndex].spots[spotIndex] = {
+      occupied: true,
+      isBot: true,
+      name: randomName,
+      hands: [],
+      activeHandIndex: 0
+    };
+    
+    // Mark table as active and start countdown if this is the first player
+    if (!updatedTables[tableIndex].isActive) {
+      updatedTables[tableIndex].isActive = true;
+      updatedTables[tableIndex].countdown = 10;
+      updatedTables[tableIndex].deck = createDeck();
+      
+      // Start countdown
+      startCountdown(tableId);
+    }
+    
+    setTables(updatedTables);
+    
+    playSound('https://assets.mixkit.co/sfx/preview/mixkit-arcade-mechanical-bling-210.mp3');
+  };
+
+  // Start the countdown to game start
+  const startCountdown = (tableId: number) => {
+    const intervalId = setInterval(() => {
+      setTables(prevTables => {
+        const tableIndex = prevTables.findIndex(t => t.id === tableId);
+        if (tableIndex === -1) {
+          clearInterval(intervalId);
+          return prevTables;
         }
         
-        newDeck.push({ suit, value, numericValue });
-      }
-    }
-    
-    // Shuffle the deck
-    for (let i = newDeck.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
-    }
-    
-    return newDeck;
+        const updatedTables = [...prevTables];
+        const table = updatedTables[tableIndex];
+        
+        if (table.countdown > 0) {
+          updatedTables[tableIndex].countdown = table.countdown - 1;
+        } else {
+          // Start the game
+          clearInterval(intervalId);
+          startGame(tableId);
+        }
+        
+        return updatedTables;
+      });
+    }, 1000);
   };
-  
-  // Draw card from the deck
-  const drawCard = (): PlayingCard => {
-    const card = deck[0];
-    setDeck(prev => prev.slice(1));
-    return card;
-  };
-  
-  // Start a new game
-  const startGame = () => {
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-interface-click-1126.mp3');
-    
+
+  // Place bet and start the game
+  const placeBet = (tableId: number, spotIndex: number, amount: number) => {
     if (!user) {
-      toast.error('Please login to play');
+      toast.error("Please login to play");
       return;
     }
     
-    if (betAmount <= 0) {
-      toast.error('Please enter a valid bet amount');
+    if (user.balance < amount) {
+      toast.error("Insufficient balance");
       return;
     }
     
-    if (user.balance < betAmount) {
-      toast.error('Insufficient balance');
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const table = tables[tableIndex];
+    const spot = table.spots[spotIndex];
+    
+    // Check if player is on this spot
+    if (!spot.occupied || spot.isBot) return;
+    
+    // Check if game already started
+    if (table.gameStarted && !table.roundFinished) return;
+    
+    // Check if bet is within table limits
+    if (amount < table.minBet || amount > table.maxBet) {
+      toast.error(`Bet must be between ${table.minBet} and ${table.maxBet}`);
       return;
     }
     
     // Deduct bet amount
-    updateBalance(-betAmount);
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-cards-spread-out-on-a-table-1932.mp3');
+    updateBalance(-amount);
     
-    // Create a fresh deck
-    const newDeck = createDeck();
-    let currentDeck = [...newDeck];
+    const updatedTables = [...tables];
+    const newHand: Hand = {
+      cards: [],
+      bet: amount,
+      standing: false,
+      busted: false,
+      blackjack: false
+    };
     
-    // Initialize dealer's hand
-    const dealerCard1 = currentDeck[0];
-    const dealerCard2 = currentDeck[1];
-    currentDeck = currentDeck.slice(2);
-    setDealerHand([dealerCard1, dealerCard2]);
+    // Add the hand to the player
+    if (!updatedTables[tableIndex].spots[spotIndex].hands) {
+      updatedTables[tableIndex].spots[spotIndex].hands = [];
+    }
     
-    // Initialize player hands
-    let cardIndex = 2;
-    const updatedPlayers = players.map(player => {
-      const playerCard1 = currentDeck[cardIndex];
-      const playerCard2 = currentDeck[cardIndex + 1];
-      cardIndex += 2;
-      
-      return {
-        ...player,
-        hands: [
-          {
-            cards: [playerCard1, playerCard2],
-            doubled: false,
-            stand: false,
-            bet: player.isUser ? betAmount : betAmount / 2
-          }
-        ]
-      };
+    updatedTables[tableIndex].spots[spotIndex].hands.push(newHand);
+    setTables(updatedTables);
+    
+    playSound('https://assets.mixkit.co/sfx/preview/mixkit-poker-chips-handling-1994.mp3');
+  };
+
+  // Start the game for a table
+  const startGame = (tableId: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const updatedTables = [...tables];
+    const table = updatedTables[tableIndex];
+    
+    // Place bets for bots
+    table.spots.forEach((spot, spotIndex) => {
+      if (spot.occupied && spot.isBot) {
+        const botBet = table.minBet + Math.floor(Math.random() * (table.maxBet - table.minBet) / 100) * 100;
+        const newHand: Hand = {
+          cards: [],
+          bet: botBet,
+          standing: false,
+          busted: false,
+          blackjack: false
+        };
+        spot.hands = [newHand];
+      }
     });
     
-    setPlayers(updatedPlayers);
-    setActivePlayerIndex(0);
-    setActiveHandIndex(0);
-    setDeck(currentDeck.slice(cardIndex));
-    setGameState('playing');
-    setResult('pending');
+    // Check if any player has placed bets
+    const anyBets = table.spots.some(spot => spot.occupied && spot.hands && spot.hands.length > 0);
     
-    // Check for blackjack
-    const userHand = updatedPlayers[0].hands[0];
-    const userHandValue = calculateHandValue(userHand.cards);
-    const dealerHandValue = calculateHandValue([dealerCard1, dealerCard2]);
-    
-    if (userHandValue === 21) {
-      if (dealerHandValue === 21) {
-        // Both have blackjack, it's a push
-        handleGameEnd('push');
-      } else {
-        // Player has blackjack, pays 3:2
-        handleGameEnd('player-blackjack');
-      }
-    }
-  };
-  
-  // Get current active player and hand
-  const getActivePlayer = (): Player | undefined => {
-    return players[activePlayerIndex];
-  };
-  
-  const getActiveHand = (): Hand | undefined => {
-    const player = getActivePlayer();
-    return player ? player.hands[activeHandIndex] : undefined;
-  };
-  
-  // Player hits (draws another card)
-  const playerHit = () => {
-    if (gameState !== 'playing') return;
-    
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-quick-win-video-game-notification-269.mp3');
-    
-    const player = {...getActivePlayer()!};
-    const hand = {...getActiveHand()!};
-    const card = drawCard();
-    hand.cards = [...hand.cards, card];
-    
-    // Update player's hand
-    const updatedHands = [...player.hands];
-    updatedHands[activeHandIndex] = hand;
-    
-    const updatedPlayers = [...players];
-    updatedPlayers[activePlayerIndex] = {
-      ...player,
-      hands: updatedHands
-    };
-    
-    setPlayers(updatedPlayers);
-    
-    // Check for bust
-    const value = calculateHandValue(hand.cards);
-    if (value > 21) {
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-retro-arcade-lose-2027.mp3');
-      
-      // Mark hand as stand
-      hand.stand = true;
-      updatedHands[activeHandIndex] = hand;
-      updatedPlayers[activePlayerIndex] = {
-        ...player,
-        hands: updatedHands
-      };
-      setPlayers(updatedPlayers);
-      
-      // Move to next hand or player
-      moveToNextHandOrPlayer();
-    }
-  };
-  
-  // Player doubles down
-  const playerDoubleDown = () => {
-    if (gameState !== 'playing') return;
-    
-    const player = getActivePlayer()!;
-    const hand = getActiveHand()!;
-    
-    if (hand.cards.length !== 2) {
-      toast.error('You can only double down on your initial two cards');
+    if (!anyBets) {
+      // No bets placed, reset table
+      updatedTables[tableIndex].isActive = false;
+      updatedTables[tableIndex].countdown = 10;
+      setTables(updatedTables);
       return;
     }
     
-    if (player.isUser && user!.balance < hand.bet) {
-      toast.error('Insufficient balance to double down');
-      return;
-    }
+    // Deal initial cards
+    table.dealer.cards = [
+      drawCard(tableId),
+      drawCard(tableId, true) // Dealer's second card is hidden
+    ];
+    table.dealer.value = calculateHandValue(table.dealer.cards);
     
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-coins-handling-1939.mp3');
-    
-    // Deduct the additional bet if it's the user
-    if (player.isUser) {
-      updateBalance(-hand.bet);
-    }
-    
-    // Draw one card and stand
-    const card = drawCard();
-    
-    const updatedHand: Hand = {
-      cards: [...hand.cards, card],
-      doubled: true,
-      stand: true,
-      bet: hand.bet * 2
-    };
-    
-    const updatedHands = [...player.hands];
-    updatedHands[activeHandIndex] = updatedHand;
-    
-    const updatedPlayers = [...players];
-    updatedPlayers[activePlayerIndex] = {
-      ...player,
-      hands: updatedHands
-    };
-    
-    setPlayers(updatedPlayers);
-    
-    // Move to next hand or player
-    moveToNextHandOrPlayer();
-  };
-  
-  // Player stands
-  const playerStand = () => {
-    if (gameState !== 'playing') return;
-    
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-classic-click-1117.mp3');
-    
-    // Mark current hand as stand
-    const player = getActivePlayer()!;
-    const updatedPlayers = [...players];
-    const updatedHands = [...player.hands];
-    updatedHands[activeHandIndex].stand = true;
-    
-    updatedPlayers[activePlayerIndex] = {
-      ...player,
-      hands: updatedHands
-    };
-    
-    setPlayers(updatedPlayers);
-    
-    // Move to next hand or player
-    moveToNextHandOrPlayer();
-  };
-  
-  // Move to next hand or player
-  const moveToNextHandOrPlayer = () => {
-    // Check if there's another hand for this player
-    const player = getActivePlayer()!;
-    if (activeHandIndex < player.hands.length - 1) {
-      // Move to next hand
-      setActiveHandIndex(activeHandIndex + 1);
-      return;
-    }
-    
-    // Move to next player
-    if (activePlayerIndex < players.length - 1) {
-      setActivePlayerIndex(activePlayerIndex + 1);
-      setActiveHandIndex(0);
-      
-      // Handle AI player turn
-      setTimeout(() => {
-        playAITurn();
-      }, 1000);
-    } else {
-      // All players are done, dealer's turn
-      setGameState('dealer-turn');
-      playDealerTurn();
-    }
-  };
-  
-  // Play AI turn automatically
-  const playAITurn = () => {
-    const player = getActivePlayer();
-    if (!player || player.isUser || gameState !== 'playing') return;
-    
-    // Simple AI strategy: hit until 17 or higher
-    const playAIHand = (handIndex: number) => {
-      const hand = player.hands[handIndex];
-      let handValue = calculateHandValue(hand.cards);
-      
-      // Stand if 17 or higher
-      if (handValue >= 17) {
-        playerStand();
-        return;
+    // Deal cards to players
+    table.spots.forEach((spot, spotIndex) => {
+      if (spot.occupied && spot.hands && spot.hands.length > 0) {
+        spot.hands.forEach((hand, handIndex) => {
+          hand.cards = [
+            drawCard(tableId),
+            drawCard(tableId)
+          ];
+          
+          const handValue = calculateHandValue(hand.cards);
+          hand.blackjack = handValue === 21 && hand.cards.length === 2;
+          
+          // Update hand in state
+          updatedTables[tableIndex].spots[spotIndex].hands[handIndex] = hand;
+        });
       }
-      
-      // Otherwise hit
-      playerHit();
-      
-      // Continue playing this hand if not bust or standing
-      const updatedPlayer = getActivePlayer()!;
-      const updatedHand = updatedPlayer.hands[activeHandIndex];
-      
-      // If same hand and not standing, continue playing after delay
-      if (updatedPlayer.id === player.id && 
-          activeHandIndex === handIndex && 
-          !updatedHand.stand) {
-        setTimeout(() => playAIHand(handIndex), 800);
-      }
-    };
+    });
     
-    // Start playing current hand
-    playAIHand(activeHandIndex);
+    updatedTables[tableIndex].gameStarted = true;
+    updatedTables[tableIndex].roundFinished = false;
+    setTables(updatedTables);
+    
+    // Check for blackjacks and proceed with game
+    setTimeout(() => {
+      checkForBlackjacks(tableId);
+    }, 1000);
   };
-  
-  // Handle AI players' turns automatically
-  useEffect(() => {
-    const player = getActivePlayer();
-    if (player && !player.isUser && gameState === 'playing') {
-      setTimeout(() => {
-        playAITurn();
-      }, 1000);
+
+  // Check for blackjacks at the start of the game
+  const checkForBlackjacks = (tableId: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const updatedTables = [...tables];
+    const table = updatedTables[tableIndex];
+    
+    // Reveal dealer's hidden card if dealer has blackjack
+    const dealerCards = [...table.dealer.cards];
+    if (dealerCards[1].hidden) {
+      dealerCards[1].hidden = false;
     }
-  }, [activePlayerIndex, activeHandIndex, gameState]);
-  
-  // Play dealer turn
-  const playDealerTurn = () => {
-    // Check if all player hands are busted
-    const allBusted = players.every(player => 
-      player.hands.every(hand => calculateHandValue(hand.cards) > 21)
-    );
+    table.dealer.value = calculateHandValue(dealerCards);
+    table.dealer.blackjack = table.dealer.value === 21 && dealerCards.length === 2;
     
-    if (allBusted) {
-      // Skip dealer's turn if all player hands are busted
-      handleGameEnd('dealer-win');
-      return;
-    }
-    
-    // Dealer draws cards until they have 17 or more
-    let currentDealerHand = [...dealerHand];
-    let currentDeck = [...deck];
-    let dealerHandValue = calculateHandValue(currentDealerHand);
-    
-    const dealerPlay = () => {
-      if (dealerHandValue < 17) {
-        // Dealer draws a card
-        playSound('https://assets.mixkit.co/sfx/preview/mixkit-quick-win-video-game-notification-269.mp3');
-        
-        const card = currentDeck[0];
-        currentDealerHand = [...currentDealerHand, card];
-        currentDeck = currentDeck.slice(1);
-        
-        // Update state
-        setDealerHand(currentDealerHand);
-        setDeck(currentDeck);
-        
-        dealerHandValue = calculateHandValue(currentDealerHand);
-        
-        // Continue dealer's turn after a delay
-        setTimeout(dealerPlay, 800);
-      } else {
-        // Dealer is done drawing, determine the winner
-        handleGameResults();
-      }
-    };
-    
-    // Start dealer's turn
-    setTimeout(dealerPlay, 800);
-  };
-  
-  // Handle multiple players' results
-  const handleGameResults = () => {
-    const finalDealerValue = calculateHandValue(dealerHand);
-    const dealerBusted = finalDealerValue > 21;
-    
-    let userWinnings = 0;
-    let userWins = 0;
-    let dealerWins = 0;
-    let pushes = 0;
-    
-    // Process player results
-    players.forEach(player => {
-      player.hands.forEach(hand => {
-        const handValue = calculateHandValue(hand.cards);
-        
-        if (handValue > 21) {
-          // Player hand busted
-          dealerWins++;
-        } else if (dealerBusted) {
-          // Dealer busted, player wins
-          if (player.isUser) {
-            userWins++;
-            userWinnings += hand.bet * 2;
-          }
-        } else if (handValue > finalDealerValue) {
-          // Player has higher value
-          if (player.isUser) {
-            userWins++;
-            userWinnings += hand.bet * 2;
-          }
-        } else if (finalDealerValue > handValue) {
-          // Dealer has higher value
-          dealerWins++;
-        } else {
-          // Equal values, push
-          pushes++;
-          if (player.isUser) {
-            userWinnings += hand.bet; // Return original bet
-          }
+    // If dealer has blackjack, end the round
+    if (table.dealer.blackjack) {
+      table.roundFinished = true;
+      
+      // Settle all bets
+      table.spots.forEach((spot, spotIndex) => {
+        if (spot.occupied && spot.hands && spot.hands.length > 0) {
+          spot.hands.forEach((hand, handIndex) => {
+            if (hand.blackjack) {
+              // Push (tie) - return bet
+              if (!spot.isBot) {
+                updateBalance(hand.bet);
+                toast.info("Push! You tied with the dealer's blackjack");
+              }
+            } else {
+              // Loss - no action needed as bet was already deducted
+              if (!spot.isBot) {
+                toast.error("Dealer has blackjack. You lose!");
+              }
+            }
+            
+            hand.finalValue = calculateHandValue(hand.cards);
+            updatedTables[tableIndex].spots[spotIndex].hands[handIndex] = hand;
+          });
         }
       });
+      
+      // Set timer for next round
+      setTimeout(() => {
+        resetTable(tableId);
+      }, 5000);
+    } else {
+      // Continue with player turns - start with the first player with bets
+      processNextPlayerTurn(tableId);
+    }
+    
+    setTables(updatedTables);
+  };
+
+  // Process the next player's turn
+  const processNextPlayerTurn = (tableId: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const table = tables[tableIndex];
+    
+    // Find the first player/hand that hasn't acted yet
+    let nextPlayerFound = false;
+    
+    for (let spotIndex = 0; spotIndex < table.spots.length; spotIndex++) {
+      const spot = table.spots[spotIndex];
+      
+      if (spot.occupied && spot.hands && spot.hands.length > 0) {
+        const activeHandIndex = spot.activeHandIndex;
+        
+        if (activeHandIndex < spot.hands.length) {
+          const hand = spot.hands[activeHandIndex];
+          
+          if (!hand.standing && !hand.busted && !hand.blackjack) {
+            nextPlayerFound = true;
+            
+            // If it's a bot, make a decision
+            if (spot.isBot) {
+              makeBotDecision(tableId, spotIndex, activeHandIndex);
+            }
+            
+            break;
+          }
+        }
+      }
+    }
+    
+    // If all players have acted, move to dealer's turn
+    if (!nextPlayerFound) {
+      playDealerTurn(tableId);
+    }
+  };
+
+  // Make a decision for a bot player
+  const makeBotDecision = (tableId: number, spotIndex: number, handIndex: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const table = tables[tableIndex];
+    const spot = table.spots[spotIndex];
+    const hand = spot.hands[handIndex];
+    
+    const handValue = calculateHandValue(hand.cards);
+    
+    setTimeout(() => {
+      // Bot decision logic
+      if (handValue < 17) {
+        // Hit
+        hit(tableId, spotIndex, handIndex);
+      } else {
+        // Stand
+        stand(tableId, spotIndex, handIndex);
+      }
+    }, 1000);
+  };
+
+  // Hit - take another card
+  const hit = (tableId: number, spotIndex: number, handIndex: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const updatedTables = [...tables];
+    const table = updatedTables[tableIndex];
+    const spot = table.spots[spotIndex];
+    const hand = spot.hands[handIndex];
+    
+    // Draw a new card
+    const newCard = drawCard(tableId);
+    hand.cards.push(newCard);
+    
+    // Check if busted
+    const handValue = calculateHandValue(hand.cards);
+    
+    if (handValue > 21) {
+      hand.busted = true;
+      
+      // Move to next hand or player
+      if (handIndex < spot.hands.length - 1) {
+        spot.activeHandIndex = handIndex + 1;
+      } else {
+        // Move to next player with active hands
+        processNextPlayerTurn(tableId);
+      }
+      
+      // Notify if it's a real player
+      if (!spot.isBot) {
+        playSound('https://assets.mixkit.co/sfx/preview/mixkit-retro-arcade-lose-2027.mp3');
+        toast.error("Bust! You went over 21.");
+      }
+    }
+    
+    updatedTables[tableIndex].spots[spotIndex].hands[handIndex] = hand;
+    setTables(updatedTables);
+    
+    playSound('https://assets.mixkit.co/sfx/preview/mixkit-quick-jump-arcade-game-239.mp3');
+    
+    // If not busted and not a bot, let player continue
+    if (!hand.busted && !spot.isBot) return;
+    
+    // If busted or bot, check for next action
+    if (hand.busted) {
+      setTimeout(() => {
+        if (handIndex < spot.hands.length - 1) {
+          // Move to next hand
+        } else {
+          // Move to next player
+          processNextPlayerTurn(tableId);
+        }
+      }, 1000);
+    } else {
+      // Bot continues decision
+      setTimeout(() => {
+        makeBotDecision(tableId, spotIndex, handIndex);
+      }, 1000);
+    }
+  };
+
+  // Stand - end turn for this hand
+  const stand = (tableId: number, spotIndex: number, handIndex: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const updatedTables = [...tables];
+    const table = updatedTables[tableIndex];
+    const spot = table.spots[spotIndex];
+    const hand = spot.hands[handIndex];
+    
+    hand.standing = true;
+    hand.finalValue = calculateHandValue(hand.cards);
+    
+    updatedTables[tableIndex].spots[spotIndex].hands[handIndex] = hand;
+    
+    // Move to next hand or player
+    if (handIndex < spot.hands.length - 1) {
+      spot.activeHandIndex = handIndex + 1;
+    } else {
+      // Move to next player with active hands
+      processNextPlayerTurn(tableId);
+    }
+    
+    setTables(updatedTables);
+    
+    playSound('https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3');
+  };
+
+  // Play dealer's turn
+  const playDealerTurn = (tableId: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const updatedTables = [...tables];
+    const table = updatedTables[tableIndex];
+    
+    // Reveal dealer's hidden card
+    const dealerCards = [...table.dealer.cards];
+    if (dealerCards[1].hidden) {
+      dealerCards[1].hidden = false;
+    }
+    table.dealer.cards = dealerCards;
+    table.dealer.value = calculateHandValue(dealerCards);
+    
+    setTables(updatedTables);
+    
+    // Delay for animation
+    setTimeout(() => {
+      dealerDrawCards(tableId);
+    }, 1000);
+  };
+
+  // Dealer draws cards until reaching 17 or busting
+  const dealerDrawCards = (tableId: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const updatedTables = [...tables];
+    const table = updatedTables[tableIndex];
+    
+    // Dealer draws until 17 or higher
+    if (table.dealer.value < 17) {
+      const newCard = drawCard(tableId);
+      table.dealer.cards.push(newCard);
+      table.dealer.value = calculateHandValue(table.dealer.cards);
+      
+      setTables(updatedTables);
+      
+      playSound('https://assets.mixkit.co/sfx/preview/mixkit-quick-jump-arcade-game-239.mp3');
+      
+      // Continue drawing
+      setTimeout(() => {
+        dealerDrawCards(tableId);
+      }, 1000);
+    } else {
+      // Dealer is done drawing
+      table.dealer.busted = table.dealer.value > 21;
+      
+      // Settle all bets
+      settleRound(tableId);
+    }
+  };
+
+  // Settle the round and pay winners
+  const settleRound = (tableId: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const updatedTables = [...tables];
+    const table = updatedTables[tableIndex];
+    
+    // Process each player's hand
+    table.spots.forEach((spot, spotIndex) => {
+      if (spot.occupied && spot.hands && spot.hands.length > 0) {
+        spot.hands.forEach((hand, handIndex) => {
+          // Skip hands that were already settled (blackjacks)
+          if (hand.blackjack && table.dealer.blackjack) return;
+          
+          const handValue = hand.finalValue || calculateHandValue(hand.cards);
+          hand.finalValue = handValue;
+          
+          if (hand.busted) {
+            // Player busted - loss (no action needed as bet was already deducted)
+          } else if (table.dealer.busted) {
+            // Dealer busted - win
+            const winnings = hand.bet * 2; // Original bet + win
+            if (!spot.isBot) {
+              updateBalance(winnings);
+              toast.success(`Dealer busted! You win ${winnings} gems!`);
+            }
+          } else if (handValue > table.dealer.value) {
+            // Player wins
+            const winnings = hand.bet * 2; // Original bet + win
+            if (!spot.isBot) {
+              updateBalance(winnings);
+              toast.success(`You win ${winnings} gems with ${handValue} vs dealer's ${table.dealer.value}!`);
+            }
+          } else if (handValue === table.dealer.value) {
+            // Push (tie)
+            if (!spot.isBot) {
+              updateBalance(hand.bet); // Return bet
+              toast.info(`Push! You tied with the dealer at ${handValue}.`);
+            }
+          } else {
+            // Dealer wins
+            if (!spot.isBot) {
+              toast.error(`Dealer wins with ${table.dealer.value} vs your ${handValue}.`);
+            }
+          }
+          
+          updatedTables[tableIndex].spots[spotIndex].hands[handIndex] = hand;
+        });
+      }
     });
     
-    // Update user balance with winnings
-    if (userWinnings > 0) {
-      updateBalance(userWinnings);
-    }
+    table.roundFinished = true;
+    setTables(updatedTables);
     
-    // Determine overall result for display
-    let overallResult: 'player-win' | 'dealer-win' | 'push';
-    
-    if (userWins > 0) {
-      overallResult = 'player-win';
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-    } else if (dealerWins > 0) {
-      overallResult = 'dealer-win';
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-retro-arcade-lose-2027.mp3');
-    } else {
-      overallResult = 'push';
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-neutral-game-notification-937.mp3');
-    }
-    
-    // Display results
-    setGameState('complete');
-    setResult(overallResult);
-    
-    // Show toast with results
-    if (overallResult === 'player-win') {
-      toast.success(`You win!`, {
-        description: `You won ${userWinnings} gems!`
-      });
-    } else if (overallResult === 'dealer-win') {
-      toast('Dealer wins. Better luck next time!');
-    } else {
-      toast('Push! Your bet is returned.');
-    }
+    // Set timer for next round
+    setTimeout(() => {
+      resetTable(tableId);
+    }, 5000);
   };
-  
-  // Handle game end and payout
-  const handleGameEnd = (gameResult: 'player-blackjack' | 'player-win' | 'dealer-win' | 'push') => {
-    setGameState('complete');
-    setResult(gameResult);
+
+  // Reset the table for a new round
+  const resetTable = (tableId: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
     
-    let payout = 0;
+    const updatedTables = [...tables];
+    const table = updatedTables[tableIndex];
     
-    switch (gameResult) {
-      case 'player-blackjack':
-        // Blackjack usually pays 3:2
-        payout = betAmount * 2.5;
-        toast.success('Blackjack! You win!', {
-          description: `You won ${payout} gems!`
-        });
-        break;
-        
-      case 'player-win':
-        // Regular win pays 1:1
-        payout = betAmount * 2;
-        toast.success('You win!', {
-          description: `You won ${payout} gems!`
-        });
-        break;
-        
-      case 'push':
-        // Push returns the original bet
-        payout = betAmount;
-        toast('Push! Your bet is returned.');
-        break;
-        
-      case 'dealer-win':
-        // No payout on loss
-        toast('Dealer wins. Better luck next time!');
-        break;
+    // Reset dealer
+    table.dealer = {
+      cards: [],
+      value: 0,
+      busted: false,
+      blackjack: false
+    };
+    
+    // Reset player hands but keep spots
+    table.spots.forEach((spot, spotIndex) => {
+      if (spot.occupied) {
+        spot.hands = [];
+        spot.activeHandIndex = 0;
+      }
+    });
+    
+    table.gameStarted = false;
+    table.roundFinished = false;
+    table.countdown = 10;
+    
+    // Start countdown for next round
+    startCountdown(tableId);
+    
+    setTables(updatedTables);
+  };
+
+  // Leave a table spot
+  const leaveSpot = (tableId: number, spotIndex: number) => {
+    const tableIndex = tables.findIndex(t => t.id === tableId);
+    if (tableIndex === -1) return;
+    
+    const updatedTables = [...tables];
+    const spot = updatedTables[tableIndex].spots[spotIndex];
+    
+    // Can't leave during an active round
+    if (updatedTables[tableIndex].gameStarted && !updatedTables[tableIndex].roundFinished) {
+      toast.error("Cannot leave during an active round");
+      return;
     }
     
-    if (payout > 0) {
-      updateBalance(payout);
+    // Reset the spot
+    updatedTables[tableIndex].spots[spotIndex] = {
+      occupied: false,
+      isBot: false,
+      name: "",
+      hands: [],
+      activeHandIndex: 0
+    };
+    
+    // Remove from user spots
+    setUserSpots(userSpots.filter(spot => spot !== tableId * 10 + spotIndex));
+    
+    // Check if table is now empty
+    const tableEmpty = updatedTables[tableIndex].spots.every(s => !s.occupied);
+    if (tableEmpty) {
+      updatedTables[tableIndex].isActive = false;
     }
+    
+    setTables(updatedTables);
+    
+    if (activeTable === tableId && userSpots.filter(spot => Math.floor(spot / 10) === tableId).length === 0) {
+      setActiveTable(null);
+    }
+    
+    playSound('https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3');
+    toast.info(`Left ${updatedTables[tableIndex].name} spot ${spotIndex + 1}`);
   };
-  
-  // Reset the game
-  const resetGame = () => {
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-classic-click-1117.mp3');
-    resetPlayers();
-    setDealerHand([]);
-    setDeck([]);
-    setGameState('betting');
-    setResult('pending');
-    setActivePlayerIndex(0);
-    setActiveHandIndex(0);
-  };
-  
-  // Update player count
-  const updatePlayerCount = (count: number) => {
-    setPlayerCount(Math.max(1, Math.min(4, count)));
-    resetPlayers();
-  };
-  
+
   // Render a card
-  const renderCard = (card: PlayingCard | null, isHidden = false) => {
-    if (!card) return null;
+  const renderCard = (card: BlackjackCard) => {
+    if (card.hidden) {
+      return (
+        <div className="w-10 h-14 sm:w-12 sm:h-16 md:w-16 md:h-20 bg-primary/20 border-2 border-white/10 rounded-md flex items-center justify-center">
+          <div className="w-8 h-12 sm:w-10 sm:h-14 md:w-14 md:h-18 bg-primary/40 rounded-md"></div>
+        </div>
+      );
+    }
     
-    const isSuitRed = card.suit === '♥' || card.suit === '♦';
+    const isRed = card.suit === '♥' || card.suit === '♦';
     
     return (
-      <div className={`
-        relative w-16 h-24 rounded-md flex items-center justify-center
-        ${isHidden ? 'bg-primary/20 border-2 border-primary/30' : 'bg-gradient-to-b from-white to-gray-100'} shadow-md
-        ${isHidden ? '' : 'animate-flip'}
-      `}>
-        {!isHidden ? (
-          <div className="flex flex-col items-center relative">
-            <span className={`text-lg font-bold ${isSuitRed ? 'text-red-500' : 'text-black'}`}>
-              {card.value}
-            </span>
-            <span className={`text-2xl ${isSuitRed ? 'text-red-500' : 'text-black'}`}>
-              {card.suit}
-            </span>
-            <div className="absolute inset-0 pointer-events-none bg-white/5 rounded-md"></div>
-          </div>
-        ) : (
-          <div className="w-10 h-14 bg-gradient-to-b from-primary/30 to-primary/60 rounded flex items-center justify-center">
-            <span className="text-2xl text-white opacity-20">?</span>
-          </div>
-        )}
+      <div className="w-10 h-14 sm:w-12 sm:h-16 md:w-16 md:h-20 bg-white rounded-md flex flex-col items-center justify-between p-1">
+        <div className={`text-xs sm:text-sm md:text-base font-bold self-start ${isRed ? 'text-red-600' : 'text-black'}`}>
+          {card.value}
+        </div>
+        <div className={`text-lg sm:text-xl md:text-2xl ${isRed ? 'text-red-600' : 'text-black'}`}>
+          {card.suit}
+        </div>
+        <div className={`text-xs sm:text-sm md:text-base font-bold self-end rotate-180 ${isRed ? 'text-red-600' : 'text-black'}`}>
+          {card.value}
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="container py-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8 text-center relative">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">DUMP.FUN Blackjack</h1>
-          <p className="text-muted-foreground mt-2">Beat the dealer without going over 21</p>
+    <div className="min-h-screen p-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-[#1EAEDB] to-[#33C3F0] bg-clip-text text-transparent">
+            Blackjack Tables
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Join any table and play up to 3 hands at once!
+          </p>
         </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left sidebar - Game controls */}
-          <div className="col-span-1 space-y-6">
-            {gameState === 'betting' && (
-              <div className="bg-black/40 border border-primary/20 p-6 rounded-xl space-y-6 backdrop-blur-sm">
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium">Bet Amount</label>
-                  <div className="flex space-x-2">
-                    <Input
-                      type="number"
-                      value={betAmount}
-                      onChange={(e) => setBetAmount(parseInt(e.target.value) || 0)}
-                      min={10}
-                      className="bg-card/70"
-                    />
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setBetAmount(prev => Math.max(10, prev * 2))}
+
+        {/* Table selection */}
+        {!activeTable && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {tables.map((table) => (
+              <div 
+                key={table.id} 
+                className="bg-black/40 border border-primary/20 p-6 rounded-xl backdrop-blur-sm"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">{table.name}</h2>
+                  <div className="text-sm text-muted-foreground">
+                    <span className="mr-2">Min Bet: {table.minBet}</span>
+                    <span>Max Bet: {table.maxBet}</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-5 gap-2 mb-4">
+                  {table.spots.map((spot, spotIndex) => (
+                    <div 
+                      key={spotIndex}
+                      className={`aspect-square rounded-md border flex items-center justify-center
+                        ${spot.occupied ? 'bg-primary/20 border-primary/40' : 'bg-black/50 border-white/10 hover:bg-black/70 cursor-pointer'}`}
+                      onClick={() => !spot.occupied && joinTable(table.id, spotIndex)}
                     >
-                      2x
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[50, 100, 200, 500].map((amount) => (
-                      <Button
-                        key={amount}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setBetAmount(amount)}
-                        className="text-xs"
-                      >
-                        {amount}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium">Players</label>
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => updatePlayerCount(playerCount - 1)}
-                        disabled={playerCount <= 1}
-                      >
-                        -
-                      </Button>
-                      <span className="w-4 text-center">{playerCount}</span>
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => updatePlayerCount(playerCount + 1)}
-                        disabled={playerCount >= 4}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Your Balance:</span>
-                  <span className="flex items-center">
-                    <Gem className="h-4 w-4 text-cyan-400 mr-1" />
-                    <span className="font-semibold">{user?.balance || 0}</span>
-                  </span>
-                </div>
-                
-                <Button 
-                  onClick={startGame}
-                  disabled={!user || user?.balance < betAmount}
-                  className="w-full btn-primary"
-                >
-                  <Play className="mr-2 h-4 w-4" /> Deal Cards
-                </Button>
-              </div>
-            )}
-            
-            {gameState !== 'betting' && (
-              <div className="bg-black/40 border border-primary/20 p-6 rounded-xl space-y-4 backdrop-blur-sm">
-                <div className="bg-muted/50 p-4 rounded-lg text-center backdrop-blur-sm">
-                  <div className="text-sm text-white/80 mb-1">Current Bet</div>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <Gem className="h-5 w-5 text-cyan-400" />
-                    <span className="text-2xl font-bold text-white">
-                      {getActiveHand()?.bet || betAmount}
-                    </span>
-                  </div>
-                </div>
-                
-                {gameState === 'playing' && getActivePlayer()?.isUser && (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                        onClick={playerHit}
-                        className="bg-primary hover:bg-primary/90"
-                        disabled={!getActiveHand() || getActiveHand()?.stand}
-                      >
-                        <ChevronsUp className="mr-2 h-4 w-4" /> Hit
-                      </Button>
-                      <Button 
-                        onClick={playerStand}
-                        variant="secondary"
-                        disabled={!getActiveHand() || getActiveHand()?.stand}
-                      >
-                        <ChevronsDown className="mr-2 h-4 w-4" /> Stand
-                      </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 gap-2">
-                      <Button 
-                        onClick={playerDoubleDown}
-                        variant="outline"
-                        className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
-                        disabled={
-                          !getActiveHand() || 
-                          getActiveHand()?.stand || 
-                          getActiveHand()?.cards.length !== 2 ||
-                          user?.balance < (getActiveHand()?.bet || 0)
-                        }
-                      >
-                        Double Down
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                
-                {gameState === 'complete' && (
-                  <div>
-                    {result === 'player-blackjack' && (
-                      <div className="bg-green-500/20 border border-green-500/30 p-3 rounded-lg text-center mb-4 backdrop-blur-sm">
-                        <h3 className="font-semibold text-white">Blackjack!</h3>
-                        <p className="text-sm text-white/80">You won {(betAmount * 2.5).toFixed(0)} gems</p>
-                      </div>
-                    )}
-                    {result === 'player-win' && (
-                      <div className="bg-green-500/20 border border-green-500/30 p-3 rounded-lg text-center mb-4 backdrop-blur-sm">
-                        <h3 className="font-semibold text-white">You Win!</h3>
-                      </div>
-                    )}
-                    {result === 'dealer-win' && (
-                      <div className="bg-red-500/20 border border-red-500/30 p-3 rounded-lg text-center mb-4 backdrop-blur-sm">
-                        <h3 className="font-semibold text-white">Dealer Wins</h3>
-                        <p className="text-sm text-white/80">Better luck next time!</p>
-                      </div>
-                    )}
-                    {result === 'push' && (
-                      <div className="bg-yellow-500/20 border border-yellow-500/30 p-3 rounded-lg text-center mb-4 backdrop-blur-sm">
-                        <h3 className="font-semibold text-white">Push</h3>
-                        <p className="text-sm text-white/80">Your bet is returned</p>
-                      </div>
-                    )}
-                    
-                    <Button 
-                      onClick={resetGame}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" /> Play Again
-                    </Button>
-                  </div>
-                )}
-                
-                {(gameState === 'playing' && !getActivePlayer()?.isUser) || gameState === 'dealer-turn' ? (
-                  <div className="text-center p-3 border border-dashed border-white/20 rounded-lg">
-                    <p className="text-sm text-white/80 animate-pulse">
-                      {gameState === 'dealer-turn' ? "Dealer's turn..." : "AI player thinking..."}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            )}
-            
-            <ChatWindow className="lg:hidden" />
-          </div>
-          
-          {/* Game table */}
-          <div className="col-span-1 lg:col-span-2">
-            <div className="bg-gradient-to-b from-[#0A1F39] to-[#0E2E4A] rounded-xl border border-primary/30 p-6 aspect-square relative shadow-xl">
-              {/* Dealer area (top) */}
-              <div className="absolute top-6 left-0 right-0 flex flex-col items-center">
-                <div className="flex items-center justify-between w-full px-6 mb-4">
-                  <h3 className="font-semibold text-white">Dealer</h3>
-                  {dealerHand.length > 0 && gameState !== 'betting' && (
-                    <div className="px-3 py-1 bg-black/30 rounded-full text-sm backdrop-blur-sm">
-                      {gameState === 'playing' ? '?' : calculateHandValue(dealerHand)}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex gap-2 justify-center">
-                  {dealerHand.map((card, index) => (
-                    <div key={`dealer-${index}-${card.suit}-${card.value}`} className="animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
-                      {renderCard(card, index === 1 && gameState === 'playing')}
+                      {spot.occupied ? (
+                        <div className="text-center text-xs">
+                          <div className="font-semibold truncate w-16">{spot.name}</div>
+                          {spot.isBot && <div className="text-muted-foreground">(Bot)</div>}
+                        </div>
+                      ) : (
+                        <div className="text-center text-xs text-muted-foreground">
+                          <div>Open</div>
+                          <div>Spot</div>
+                        </div>
+                      )}
                     </div>
                   ))}
-                  {dealerHand.length === 0 && gameState === 'betting' && (
-                    <div className="flex items-center justify-center border-2 border-dashed border-white/20 rounded-md w-16 h-24">
-                      <CreditCard className="text-white/30" />
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <div className="text-sm">
+                    {table.isActive ? (
+                      <span className="text-green-400">
+                        Game starts in {table.countdown}s
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Waiting for players</span>
+                    )}
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => joinTable(table.id, table.spots.findIndex(s => !s.occupied))}
+                    disabled={table.spots.every(s => s.occupied)}
+                  >
+                    Join Table
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Active table view */}
+        {activeTable && (
+          <div className="bg-black/40 border border-primary/20 p-4 md:p-6 rounded-xl backdrop-blur-sm mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center">
+                <h2 className="text-xl font-semibold mr-4">
+                  {tables.find(t => t.id === activeTable)?.name}
+                </h2>
+                {tables.find(t => t.id === activeTable)?.isActive && !tables.find(t => t.id === activeTable)?.gameStarted && (
+                  <span className="text-green-400 text-sm">
+                    Game starts in {tables.find(t => t.id === activeTable)?.countdown}s
+                  </span>
+                )}
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => {
+                  const userSpotsOnTable = userSpots.filter(spot => Math.floor(spot / 10) === activeTable);
+                  userSpotsOnTable.forEach(spot => {
+                    leaveSpot(Math.floor(spot / 10), spot % 10);
+                  });
+                }}
+                disabled={tables.find(t => t.id === activeTable)?.gameStarted && !tables.find(t => t.id === activeTable)?.roundFinished}
+              >
+                Leave Table
+              </Button>
+            </div>
+            
+            {/* Dealer area */}
+            <div className="mb-8">
+              <div className="text-lg font-semibold mb-2">Dealer</div>
+              <div className="flex items-center">
+                <div className="flex space-x-2 mb-1">
+                  {tables.find(t => t.id === activeTable)?.dealer.cards.map((card, index) => (
+                    <div key={index} className="transform transition-transform hover:translate-y-[-10px]">
+                      {renderCard(card)}
+                    </div>
+                  ))}
+                </div>
+                {tables.find(t => t.id === activeTable)?.dealer.cards.length > 0 && (
+                  <div className="ml-4">
+                    <span className="text-lg font-semibold">
+                      {tables.find(t => t.id === activeTable)?.dealer.value}
+                    </span>
+                    {tables.find(t => t.id === activeTable)?.dealer.blackjack && (
+                      <span className="ml-2 text-yellow-500">Blackjack!</span>
+                    )}
+                    {tables.find(t => t.id === activeTable)?.dealer.busted && (
+                      <span className="ml-2 text-red-500">Busted!</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Player spots */}
+            <div className="grid grid-cols-5 gap-4">
+              {tables.find(t => t.id === activeTable)?.spots.map((spot, spotIndex) => (
+                <div 
+                  key={spotIndex}
+                  className={`rounded-md border p-2
+                    ${spot.occupied ? 'bg-primary/10 border-primary/30' : 'bg-black/50 border-white/10'}`}
+                >
+                  {spot.occupied ? (
+                    <>
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="font-semibold truncate text-sm">{spot.name}</div>
+                        {!spot.isBot && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-xs"
+                            onClick={() => leaveSpot(activeTable, spotIndex)}
+                            disabled={tables.find(t => t.id === activeTable)?.gameStarted && !tables.find(t => t.id === activeTable)?.roundFinished}
+                          >
+                            Leave
+                          </Button>
+                        )}
+                        {spot.isBot && userSpots.some(s => Math.floor(s / 10) === activeTable) && (
+                          <span className="text-xs text-muted-foreground">(Bot)</span>
+                        )}
+                      </div>
+                      
+                      {/* Player hands */}
+                      {spot.hands && spot.hands.length > 0 ? (
+                        spot.hands.map((hand, handIndex) => (
+                          <div 
+                            key={handIndex}
+                            className={`mb-2 p-1 rounded
+                              ${handIndex === spot.activeHandIndex && !tables.find(t => t.id === activeTable)?.roundFinished && !hand.standing && !hand.busted ? 'bg-primary/20' : ''}`}
+                          >
+                            <div className="flex space-x-1 mb-1">
+                              {hand.cards.map((card, cardIndex) => (
+                                <div 
+                                  key={cardIndex} 
+                                  className="transform transition-transform hover:translate-y-[-5px]"
+                                  style={{marginLeft: cardIndex > 0 ? '-8px' : '0'}}
+                                >
+                                  {renderCard(card)}
+                                </div>
+                              ))}
+                            </div>
+                            
+                            <div className="flex justify-between items-center text-xs">
+                              <div className="flex items-center">
+                                <Gem className="h-3 w-3 mr-1 text-gem" />
+                                <span>{hand.bet}</span>
+                              </div>
+                              
+                              <div>
+                                <span className="font-semibold">{hand.finalValue || calculateHandValue(hand.cards)}</span>
+                                {hand.blackjack && <span className="ml-1 text-yellow-500">BJ!</span>}
+                                {hand.busted && <span className="ml-1 text-red-500">Bust</span>}
+                              </div>
+                            </div>
+                            
+                            {/* Action buttons */}
+                            {!spot.isBot && 
+                              !tables.find(t => t.id === activeTable)?.roundFinished && 
+                              handIndex === spot.activeHandIndex && 
+                              !hand.standing && 
+                              !hand.busted && 
+                              !hand.blackjack && (
+                                <div className="flex space-x-1 mt-1">
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="h-6 text-xs flex-1"
+                                    onClick={() => hit(activeTable, spotIndex, handIndex)}
+                                  >
+                                    Hit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 text-xs flex-1"
+                                    onClick={() => stand(activeTable, spotIndex, handIndex)}
+                                  >
+                                    Stand
+                                  </Button>
+                                </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        !tables.find(t => t.id === activeTable)?.gameStarted && !spot.isBot && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-muted-foreground">Bet Amount:</span>
+                              <span className="text-xs">{currentBet}</span>
+                            </div>
+                            <input
+                              type="range"
+                              min={tables.find(t => t.id === activeTable)?.minBet}
+                              max={tables.find(t => t.id === activeTable)?.maxBet}
+                              value={currentBet}
+                              onChange={(e) => setCurrentBet(parseInt(e.target.value))}
+                              className="w-full h-1 bg-primary/20 rounded-full appearance-none cursor-pointer"
+                            />
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="w-full h-7 text-xs"
+                              onClick={() => placeBet(activeTable, spotIndex, currentBet)}
+                              disabled={user?.balance < currentBet}
+                            >
+                              Place Bet
+                            </Button>
+                          </div>
+                        )
+                      )}
+                      
+                      {/* Add bot option */}
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full">
+                      <div className="text-xs text-muted-foreground mb-2">Empty Spot</div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => joinTable(activeTable, spotIndex)}
+                          disabled={userSpots.filter(spot => Math.floor(spot / 10) === activeTable).length >= 3}
+                        >
+                          Join
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => addBot(activeTable, spotIndex)}
+                        >
+                          Add Bot
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
-              
-              {/* Player areas */}
-              {players.map((player, playerIndex) => {
-                // Position players around the table
-                let positionClass = '';
-                switch (player.position) {
-                  case 'bottom':
-                    positionClass = 'bottom-6 left-1/2 transform -translate-x-1/2';
-                    break;
-                  case 'left':
-                    positionClass = 'left-6 top-1/2 transform -translate-y-1/2';
-                    break;
-                  case 'right':
-                    positionClass = 'right-6 top-1/2 transform -translate-y-1/2';
-                    break;
-                  case 'top':
-                    positionClass = 'top-24 left-1/2 transform -translate-x-1/2';
-                    break;
-                }
-                
-                const isActivePlayer = playerIndex === activePlayerIndex;
-                
-                return (
-                  <div key={player.id} className={`absolute ${positionClass}`}>
-                    <div className={`flex flex-col items-center ${player.position === 'left' ? 'items-start' : player.position === 'right' ? 'items-end' : 'items-center'}`}>
-                      <div className={`flex gap-2 mb-2 ${player.position === 'left' || player.position === 'right' ? 'flex-col' : 'flex-row'}`}>
-                        {player.hands.map((hand, handIndex) => {
-                          const isActiveHand = isActivePlayer && handIndex === activeHandIndex;
-                          const handValue = calculateHandValue(hand.cards);
-                          
-                          return (
-                            <div 
-                              key={`hand-${playerIndex}-${handIndex}`}
-                              className={`
-                                ${isActiveHand && gameState === 'playing' ? 'ring-2 ring-primary animate-pulse' : ''}
-                                ${player.position === 'left' || player.position === 'right' ? 'mb-2' : 'mx-2'}
-                                relative
-                              `}
-                            >
-                              <div className={`
-                                flex ${player.position === 'left' || player.position === 'right' ? 'flex-col' : 'flex-row'} gap-1
-                              `}>
-                                {hand.cards.map((card, cardIndex) => (
-                                  <div 
-                                    key={`player-${playerIndex}-hand-${handIndex}-card-${cardIndex}`}
-                                    className="animate-fade-in" 
-                                    style={{ animationDelay: `${cardIndex * 100}ms` }}
-                                  >
-                                    {renderCard(card)}
-                                  </div>
-                                ))}
-                                {hand.cards.length === 0 && gameState === 'betting' && (
-                                  <div className="flex items-center justify-center border-2 border-dashed border-white/20 rounded-md w-16 h-24">
-                                    <CreditCard className="text-white/30" />
-                                  </div>
-                                )}
-                              </div>
-                              
-                              {hand.cards.length > 0 && (
-                                <div className={`absolute ${player.position === 'left' ? 'right-0 top-0' : player.position === 'right' ? 'left-0 top-0' : 'top-0 right-0'} px-2 py-0.5 rounded-full text-xs backdrop-blur-md ${
-                                  handValue > 21 ? 'bg-red-500/50' : 
-                                  handValue === 21 ? 'bg-green-500/50' : 
-                                  'bg-black/50'
-                                }`}>
-                                  {handValue}
-                                </div>
-                              )}
-                              
-                              {gameState !== 'betting' && (
-                                <div className={`
-                                  absolute ${player.position === 'left' ? '-left-2 -bottom-2' : player.position === 'right' ? '-right-2 -bottom-2' : '-bottom-2 left-1/2 transform -translate-x-1/2'}
-                                  px-2 py-1 rounded-full text-xs bg-primary/20 border border-primary/40 flex items-center gap-1
-                                `}>
-                                  <Gem className="h-3 w-3 text-cyan-400" />
-                                  <span>{hand.bet}</span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      
-                      <div className={`
-                        flex items-center gap-2 
-                        ${player.position === 'left' ? 'flex-row-reverse' : player.position === 'right' ? 'flex-row' : 'flex-row'}
-                      `}>
-                        <div className="h-8 w-8 rounded-full bg-primary/20 border border-primary/40 overflow-hidden">
-                          <img 
-                            src={player.avatar} 
-                            alt={player.name} 
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <span className={`text-sm font-medium ${player.isUser ? 'text-primary' : 'text-white'}`}>
-                          {player.name}
-                          {isActivePlayer && gameState === 'playing' && (
-                            <span className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              ))}
             </div>
           </div>
-          
-          {/* Right sidebar - Chat & stats */}
-          <ChatWindow className="hidden lg:flex" />
-        </div>
+        )}
+
+        {/* Table list button (if on a table) */}
+        {activeTable && (
+          <div className="text-center">
+            <Button 
+              variant="outline" 
+              onClick={() => setActiveTable(null)}
+            >
+              View All Tables
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
