@@ -1,48 +1,60 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from "@/components/ui/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import { QueryClient, QueryClientProvider } from 'react-query';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { UserProvider } from "./context/UserContext";
-import { SoundProvider } from "./components/SoundManager";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import Index from "./pages/Index";
-import Cases from "./pages/Cases";
-import Mines from "./pages/Mines";
-import Blackjack from "./pages/Blackjack";
-import NotFound from "./pages/NotFound";
+import Index from './pages/Index';
+import Cases from './pages/Cases';
+import Mines from './pages/Mines';
+import Blackjack from './pages/Blackjack';
+import NotFound from './pages/NotFound';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import SoundManager from './components/SoundManager';
+import { UserProvider } from './context/UserContext';
+import { ChatProvider } from './context/ChatContext';
+import ChatContainer from './components/Chat/ChatContainer';
+import DepositButton from './components/DepositButton';
+import Tower from './pages/Tower';
+import Rewards from './pages/Rewards';
 
-const queryClient = new QueryClient();
+function App() {
+  const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <UserProvider>
-      <SoundProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <div className="flex flex-col min-h-screen bg-black text-white">
-              <Navbar />
-              <main className="flex-grow">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/cases" element={<Cases />} />
-                  <Route path="/mines" element={<Mines />} />
-                  <Route path="/blackjack" element={<Blackjack />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </main>
-              <Footer />
-            </div>
-          </BrowserRouter>
-        </TooltipProvider>
-      </SoundProvider>
-    </UserProvider>
-  </QueryClientProvider>
-);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="dark" storageKey="ui-theme">
+        <BrowserRouter>
+          <ChatProvider>
+            <UserProvider>
+              <div className="flex min-h-screen flex-col">
+                <Navbar />
+                <div className="flex-1">
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/cases" element={<Cases />} />
+                    <Route path="/mines" element={<Mines />} />
+                    <Route path="/blackjack" element={<Blackjack />} />
+                    <Route path="/tower" element={<Tower />} />
+                    <Route path="/rewards" element={<Rewards />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </div>
+                <Footer />
+                <ChatContainer />
+                <div className="fixed top-16 right-4 z-30">
+                  <DepositButton />
+                </div>
+              </div>
+              <SoundManager />
+              <Toaster />
+            </UserProvider>
+          </ChatProvider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
