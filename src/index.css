@@ -1,7 +1,6 @@
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
 @layer base {
   :root {
@@ -106,4 +105,32 @@
       opacity: 0.3;
     }
   }
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: rgb(3, 7, 18);
+  color: white;
+}
+
+/* Rain animation */
+@keyframes fall {
+  0% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+.animate-fall {
+  animation-name: fall;
+  animation-duration: 3s;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
 }
