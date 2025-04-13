@@ -3,9 +3,11 @@ import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../../context/UserContext';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { X, ChevronLeft, Sword, DollarSign, Trophy, RefreshCw } from 'lucide-react';
+import { X, ChevronLeft, Sword, DollarSign, Trophy, RefreshCw, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import CaseSlider from '../CaseSlider/CaseSlider';
+import { SliderItem } from '@/types/slider';
 
 interface Player {
   username: string;
@@ -41,6 +43,8 @@ interface ImprovedCaseBattleGameProps {
   currentUser: string;
 }
 
+const MAX_PLAYERS = 4;
+
 const generateRandomCaseItems = (count: number): CaseItem[] => {
   const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
   const rarityValues = {
@@ -66,65 +70,156 @@ const generateRandomCaseItems = (count: number): CaseItem[] => {
   });
 };
 
+const caseItems: SliderItem[] = [
+  { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50 },
+  { id: '2', name: 'Forest Shield', image: '/placeholder.svg', rarity: 'uncommon', price: 150 },
+  { id: '3', name: 'Ocean Blade', image: '/placeholder.svg', rarity: 'rare', price: 500 },
+  { id: '4', name: 'Thunder Axe', image: '/placeholder.svg', rarity: 'epic', price: 1000 },
+  { id: '5', name: 'Dragon Slayer', image: '/placeholder.svg', rarity: 'legendary', price: 2500 },
+  { id: '6', name: 'Void Reaver', image: '/placeholder.svg', rarity: 'mythical', price: 5000 },
+];
+
 const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle, onClose, currentUser }) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentCase, setCurrentCase] = useState(0);
   const [playerResults, setPlayerResults] = useState<Record<string, CaseItem[]>>({});
   const [teamTotals, setTeamTotals] = useState<Record<number, number>>({});
   const [winningTeam, setWinningTeam] = useState<number | null>(null);
+  const [spinQueue, setSpinQueue] = useState<string[]>([]);
+  const [activeSpinner, setActiveSpinner] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number>(0);
   const { user, updateUser } = useContext(UserContext);
+  
+  const [allPlayers, setAllPlayers] = useState<Player[]>(battle.players);
+  const maxPlayersForMode = getMaxPlayersForMode(battle.mode);
+  const emptySlots = maxPlayersForMode - allPlayers.length;
+  
+  function getMaxPlayersForMode(mode: string): number {
+    switch(mode) {
+      case '1v1': return 2;
+      case '2v2': return 4;
+      case '1v1v1': return 3;
+      case '1v1v1v1': return 4;
+      default: return 2;
+    }
+  }
   
   useEffect(() => {
     const initialResults: Record<string, CaseItem[]> = {};
-    battle.players.forEach(player => {
+    allPlayers.forEach(player => {
       initialResults[player.username] = [];
     });
     setPlayerResults(initialResults);
     
     if (battle.status === 'in-progress') {
-      startSpinning();
+      startBattle();
+    } else if (battle.status === 'starting') {
+      startCountdown();
     }
-  }, [battle]);
+  }, [battle, allPlayers]);
   
-  const startSpinning = () => {
-    setIsSpinning(true);
-    spinCases();
+  const startCountdown = () => {
+    setCountdown(5);
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          startBattle();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
   
-  const spinCases = () => {
-    let caseIndex = 0;
-    const totalCases = battle.cases;
+  const addBot = () => {
+    if (allPlayers.length >= maxPlayersForMode) return;
     
-    const spinInterval = setInterval(() => {
-      if (caseIndex >= totalCases) {
-        clearInterval(spinInterval);
+    const botNames = ['BotMaster', 'CryptoBot', 'LuckyBot', 'BotLegend'];
+    const botName = botNames[Math.floor(Math.random() * botNames.length)];
+    const randomTeam = allPlayers.length % 2 + 1;
+    
+    const newBot: Player = {
+      username: botName,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${botName}`,
+      team: battle.mode === '2v2' ? (allPlayers.length < 2 ? 1 : 2) : randomTeam
+    };
+    
+    setAllPlayers(prev => [...prev, newBot]);
+    
+    // If adding this bot fills the battle, start the countdown
+    if (allPlayers.length + 1 >= maxPlayersForMode) {
+      toast.success("All players joined! Battle starting soon...");
+      startCountdown();
+    } else {
+      toast.success(`Bot ${botName} added to the battle!`);
+    }
+  };
+  
+  const startBattle = () => {
+    setIsSpinning(true);
+    const updatedResults = { ...playerResults };
+    allPlayers.forEach(player => {
+      updatedResults[player.username] = [];
+    });
+    setPlayerResults(updatedResults);
+    
+    // Create a queue of players to spin
+    const playerQueue = allPlayers.map(player => player.username);
+    setSpinQueue(playerQueue);
+    
+    // Start spinning for first player
+    processNextPlayerSpin();
+  };
+  
+  const processNextPlayerSpin = () => {
+    if (spinQueue.length === 0) {
+      // All players have spun for this case
+      if (currentCase >= battle.cases - 1) {
+        // Battle is complete
         finishBattle();
-        return;
+      } else {
+        // Move to next case
+        setCurrentCase(prev => prev + 1);
+        // Create a new queue for the next case
+        const newQueue = allPlayers.map(player => player.username);
+        setSpinQueue(newQueue);
+        // Process the next case after a short delay
+        setTimeout(() => {
+          processNextPlayerSpin();
+        }, 1000);
       }
-      
-      setCurrentCase(caseIndex);
-      
-      const updatedResults = { ...playerResults };
-      battle.players.forEach(player => {
-        const caseItem = generateRandomCaseItems(1)[0];
-        updatedResults[player.username] = [
-          ...updatedResults[player.username],
-          caseItem
-        ];
-      });
-      
-      setPlayerResults(updatedResults);
-      caseIndex++;
-    }, 3000);
+      return;
+    }
     
-    return () => clearInterval(spinInterval);
+    // Get the next player in the queue
+    const nextPlayer = spinQueue[0];
+    // Remove this player from the queue
+    setSpinQueue(prev => prev.slice(1));
+    // Set as active spinner
+    setActiveSpinner(nextPlayer);
+    
+    // Simulate spinning by showing for a few seconds before revealing the result
+    setTimeout(() => {
+      const caseItem = generateRandomCaseItems(1)[0];
+      setPlayerResults(prev => ({
+        ...prev,
+        [nextPlayer]: [...(prev[nextPlayer] || []), caseItem]
+      }));
+      
+      // After a short delay, move to the next player
+      setTimeout(() => {
+        setActiveSpinner(null);
+        processNextPlayerSpin();
+      }, 500);
+    }, 3000);
   };
   
   const finishBattle = () => {
     setIsSpinning(false);
     
     const totals: Record<number, number> = {};
-    battle.players.forEach(player => {
+    allPlayers.forEach(player => {
       const playerTotal = playerResults[player.username]?.reduce((sum, item) => sum + item.value, 0) || 0;
       totals[player.team] = (totals[player.team] || 0) + playerTotal;
     });
@@ -143,7 +238,7 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
     setWinningTeam(winner);
     
     // Check if the current user is on the winning team
-    const currentUserPlayer = battle.players.find(p => p.username === currentUser);
+    const currentUserPlayer = allPlayers.find(p => p.username === currentUser);
     if (currentUserPlayer && currentUserPlayer.team === winner) {
       const winnings = battle.totalValue * 0.95;
       updateUser({
@@ -156,7 +251,7 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
   
   const recreateBattle = () => {
     const initialResults: Record<string, CaseItem[]> = {};
-    battle.players.forEach(player => {
+    allPlayers.forEach(player => {
       initialResults[player.username] = [];
     });
     setPlayerResults(initialResults);
@@ -164,7 +259,7 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
     setWinningTeam(null);
     setCurrentCase(0);
     
-    startSpinning();
+    startBattle();
   };
   
   const getPlayerTotal = (username: string) => {
@@ -209,12 +304,40 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
           </div>
         </div>
         
+        {countdown > 0 && (
+          <div className="p-6 text-center">
+            <div className="text-4xl font-bold text-yellow-500 animate-pulse">
+              Battle starting in {countdown}...
+            </div>
+          </div>
+        )}
+        
+        {activeSpinner && (
+          <div className="p-4 mb-4">
+            <div className="text-center mb-2">
+              <div className="text-xl font-bold text-blue-400">
+                {activeSpinner}'s turn
+              </div>
+            </div>
+            <CaseSlider 
+              items={caseItems} 
+              onComplete={() => {}} 
+              autoSpin={true}
+              spinDuration={3000}
+              isSpinning={true}
+              playerName={activeSpinner}
+              highlightPlayer={activeSpinner === currentUser}
+            />
+          </div>
+        )}
+        
         <div className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {battle.players.map((player, index) => {
+            {allPlayers.map((player, index) => {
               const isWinner = winningTeam === player.team && !isSpinning && currentCase >= battle.cases;
               const isLoser = winningTeam !== null && winningTeam !== player.team && !isSpinning && currentCase >= battle.cases;
               const playerTotal = getPlayerTotal(player.username);
+              const isBot = !player.username.includes(currentUser) && player.username.includes('Bot');
               
               return (
                 <Card 
@@ -232,7 +355,10 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
                           className="h-full w-full object-cover"
                         />
                       </div>
-                      <span className="font-medium truncate max-w-[100px]">{player.username}</span>
+                      <div className="flex items-center">
+                        <span className="font-medium truncate max-w-[100px]">{player.username}</span>
+                        {isBot && <Bot className="h-3 w-3 ml-1 text-blue-400" />}
+                      </div>
                     </div>
                     <div className="flex items-center text-yellow-500 font-bold">
                       <DollarSign className="h-4 w-4" />
@@ -276,6 +402,42 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
                 </Card>
               );
             })}
+            
+            {/* Empty slots for adding bots */}
+            {emptySlots > 0 && Array.from({ length: emptySlots }).map((_, index) => (
+              <Card 
+                key={`empty-${index}`}
+                className="bg-gray-800 border-none shadow overflow-hidden"
+              >
+                <div className="flex items-center justify-between p-3 border-b border-gray-700">
+                  <div className="flex items-center">
+                    <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-700 mr-2 flex items-center justify-center">
+                      <Bot className="h-4 w-4 text-gray-500" />
+                    </div>
+                    <span className="font-medium text-gray-500">Empty Slot</span>
+                  </div>
+                  <div className="flex items-center text-gray-500">
+                    <DollarSign className="h-4 w-4" />
+                    <span>0.00</span>
+                  </div>
+                </div>
+                
+                <div className="p-3 flex items-center justify-center" style={{ minHeight: '160px' }}>
+                  {!isSpinning && battle.status !== 'completed' && countdown === 0 && (
+                    <Button 
+                      onClick={addBot}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Bot className="h-4 w-4 mr-2" />
+                      Add Bot
+                    </Button>
+                  )}
+                  {(isSpinning || battle.status === 'completed' || countdown > 0) && (
+                    <div className="text-gray-500">Empty slot</div>
+                  )}
+                </div>
+              </Card>
+            ))}
           </div>
           
           <div className="bg-gray-800 p-4 rounded-lg mb-6">
@@ -295,13 +457,18 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
           </div>
           
           <div className="flex justify-center">
-            {!isSpinning && battle.status === 'waiting' && (
+            {!isSpinning && battle.status === 'waiting' && emptySlots > 0 && countdown === 0 && (
               <Button 
                 size="lg"
                 className="bg-green-600 hover:bg-green-700"
-                disabled={true}
+                onClick={() => {
+                  // Fill all remaining slots with bots
+                  for (let i = 0; i < emptySlots; i++) {
+                    addBot();
+                  }
+                }}
               >
-                Waiting for Players...
+                Fill with Bots & Start
               </Button>
             )}
             
@@ -324,6 +491,16 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
               >
                 <RefreshCw className="h-5 w-5 mr-2" />
                 Recreate Battle
+              </Button>
+            )}
+            
+            {!isSpinning && battle.status === 'waiting' && emptySlots === 0 && countdown === 0 && (
+              <Button 
+                size="lg"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={startCountdown}
+              >
+                Start Battle
               </Button>
             )}
           </div>

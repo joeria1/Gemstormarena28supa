@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft, Copy } from 'lucide-react';
+import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft, Copy, Percent, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { SliderItem } from '@/types/slider';
 import { useUser } from '@/context/UserContext';
@@ -15,37 +15,41 @@ import ImprovedCaseBattleCreator from '@/components/CaseBattle/ImprovedCaseBattl
 import CaseBattlesList from '@/components/CaseBattle/CaseBattlesList';
 import ImprovedCaseBattleGame from '@/components/CaseBattle/ImprovedCaseBattleGame';
 
-const caseItems: Record<string, SliderItem[]> = {
+interface CaseItemWithChance extends SliderItem {
+  chance: number;
+}
+
+const caseItems: Record<string, CaseItemWithChance[]> = {
   standard: [
-    { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50 },
-    { id: '2', name: 'Forest Shield', image: '/placeholder.svg', rarity: 'uncommon', price: 150 },
-    { id: '3', name: 'Ocean Blade', image: '/placeholder.svg', rarity: 'rare', price: 500 },
-    { id: '4', name: 'Thunder Axe', image: '/placeholder.svg', rarity: 'epic', price: 1000 },
-    { id: '5', name: 'Dragon Slayer', image: '/placeholder.svg', rarity: 'legendary', price: 2500 },
-    { id: '6', name: 'Void Reaver', image: '/placeholder.svg', rarity: 'mythical', price: 5000 },
-    { id: '7', name: 'Iron Dagger', image: '/placeholder.svg', rarity: 'common', price: 75 },
-    { id: '8', name: 'Steel Hammer', image: '/placeholder.svg', rarity: 'uncommon', price: 200 },
-    { id: '9', name: 'Mystic Staff', image: '/placeholder.svg', rarity: 'rare', price: 750 },
-    { id: '10', name: 'Shadow Cloak', image: '/placeholder.svg', rarity: 'epic', price: 1500 }
+    { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50, chance: 35 },
+    { id: '2', name: 'Forest Shield', image: '/placeholder.svg', rarity: 'uncommon', price: 150, chance: 25 },
+    { id: '3', name: 'Ocean Blade', image: '/placeholder.svg', rarity: 'rare', price: 500, chance: 20 },
+    { id: '4', name: 'Thunder Axe', image: '/placeholder.svg', rarity: 'epic', price: 1000, chance: 15 },
+    { id: '5', name: 'Dragon Slayer', image: '/placeholder.svg', rarity: 'legendary', price: 2500, chance: 5 },
+    { id: '6', name: 'Void Reaver', image: '/placeholder.svg', rarity: 'mythical', price: 5000, chance: 1 },
+    { id: '7', name: 'Iron Dagger', image: '/placeholder.svg', rarity: 'common', price: 75, chance: 35 },
+    { id: '8', name: 'Steel Hammer', image: '/placeholder.svg', rarity: 'uncommon', price: 200, chance: 25 },
+    { id: '9', name: 'Mystic Staff', image: '/placeholder.svg', rarity: 'rare', price: 750, chance: 20 },
+    { id: '10', name: 'Shadow Cloak', image: '/placeholder.svg', rarity: 'epic', price: 1500, chance: 15 }
   ],
   premium: [
-    { id: '11', name: 'Celestial Bow', image: '/placeholder.svg', rarity: 'epic', price: 2000 },
-    { id: '12', name: 'Phoenix Blade', image: '/placeholder.svg', rarity: 'legendary', price: 5000 },
-    { id: '13', name: 'Cosmic Cleaver', image: '/placeholder.svg', rarity: 'mythical', price: 10000 },
-    { id: '14', name: 'Starlight Dagger', image: '/placeholder.svg', rarity: 'rare', price: 1200 },
-    { id: '15', name: 'Astral Shield', image: '/placeholder.svg', rarity: 'epic', price: 2500 },
-    { id: '16', name: 'Lunar Mace', image: '/placeholder.svg', rarity: 'legendary', price: 6000 },
-    { id: '17', name: 'Gravity Hammer', image: '/placeholder.svg', rarity: 'mythical', price: 12000 },
-    { id: '18', name: 'Supernova Staff', image: '/placeholder.svg', rarity: 'legendary', price: 7500 }
+    { id: '11', name: 'Celestial Bow', image: '/placeholder.svg', rarity: 'epic', price: 2000, chance: 30 },
+    { id: '12', name: 'Phoenix Blade', image: '/placeholder.svg', rarity: 'legendary', price: 5000, chance: 10 },
+    { id: '13', name: 'Cosmic Cleaver', image: '/placeholder.svg', rarity: 'mythical', price: 10000, chance: 5 },
+    { id: '14', name: 'Starlight Dagger', image: '/placeholder.svg', rarity: 'rare', price: 1200, chance: 25 },
+    { id: '15', name: 'Astral Shield', image: '/placeholder.svg', rarity: 'epic', price: 2500, chance: 20 },
+    { id: '16', name: 'Lunar Mace', image: '/placeholder.svg', rarity: 'legendary', price: 6000, chance: 7 },
+    { id: '17', name: 'Gravity Hammer', image: '/placeholder.svg', rarity: 'mythical', price: 12000, chance: 3 },
+    { id: '18', name: 'Supernova Staff', image: '/placeholder.svg', rarity: 'legendary', price: 7500, chance: 10 }
   ],
   battle: [
-    { id: '19', name: 'War Hammer', image: '/placeholder.svg', rarity: 'epic', price: 1800 },
-    { id: '20', name: 'Battle Axe', image: '/placeholder.svg', rarity: 'rare', price: 900 },
-    { id: '21', name: 'Commander Shield', image: '/placeholder.svg', rarity: 'legendary', price: 4500 },
-    { id: '22', name: 'Tactical Knife', image: '/placeholder.svg', rarity: 'uncommon', price: 300 },
-    { id: '23', name: 'Strategic Bow', image: '/placeholder.svg', rarity: 'rare', price: 1100 },
-    { id: '24', name: 'General Sword', image: '/placeholder.svg', rarity: 'epic', price: 2200 },
-    { id: '25', name: 'Emperor Blade', image: '/placeholder.svg', rarity: 'mythical', price: 8000 }
+    { id: '19', name: 'War Hammer', image: '/placeholder.svg', rarity: 'epic', price: 1800, chance: 25 },
+    { id: '20', name: 'Battle Axe', image: '/placeholder.svg', rarity: 'rare', price: 900, chance: 30 },
+    { id: '21', name: 'Commander Shield', image: '/placeholder.svg', rarity: 'legendary', price: 4500, chance: 10 },
+    { id: '22', name: 'Tactical Knife', image: '/placeholder.svg', rarity: 'uncommon', price: 300, chance: 40 },
+    { id: '23', name: 'Strategic Bow', image: '/placeholder.svg', rarity: 'rare', price: 1100, chance: 25 },
+    { id: '24', name: 'General Sword', image: '/placeholder.svg', rarity: 'epic', price: 2200, chance: 15 },
+    { id: '25', name: 'Emperor Blade', image: '/placeholder.svg', rarity: 'mythical', price: 8000, chance: 5 }
   ]
 };
 
@@ -61,18 +65,23 @@ const caseNames = {
   battle: 'Battle Case'
 };
 
-const rerollItem: SliderItem = {
+const rerollItem: CaseItemWithChance = {
   id: 'reroll',
   name: 'Reroll',
   image: '/placeholder.svg',
   rarity: 'special',
   price: 0,
-  isReroll: true
+  isReroll: true,
+  chance: 5
 };
 
 Object.keys(caseItems).forEach(caseType => {
   caseItems[caseType].push(rerollItem);
 });
+
+const getCaseItemsForSlider = (caseType: string): SliderItem[] => {
+  return caseItems[caseType].map(({ chance, ...item }) => item);
+};
 
 type Battle = {
   id: string;
@@ -225,7 +234,7 @@ const Cases: React.FC = () => {
         description: 'You will get at least an uncommon item!'
       });
       
-      const betterItems = caseItems[activeCase].filter(
+      const betterItems = getCaseItemsForSlider(activeCase).filter(
         item => item.rarity !== 'common' && !item.isReroll
       );
       
@@ -367,41 +376,6 @@ const Cases: React.FC = () => {
         status: 'in-progress'
       });
     }
-    
-    setTimeout(() => {
-      const battle = battles.find(b => b.id === battleId);
-      if (!battle) return;
-      
-      const players = battle.players;
-      const winnerIndex = Math.floor(Math.random() * players.length);
-      const winner = players[winnerIndex];
-      
-      const updatedBattles = battles.map(b => 
-        b.id === battleId ? { 
-          ...b, 
-          status: 'completed' as const, 
-          winner: winner 
-        } : b
-      );
-      
-      setBattles(updatedBattles);
-      
-      if (activeBattleView && activeBattleView.id === battleId) {
-        setActiveBattleView({
-          ...activeBattleView,
-          status: 'completed',
-          winner: winner
-        });
-      }
-      
-      if (winner.id === user?.id) {
-        const winnings = battle.cost * battle.maxPlayers;
-        updateBalance(winnings);
-        toast.success('You won the battle!', {
-          description: `You've been awarded ${winnings} gems!`
-        });
-      }
-    }, 10000);
   };
 
   const handleSpectateBattle = (battleId: string) => {
@@ -515,19 +489,23 @@ const Cases: React.FC = () => {
                     </p>
                   </div>
                 
-                  <div className="relative mb-6 h-44">
+                  <div className="relative mb-6">
+                    <h3 className="text-lg font-bold mb-3 flex items-center">
+                      <Percent className="h-4 w-4 mr-2 text-blue-400" />
+                      Potential Drops
+                    </h3>
                     {isSpinning ? (
                       <CaseSlider 
-                        items={caseItems[caseType]} 
+                        items={getCaseItemsForSlider(caseType)} 
                         onComplete={handleSpinComplete}
                       />
                     ) : (
-                      <div className="grid grid-cols-5 gap-2 h-full">
-                        {caseItems[caseType].slice(0, 5).map((item) => (
+                      <div className="grid grid-cols-5 gap-2">
+                        {caseItems[caseType].slice(0, 10).map((item) => (
                           <div 
                             key={item.id} 
                             className={`
-                              bg-gray-800 p-2 rounded flex flex-col items-center justify-between
+                              bg-gray-800 p-2 rounded flex flex-col items-center justify-between h-44
                               ${item.rarity === 'legendary' ? 'ring-2 ring-yellow-500' : ''}
                               ${item.rarity === 'mythical' ? 'ring-2 ring-purple-500' : ''}
                             `}
@@ -535,8 +513,11 @@ const Cases: React.FC = () => {
                             <div className="font-bold text-xs mb-1 truncate w-full text-center">
                               {item.name}
                             </div>
-                            <div className="w-16 h-16 bg-gray-700 rounded flex items-center justify-center mb-1">
+                            <div className="relative w-16 h-16 bg-gray-700 rounded flex items-center justify-center mb-1">
                               <img src={item.image} alt={item.name} className="max-w-full max-h-full" />
+                              <div className="absolute -top-1 -right-1 bg-blue-600 text-xs text-white rounded-full h-5 w-5 flex items-center justify-center">
+                                {item.chance}%
+                              </div>
                             </div>
                             <div className={`text-xs px-2 py-0.5 rounded ${
                               item.rarity === 'common' ? 'bg-gray-600' :
@@ -547,6 +528,10 @@ const Cases: React.FC = () => {
                               'bg-red-600'
                             }`}>
                               {item.rarity.toUpperCase()}
+                            </div>
+                            <div className="mt-1 text-yellow-500 font-bold text-sm flex items-center">
+                              <DollarSign className="h-3 w-3 mr-0.5" />
+                              {item.price.toFixed(2)}
                             </div>
                           </div>
                         ))}
