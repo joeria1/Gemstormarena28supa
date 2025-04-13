@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { useUser } from '@/context/UserContext';
@@ -27,7 +26,8 @@ const ChatContainer = () => {
     rainTimeRemaining,
     rainStatus,
     rainAmount,
-    claimRain
+    claimRain,
+    setRainActive
   } = useChat();
   const { user, updateBalance } = useUser();
   const [messageInput, setMessageInput] = useState('');

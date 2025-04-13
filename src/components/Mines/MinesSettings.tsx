@@ -21,6 +21,9 @@ interface MinesSettingsProps {
   currentBet?: number;
   currentMineCount?: number;
   hideMineButtons?: boolean;
+  maxBet?: number;
+  minBet?: number;
+  disabled?: boolean;
 }
 
 const MinesSettings: React.FC<MinesSettingsProps> = ({
@@ -37,7 +40,10 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
   onMineCountChange,
   currentBet,
   currentMineCount,
-  hideMineButtons
+  hideMineButtons,
+  maxBet,
+  minBet,
+  disabled
 }) => {
   const handleBetChange = (value: number) => {
     playSound(SOUNDS.BUTTON_CLICK);
@@ -71,15 +77,15 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
             type="number"
             value={displayBet}
             onChange={(e) => setBet(Number(e.target.value))}
-            min={1}
-            disabled={isGameActive}
+            min={minBet || 1}
+            disabled={isGameActive || disabled}
           />
           <div className="flex space-x-1">
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => handleBetChange(displayBet / 2)}
-              disabled={isGameActive || displayBet <= 1}
+              disabled={isGameActive || displayBet <= 1 || disabled}
             >
               ½
             </Button>
@@ -87,7 +93,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
               variant="outline" 
               size="sm"
               onClick={() => handleBetChange(displayBet * 2)}
-              disabled={isGameActive}
+              disabled={isGameActive || disabled || (maxBet && displayBet * 2 > maxBet)}
             >
               2×
             </Button>
@@ -132,7 +138,7 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
                 key={num}
                 variant="outline"
                 size="sm"
-                disabled={isGameActive || num > maxMines}
+                disabled={isGameActive || num > maxMines || disabled}
                 onClick={() => handleMinesChange(num)}
                 className={displayMines === num ? "border-primary" : ""}
               >
@@ -145,13 +151,14 @@ const MinesSettings: React.FC<MinesSettingsProps> = ({
 
       <div className="mt-4">
         {!isGameActive ? (
-          <Button className="w-full" onClick={handleStart}>
+          <Button className="w-full" onClick={handleStart} disabled={disabled}>
             Start Game
           </Button>
         ) : (
           <Button 
             className="w-full bg-green-500 hover:bg-green-600"
             onClick={handleCashout}
+            disabled={disabled}
           >
             Cashout ({currentMultiplier?.toFixed(2)}x • {Math.round(currentMultiplier * displayBet)} gems)
           </Button>
