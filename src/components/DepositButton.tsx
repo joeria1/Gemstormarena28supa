@@ -46,7 +46,7 @@ const getFreeDailyGems = () => {
   } else {
     toast({
       title: 'Already Claimed',
-      description: 'You've already claimed your free gems today. Come back tomorrow!',
+      description: "You've already claimed your free gems today. Come back tomorrow!",
       variant: 'default',
     });
     return 0;
