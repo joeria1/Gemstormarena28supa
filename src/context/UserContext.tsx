@@ -18,12 +18,27 @@ interface UserContextType {
   addBet: (amount: number) => void;
   login: () => void;
   logout: () => void;
+  updateUser: (updatedUser: User) => void;
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+export const UserContext = createContext<UserContextType>({
+  user: {
+    id: 'default-user',
+    username: 'Player',
+    balance: 5000,
+    avatar: '/placeholder.svg',
+    totalBets: 0,
+    updateBalance: () => {},
+    addBet: () => {},
+  },
+  updateBalance: () => {},
+  addBet: () => {},
+  login: () => {},
+  logout: () => {},
+  updateUser: () => {},
+});
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Create a default user with 5000 gems
   const [user, setUser] = useState<User>({
     id: 'default-user',
     username: 'Player',
@@ -46,6 +61,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...prev,
       totalBets: prev.totalBets + amount
     }));
+  };
+  
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
   };
   
   const login = () => {
@@ -75,7 +94,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <UserContext.Provider value={{ user, updateBalance, addBet, login, logout }}>
+    <UserContext.Provider value={{ user, updateBalance, addBet, login, logout, updateUser }}>
       {children}
     </UserContext.Provider>
   );

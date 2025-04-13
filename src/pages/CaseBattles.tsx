@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../context/UserContext';
 import { Button } from '../components/ui/button';
@@ -164,7 +163,7 @@ const CaseBattles = () => {
         username: user.username || 'Anonymous',
         avatar: user.avatar || 'https://i.pravatar.cc/150?img=3',
       },
-      mode: battleDetails.mode,
+      mode: battleDetails.mode as '1v1' | '2v2' | '1v1v1' | '1v1v1v1',
       totalValue: battleDetails.totalCost,
       cases: battleDetails.cases.length,
       players: [
@@ -208,7 +207,7 @@ const CaseBattles = () => {
     const nextTeam = availableTeams.length > 0 ? availableTeams[0] : 1;
     
     // Add the user to the battle
-    const updatedBattle = {
+    const updatedBattle: Battle = {
       ...battle,
       players: [
         ...battle.players,
@@ -225,7 +224,7 @@ const CaseBattles = () => {
     const isFull = updatedBattle.players.length === requiredPlayers;
     
     // Update the battle status if it's full
-    const finalBattle = {
+    const finalBattle: Battle = {
       ...updatedBattle,
       status: isFull ? 'in-progress' : 'waiting'
     };
@@ -256,7 +255,7 @@ const CaseBattles = () => {
         }
         
         // Update the battle with the winner
-        const completedBattle = {
+        const completedBattle: Battle = {
           ...finalBattle,
           status: 'completed',
           winnerId: winner.username

@@ -1,4 +1,3 @@
-
 import React, { useState, useContext } from 'react';
 import { UserContext } from '../context/UserContext';
 import { Copy, Users, DollarSign, Heart, Gift, CheckCircle2 } from 'lucide-react';

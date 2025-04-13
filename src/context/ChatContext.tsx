@@ -33,7 +33,7 @@ interface ChatContextType {
 }
 
 // Create context with default values
-const ChatContext = createContext<ChatContextType>({
+export const ChatContext = createContext<ChatContextType>({
   isChatOpen: false, // Default to closed
   isRainActive: false,
   rainStatus: 'inactive',

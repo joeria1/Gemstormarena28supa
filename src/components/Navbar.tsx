@@ -1,11 +1,11 @@
 
 import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
-import RocketLogo from './RocketLogo';
+import { RocketLogo } from './RocketLogo';
 import DepositButton from './DepositButton';
 import { UserContext } from '../context/UserContext';
 import { useLocation } from 'react-router-dom';
-import { DollarSign, Sword, Boxes, Coins, Target, Trophy, GitBranch, Horse, Users } from 'lucide-react';
+import { DollarSign, Sword, Boxes, Coins, Target, Trophy, GitBranch, User, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 
@@ -39,7 +39,7 @@ const Navbar = () => {
             <NavLink to="/mines" isActive={isActive("/mines")} icon={<Coins className="w-4 h-4" />}>
               Mines
             </NavLink>
-            <NavLink to="/horse-racing" isActive={isActive("/horse-racing")} icon={<Horse className="w-4 h-4" />}>
+            <NavLink to="/horse-racing" isActive={isActive("/horse-racing")} icon={<User className="w-4 h-4" />}>
               Racing
             </NavLink>
             <NavLink to="/affiliates" isActive={isActive("/affiliates")} icon={<Users className="w-4 h-4" />}>

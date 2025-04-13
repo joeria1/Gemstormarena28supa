@@ -1,128 +1,70 @@
 
-import React, { useState, useEffect } from 'react';
-import { toast } from "sonner";
-import { useUser } from "@/context/UserContext";
-
-interface RainDropProps {
-  style: React.CSSProperties;
-}
-
-const RainDrop: React.FC<RainDropProps> = ({ style }) => {
-  return <div className="absolute text-yellow-400 animate-fall" style={style}>💰</div>;
-};
+import React, { useEffect, useRef } from 'react';
 
 const RainEffect: React.FC = () => {
-  const { updateBalance } = useUser();
-  const [isRaining, setIsRaining] = useState(false);
-  const [raindrops, setRaindrops] = useState<React.CSSProperties[]>([]);
-  const [canClaim, setCanClaim] = useState(false);
-  const [hasClaimed, setHasClaimed] = useState(false);
-  const [pendingReward, setPendingReward] = useState(0);
-
-  // Start rain randomly
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
   useEffect(() => {
-    const checkForRain = () => {
-      // 10% chance of rain every 2 minutes
-      if (Math.random() < 0.1) {
-        startRain();
-      }
-    };
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     
-    const interval = setInterval(checkForRain, 120000); // Check every 2 minutes
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     
-    // Trigger rain for testing purposes
-    const testTimer = setTimeout(() => {
-      startRain();
-    }, 5000);
+    // Set canvas dimensions
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
     
-    return () => {
-      clearInterval(interval);
-      clearTimeout(testTimer);
-    };
-  }, []);
-
-  const startRain = () => {
-    if (!isRaining) {
-      setIsRaining(true);
-      setCanClaim(true);
-      setHasClaimed(false);
-      setPendingReward(0);
-      
-      // Create raindrops
-      const drops: React.CSSProperties[] = [];
-      for (let i = 0; i < 30; i++) {
-        drops.push({
-          left: `${Math.random() * 100}%`,
-          animationDuration: `${Math.random() * 2 + 2}s`,
-          animationDelay: `${Math.random() * 3}s`,
-          fontSize: `${Math.random() * 16 + 16}px`,
-        });
-      }
-      
-      setRaindrops(drops);
-      
-      // End rain after 20 seconds
-      setTimeout(() => {
-        setIsRaining(false);
-        setRaindrops([]);
-        
-        // If user has claimed, give the reward now that the rain is over
-        if (hasClaimed && pendingReward > 0) {
-          updateBalance(pendingReward);
-          toast.success(`Received ${pendingReward} gems from the rain!`);
-          setPendingReward(0);
-        }
-        
-        // Cancel claim if not claimed after 60 seconds
-        setTimeout(() => {
-          if (canClaim) {
-            setCanClaim(false);
-          }
-        }, 60000);
-      }, 20000);
-    }
-  };
-
-  const claimRain = () => {
-    if (canClaim && !hasClaimed) {
-      // Generate random amount between 50-500 gems
-      const amount = Math.floor(Math.random() * 450) + 50;
-      
-      // Store the pending reward (will be given after rain ends)
-      setPendingReward(amount);
-      setHasClaimed(true);
-      
-      toast.success(`Claimed ${amount} gems from the rain!`, {
-        description: "Gems will be added to your balance when the rain ends."
+    // Create rain drops
+    const raindrops: { x: number; y: number; speed: number; length: number }[] = [];
+    for (let i = 0; i < 100; i++) {
+      raindrops.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        speed: Math.random() * 5 + 5,
+        length: Math.random() * 15 + 5
       });
     }
-  };
-
+    
+    // Animation loop
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.strokeStyle = '#3b82f6'; // Blue color
+      ctx.lineWidth = 1;
+      
+      raindrops.forEach(drop => {
+        ctx.beginPath();
+        ctx.moveTo(drop.x, drop.y);
+        ctx.lineTo(drop.x, drop.y + drop.length);
+        ctx.stroke();
+        
+        drop.y += drop.speed;
+        
+        // Reset when raindrop goes off screen
+        if (drop.y > canvas.height) {
+          drop.y = 0 - drop.length;
+          drop.x = Math.random() * canvas.width;
+        }
+      });
+      
+      animationId = requestAnimationFrame(animate);
+    };
+    
+    let animationId = requestAnimationFrame(animate);
+    
+    // Cleanup function
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
+  
   return (
-    <>
-      {isRaining && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
-          {raindrops.map((style, index) => (
-            <RainDrop key={index} style={style} />
-          ))}
-        </div>
-      )}
-      
-      {canClaim && !hasClaimed && (
-        <button
-          onClick={claimRain}
-          className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold px-4 py-2 rounded-md z-50 animate-pulse hover:animate-none hover:from-yellow-500 hover:to-yellow-700 transition-all"
-        >
-          CLAIM RAIN!
-        </button>
-      )}
-      
-      {hasClaimed && isRaining && (
-        <div className="absolute top-2 right-2 bg-gradient-to-r from-green-400 to-green-600 text-black font-bold px-4 py-2 rounded-md z-50">
-          CLAIMED! ({pendingReward} gems)
-        </div>
-      )}
-    </>
+    <canvas 
+      ref={canvasRef} 
+      className="fixed inset-0 pointer-events-none z-50" 
+      style={{ opacity: 0.7 }}
+    />
   );
 };
 

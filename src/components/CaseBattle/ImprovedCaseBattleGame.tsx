@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../../context/UserContext';
 import { Button } from '../ui/button';
@@ -41,7 +40,6 @@ interface ImprovedCaseBattleGameProps {
   currentUser: string;
 }
 
-// Generate random case items for the battle
 const generateRandomCaseItems = (count: number): CaseItem[] => {
   const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
   const rarityValues = {
@@ -53,7 +51,7 @@ const generateRandomCaseItems = (count: number): CaseItem[] => {
   };
   
   return Array.from({ length: count }, (_, i) => {
-    const rarity = rarities[Math.floor(Math.random() * (rarities.length - 0.7))]; // Bias towards common/uncommon
+    const rarity = rarities[Math.floor(Math.random() * (rarities.length - 0.7))];
     const minValue = rarityValues[rarity].min;
     const maxValue = rarityValues[rarity].max;
     const value = Number((Math.random() * (maxValue - minValue) + minValue).toFixed(2));
@@ -73,9 +71,8 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
   const [playerResults, setPlayerResults] = useState<Record<string, CaseItem[]>>({});
   const [teamTotals, setTeamTotals] = useState<Record<number, number>>({});
   const [winningTeam, setWinningTeam] = useState<number | null>(null);
-  const { updateUser, user } = useContext(UserContext);
+  const { user, updateUser } = useContext(UserContext);
   
-  // Initialize player results when component mounts
   useEffect(() => {
     const initialResults: Record<string, CaseItem[]> = {};
     battle.players.forEach(player => {
@@ -83,7 +80,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
     });
     setPlayerResults(initialResults);
     
-    // Automatically start spinning if battle is in progress
     if (battle.status === 'in-progress') {
       startSpinning();
     }
@@ -95,7 +91,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
   };
   
   const spinCases = () => {
-    // Simulate spinning all cases one by one
     let caseIndex = 0;
     const totalCases = battle.cases;
     
@@ -108,7 +103,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
       
       setCurrentCase(caseIndex);
       
-      // Generate a random case item for each player
       const updatedResults = { ...playerResults };
       battle.players.forEach(player => {
         const caseItem = generateRandomCaseItems(1)[0];
@@ -120,7 +114,7 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
       
       setPlayerResults(updatedResults);
       caseIndex++;
-    }, 3000); // Spin each case every 3 seconds
+    }, 3000);
     
     return () => clearInterval(spinInterval);
   };
@@ -128,7 +122,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
   const finishBattle = () => {
     setIsSpinning(false);
     
-    // Calculate team totals
     const totals: Record<number, number> = {};
     battle.players.forEach(player => {
       const playerTotal = playerResults[player.username]?.reduce((sum, item) => sum + item.value, 0) || 0;
@@ -136,7 +129,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
     });
     setTeamTotals(totals);
     
-    // Determine winning team
     let highestValue = 0;
     let winner: number | null = null;
     
@@ -149,25 +141,17 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
     
     setWinningTeam(winner);
     
-    // Check if current user is in the winning team
-    const userTeam = battle.players.find(p => p.username === currentUser)?.team;
-    
-    if (userTeam === winner) {
-      // Calculate winnings (everyone's contribution minus a small fee)
+    if (user.team === winner) {
       const winnings = battle.totalValue * 0.95;
-      
-      // Update user balance
       updateUser({
         ...user,
         balance: user.balance + winnings
       });
-      
       toast.success(`You won $${winnings.toFixed(2)}!`);
     }
   };
   
   const recreateBattle = () => {
-    // Reset state
     const initialResults: Record<string, CaseItem[]> = {};
     battle.players.forEach(player => {
       initialResults[player.username] = [];
@@ -177,16 +161,13 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
     setWinningTeam(null);
     setCurrentCase(0);
     
-    // Start spinning again
     startSpinning();
   };
   
-  // Calculate player totals for display
   const getPlayerTotal = (username: string) => {
     return playerResults[username]?.reduce((sum, item) => sum + item.value, 0) || 0;
   };
   
-  // Get rarity color class
   const getRarityColorClass = (rarity: string) => {
     switch (rarity) {
       case 'common': return 'bg-gray-500';
@@ -226,7 +207,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
         </div>
         
         <div className="p-6">
-          {/* Player cards in a row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {battle.players.map((player, index) => {
               const isWinner = winningTeam === player.team && !isSpinning && currentCase >= battle.cases;
@@ -285,7 +265,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
                         </div>
                       ))}
                       
-                      {/* Placeholder slots for upcoming cases */}
                       {Array.from({ length: battle.cases - (playerResults[player.username]?.length || 0) }).map((_, i) => (
                         <div key={`placeholder-${i}`} className="bg-gray-700 p-2 rounded h-8 animate-pulse"></div>
                       ))}
@@ -296,7 +275,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
             })}
           </div>
           
-          {/* Cases indicator */}
           <div className="bg-gray-800 p-4 rounded-lg mb-6">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold text-white">Case Progress</h3>
@@ -313,7 +291,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battle,
             </div>
           </div>
           
-          {/* Action buttons */}
           <div className="flex justify-center">
             {!isSpinning && battle.status === 'waiting' && (
               <Button 

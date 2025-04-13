@@ -6,7 +6,8 @@ import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
 import { motion } from 'framer-motion';
 import { Card } from '../components/ui/card';
-import { Horse, Trophy, DollarSign } from 'lucide-react';
+import { Trophy, DollarSign, User } from 'lucide-react';
+import HorseIcon from '../components/HorseRacing/HorseIcon';
 
 const horses = [
   { id: 1, name: "Thunder Bolt", odds: 2.5, color: "bg-amber-700" },
@@ -107,7 +108,7 @@ const HorseRacing = () => {
     <div className="container mx-auto py-6 px-4">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center">
-          <Horse className="w-8 h-8 text-green-500 mr-2" />
+          <HorseIcon className="w-8 h-8 text-green-500 mr-2" />
           <h1 className="text-2xl font-bold">Horse Racing</h1>
         </div>
         <div className="bg-gray-800 p-2 rounded-lg flex items-center">

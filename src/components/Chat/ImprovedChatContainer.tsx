@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { ChatContext } from '../../context/ChatContext';
-import { RainEffect } from '../Rain/RainEffect';
-import { UserContext } from '../../context/UserContext';
+import { useChat, ChatContext } from '../../context/ChatContext';
+import RainEffect from '../Rain/RainEffect';
+import { useUser, UserContext } from '../../context/UserContext';
 import { MessageSquare, X, UserPlus } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
