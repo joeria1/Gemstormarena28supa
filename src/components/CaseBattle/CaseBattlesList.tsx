@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from '@/components/ui/card';
@@ -36,7 +37,7 @@ export interface Battle {
   players: BattleParticipant[];
   maxPlayers: number;
   cost: number;
-  status: 'waiting' | 'in-progress' | 'completed' | 'starting';
+  status: 'waiting' | 'starting' | 'in-progress' | 'completed';
   winner?: BattleParticipant;
   createdAt: Date;
   cases?: {

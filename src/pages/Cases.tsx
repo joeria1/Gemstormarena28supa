@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -71,7 +70,6 @@ const rerollItem: SliderItem = {
   isReroll: true
 };
 
-// Add reroll item to all case types
 Object.keys(caseItems).forEach(caseType => {
   caseItems[caseType].push(rerollItem);
 });
@@ -120,7 +118,7 @@ const Cases: React.FC = () => {
   const [activeBattle, setActiveBattle] = useState<string | null>(null);
   const [battleWinners, setBattleWinners] = useState<Record<string, SliderItem>>({});
   const [battles, setBattles] = useState<Battle[]>([]);
-  const [mainTab, setMainTab] = useState('cases'); // Changed default to 'cases'
+  const [mainTab, setMainTab] = useState('cases');
   const [battleTab, setBattleTab] = useState('join');
   const [showBattleCreator, setShowBattleCreator] = useState(false);
   const [activeBattleView, setActiveBattleView] = useState<Battle | null>(null);
@@ -281,7 +279,6 @@ const Cases: React.FC = () => {
     
     updateBalance(-battle.cost);
     
-    // Update battles with the new player
     const updatedBattles = battles.map(b => {
       if (b.id === battleId) {
         const updatedPlayers = [...b.players, {
@@ -436,7 +433,6 @@ const Cases: React.FC = () => {
     setAffiliateInput('');
   };
 
-  // Render the active battle view
   if (activeBattleView) {
     return (
       <div className="container py-8">
@@ -465,7 +461,6 @@ const Cases: React.FC = () => {
     );
   }
 
-  // Main render for cases
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -736,4 +731,3 @@ const Cases: React.FC = () => {
 };
 
 export default Cases;
-
