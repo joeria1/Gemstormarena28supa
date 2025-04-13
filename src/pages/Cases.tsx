@@ -296,7 +296,7 @@ const Cases: React.FC = () => {
         return {
           ...b,
           players: updatedPlayers,
-          status: battleReady ? 'starting' : 'waiting'
+          status: battleReady ? 'starting' as const : 'waiting' as const
         };
       }
       return b;
@@ -360,7 +360,7 @@ const Cases: React.FC = () => {
 
   const startBattle = (battleId: string) => {
     setBattles(prev => prev.map(b => 
-      b.id === battleId ? { ...b, status: 'in-progress' } : b
+      b.id === battleId ? { ...b, status: 'in-progress' as const } : b
     ));
     
     const updatedBattle = battles.find(b => b.id === battleId);
@@ -382,7 +382,7 @@ const Cases: React.FC = () => {
       const updatedBattles = battles.map(b => 
         b.id === battleId ? { 
           ...b, 
-          status: 'completed', 
+          status: 'completed' as const, 
           winner: winner 
         } : b
       );
@@ -736,3 +736,4 @@ const Cases: React.FC = () => {
 };
 
 export default Cases;
+
