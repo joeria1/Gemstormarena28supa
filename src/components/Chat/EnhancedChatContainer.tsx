@@ -97,7 +97,7 @@ const EnhancedChatContainer: React.FC = () => {
 
   return (
     <>
-      <ChatToggle isOpen={isOpen} onClick={() => setIsOpen(!isOpen)} />
+      <ChatToggle isOpen={isOpen} onToggle={() => setIsOpen(!isOpen)} />
       
       {isOpen && (
         <div className="fixed top-0 right-0 w-full sm:w-96 md:w-1/3 h-full bg-gray-900 border-l border-gray-800 z-40 shadow-lg">
