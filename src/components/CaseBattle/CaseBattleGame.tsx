@@ -6,6 +6,7 @@ import { ArrowLeft, Bot, Gem, Users } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
 import { Button } from '@/components/ui/button';
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
+import { SliderItem } from '@/types/slider';
 
 interface Player {
   id: string;
@@ -15,6 +16,7 @@ interface Player {
   totalValue: number;
   isSpinning?: boolean;
   isBot?: boolean;
+  lastWonItem?: SliderItem;
 }
 
 interface CaseItem {
@@ -55,7 +57,7 @@ const mockItems: CaseItem[] = [
 ];
 
 // Mock case items for the case opening
-const caseItems = [
+const caseItems: SliderItem[] = [
   { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50 },
   { id: '2', name: 'Forest Shield', image: '/placeholder.svg', rarity: 'uncommon', price: 150 },
   { id: '3', name: 'Ocean Blade', image: '/placeholder.svg', rarity: 'rare', price: 500 },
@@ -76,11 +78,10 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
   const [currentRound, setCurrentRound] = useState(0);
   const [maxRounds] = useState(3);
   const [caseOpened, setCaseOpened] = useState(false);
-  
-  // Case opening state
-  const [isSpinningCase, setIsSpinningCase] = useState(false);
-  const [lastWon, setLastWon] = useState<any | null>(null);
   const [showCaseOpening, setShowCaseOpening] = useState(false);
+  const [activePlayer, setActivePlayer] = useState<string | null>(null);
+  const [isPersonalCaseSpinning, setIsPersonalCaseSpinning] = useState(false);
+  const [cursedMode, setCursedMode] = useState(false);
   
   useEffect(() => {
     // Mock data - in a real app, you would fetch this from your backend
@@ -101,6 +102,9 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     // Calculate total potential value
     const caseValue = 100; // Example value
     setTotalValue(caseValue * 2); // 1v1 battle
+    
+    // Randomly determine if this is a cursed mode battle
+    setCursedMode(Math.random() > 0.7);
   }, []);
 
   const handleAddBot = () => {
@@ -152,45 +156,63 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     setSpinning(true);
     setCaseOpened(false);
     
-    const updatedPlayers = players.map(player => ({
-      ...player,
-      isSpinning: true
-    }));
+    // Start case opening animations for each player sequentially
+    startPlayerCases();
+  };
+
+  const startPlayerCases = () => {
+    if (players.length === 0) return;
     
-    setPlayers(updatedPlayers);
-    
-    // Open the cases with a slight delay between players
-    updatedPlayers.forEach((player, index) => {
-      setTimeout(() => {
-        openCase(player.id);
-      }, index * 500); // Stagger case openings
-    });
-    
-    // After all cases are opened, update round or end battle
-    const totalDelay = players.length * 500 + 2000;
-    setTimeout(() => {
-      setSpinning(false);
-      setCaseOpened(true);
-      
-      if (currentRound >= maxRounds) {
-        endBattle();
-      } else {
-        // Prepare for next round
-        setTimeout(() => {
-          setCurrentRound(prev => prev + 1);
-          startRound();
-        }, 2000);
+    // Handle players one by one
+    const runPlayerSequence = (index: number) => {
+      if (index >= players.length) {
+        // All players have opened their cases
+        finishRound();
+        return;
       }
-    }, totalDelay);
+      
+      const currentPlayer = players[index];
+      setActivePlayer(currentPlayer.id);
+      
+      // Show the case opening animation for this player
+      setPlayers(prev => prev.map(player => 
+        player.id === currentPlayer.id 
+          ? { ...player, isSpinning: true } 
+          : player
+      ));
+      
+      // Let the animation play out
+      setTimeout(() => {
+        // Animation complete, set the item for this player
+        openCase(currentPlayer.id);
+        
+        // Move to the next player after a delay
+        setTimeout(() => {
+          runPlayerSequence(index + 1);
+        }, 1000);
+      }, 5000); // Match your CaseSlider duration
+    };
+    
+    // Start the sequence with the first player
+    runPlayerSequence(0);
   };
 
   const openCase = (playerId: string) => {
+    // Random item for this round
+    const randomIndex = Math.floor(Math.random() * mockItems.length);
+    const newItem = { ...mockItems[randomIndex], id: `${playerId}-item-${currentRound}` };
+    
+    // Convert to SliderItem for display compatibility
+    const sliderItem: SliderItem = {
+      id: newItem.id,
+      name: newItem.name,
+      image: newItem.image,
+      rarity: newItem.rarity,
+      price: newItem.value
+    };
+    
     setPlayers(prev => prev.map(player => {
       if (player.id === playerId) {
-        // Random item for this round
-        const randomIndex = Math.floor(Math.random() * mockItems.length);
-        const newItem = { ...mockItems[randomIndex], id: `${player.id}-item-${currentRound}` };
-        
         // Update player's items and total value
         const updatedItems = [...player.items, newItem];
         const newTotalValue = updatedItems.reduce((sum, item) => sum + item.value, 0);
@@ -199,16 +221,61 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
           ...player,
           items: updatedItems,
           totalValue: newTotalValue,
-          isSpinning: false
+          isSpinning: false,
+          lastWonItem: sliderItem
         };
       }
       return player;
     }));
+    
+    // Show a toast for the player's win
+    const player = players.find(p => p.id === playerId);
+    if (player) {
+      if (newItem.rarity === 'legendary') {
+        toast.success(`${player.name} got an INCREDIBLE item!`, {
+          description: `${newItem.name} worth ${newItem.value} gems!`
+        });
+      } else if (newItem.rarity === 'epic') {
+        toast.success(`${player.name} got a great item!`, {
+          description: `${newItem.name} worth ${newItem.value} gems!`
+        });
+      } else {
+        toast(`${player.name} got: ${newItem.name}`, {
+          description: `Worth ${newItem.value} gems!`
+        });
+      }
+    }
+  };
+
+  const finishRound = () => {
+    setActivePlayer(null);
+    setSpinning(false);
+    setCaseOpened(true);
+    
+    if (currentRound >= maxRounds) {
+      endBattle();
+    } else {
+      // Prepare for next round
+      setTimeout(() => {
+        setCurrentRound(prev => prev + 1);
+        startRound();
+      }, 2000);
+    }
   };
 
   const endBattle = () => {
-    // Determine winner based on total value
-    const sortedPlayers = [...players].sort((a, b) => b.totalValue - a.totalValue);
+    // Determine winner based on total value (highest or lowest depending on cursed mode)
+    let sortedPlayers = [...players];
+    
+    if (cursedMode) {
+      // In cursed mode, lowest value wins
+      sortedPlayers = sortedPlayers.sort((a, b) => a.totalValue - b.totalValue);
+      toast.info("CURSED MODE: Lowest value wins!");
+    } else {
+      // Normal mode, highest value wins
+      sortedPlayers = sortedPlayers.sort((a, b) => b.totalValue - a.totalValue);
+    }
+    
     const battleWinner = sortedPlayers[0];
     setWinner(battleWinner);
     
@@ -226,16 +293,30 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     }
   };
 
-  // Handle case opening
-  const handleOpenCase = () => {
-    if (isSpinningCase) return;
+  // Handle personal case opening
+  const handleOpenPersonalCase = () => {
+    if (isPersonalCaseSpinning) return;
     
-    setIsSpinningCase(true);
+    if (!user) {
+      toast.error('Please login to open cases');
+      return;
+    }
+    
+    const casePrice = 100; // Standard case price
+    
+    if (user.balance < casePrice) {
+      toast.error('Insufficient balance to open this case');
+      return;
+    }
+    
+    updateBalance(-casePrice);
+    setIsPersonalCaseSpinning(true);
     setShowCaseOpening(true);
   };
 
-  const handleSpinComplete = (item: any) => {
-    setLastWon(item);
+  const handlePersonalSpinComplete = (item: SliderItem) => {
+    if (!user) return;
+    
     updateBalance(item.price);
     
     if (item.rarity === 'legendary' || item.rarity === 'mythical') {
@@ -253,7 +334,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
     }
     
     setTimeout(() => {
-      setIsSpinningCase(false);
+      setIsPersonalCaseSpinning(false);
     }, 1000);
   };
 
@@ -272,6 +353,11 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
           <div className="flex items-center text-gray-300">
             <span className="mr-2">Battle ID: {battleId}</span>
             <span className="px-3 py-1 bg-gray-800 rounded-md text-sm">1v1</span>
+            {cursedMode && (
+              <span className="ml-2 px-3 py-1 bg-red-900 text-red-200 rounded-md text-sm">
+                CURSED MODE
+              </span>
+            )}
           </div>
           
           <div className="flex items-center">
@@ -289,10 +375,10 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
               <>
                 <CaseSlider 
                   items={caseItems} 
-                  onComplete={handleSpinComplete}
+                  onComplete={handlePersonalSpinComplete}
                   spinDuration={5000}
-                  isSpinning={isSpinningCase}
-                  setIsSpinning={setIsSpinningCase}
+                  isSpinning={isPersonalCaseSpinning}
+                  setIsSpinning={setIsPersonalCaseSpinning}
                 />
                 
                 <div className="mt-4 flex justify-between">
@@ -304,10 +390,10 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
                   </Button>
                   
                   <Button 
-                    onClick={handleOpenCase}
-                    disabled={isSpinningCase}
+                    onClick={handleOpenPersonalCase}
+                    disabled={isPersonalCaseSpinning}
                   >
-                    {isSpinningCase ? "Opening..." : "Open Case (100 gems)"}
+                    {isPersonalCaseSpinning ? "Opening..." : "Open Case (100 gems)"}
                   </Button>
                 </div>
               </>
@@ -315,7 +401,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
               <div className="flex flex-col items-center justify-center h-60">
                 <div className="text-gray-400 mb-4">Click the button below to open a case</div>
                 <Button 
-                  onClick={handleOpenCase}
+                  onClick={handleOpenPersonalCase}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   Open Standard Case (100 gems)
@@ -332,7 +418,9 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
               </div>
               {spinning && (
                 <div className="text-blue-400 animate-pulse mt-2">
-                  Opening cases...
+                  {activePlayer ? 
+                    `${players.find(p => p.id === activePlayer)?.name || 'Player'} is opening a case...` : 
+                    'Opening cases...'}
                 </div>
               )}
               {!battleStarted && countdown > 0 && (
@@ -342,10 +430,28 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
               )}
             </div>
             
+            {/* Active player case opening animation */}
+            {activePlayer && spinning && (
+              <div className="mb-6">
+                <div className="text-center mb-2 text-blue-300 font-bold">
+                  {players.find(p => p.id === activePlayer)?.name}'s Case
+                </div>
+                <CaseSlider 
+                  items={caseItems} 
+                  onComplete={(item) => {/* Animation only, actual logic handled in openCase */}}
+                  spinDuration={5000}
+                  isSpinning={true}
+                  autoSpin={true}
+                  playerName={players.find(p => p.id === activePlayer)?.name}
+                  highlightPlayer={activePlayer === '1'}
+                />
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-4 mb-4">
               {players.map((player, index) => (
                 <div key={player.id} className="relative">
-                  <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+                  <div className={`bg-gray-900 border ${player.id === activePlayer ? 'border-blue-500' : 'border-gray-700'} rounded-lg overflow-hidden`}>
                     <div className="flex items-center justify-between p-3 border-b border-gray-700">
                       <div className="flex items-center gap-2">
                         <img 
@@ -499,4 +605,3 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({ battleId, onClose }) =>
 };
 
 export default CaseBattleGame;
-
