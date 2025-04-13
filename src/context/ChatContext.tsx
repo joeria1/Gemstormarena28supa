@@ -17,22 +17,27 @@ export interface ChatMessage {
 // Chat context type
 interface ChatContextType {
   isChatOpen: boolean;
+  isRainActive: boolean;
   messages: ChatMessage[];
   sendMessage: (message: ChatMessage) => void;
   toggleChat: () => void;
+  setRainActive: (active: boolean) => void;
 }
 
 // Create context with default values
 const ChatContext = createContext<ChatContextType>({
-  isChatOpen: false,
+  isChatOpen: true, // Default to open
+  isRainActive: false,
   messages: [],
   sendMessage: () => {},
-  toggleChat: () => {}
+  toggleChat: () => {},
+  setRainActive: () => {}
 });
 
 // Provider component
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(true); // Default to open
+  const [isRainActive, setIsRainActive] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   
   // Load saved messages on mount
@@ -71,13 +76,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsChatOpen(prev => !prev);
   };
   
+  // Set rain active status
+  const setRainActive = (active: boolean) => {
+    setIsRainActive(active);
+    if (active && !isChatOpen) {
+      toast('Rain event started! Click the chat icon to join.', {
+        icon: <CloudRain className="text-blue-500" />
+      });
+    }
+  };
+  
   // Send a new message
   const sendMessage = (message: ChatMessage) => {
     setMessages(prev => [...prev, message]);
   };
   
   return (
-    <ChatContext.Provider value={{ isChatOpen, messages, sendMessage, toggleChat }}>
+    <ChatContext.Provider value={{ 
+      isChatOpen, 
+      isRainActive, 
+      messages, 
+      sendMessage, 
+      toggleChat, 
+      setRainActive 
+    }}>
       {children}
     </ChatContext.Provider>
   );

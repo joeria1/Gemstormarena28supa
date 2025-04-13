@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { useUser } from '@/context/UserContext';
 import { Input } from '@/components/ui/input';
-import { Gem } from 'lucide-react';
+import { Gem, CloudRain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -10,7 +11,7 @@ import RainFeature from './RainFeature';
 import { preventAutoScroll } from '@/utils/scrollFix';
 
 const ChatContainer = () => {
-  const { isChatOpen, messages, sendMessage } = useChat();
+  const { isChatOpen, messages, sendMessage, setRainActive } = useChat();
   const { user } = useUser();
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,15 +33,33 @@ const ChatContainer = () => {
     if (!trimmedMessage) return;
     
     // Check if message is a rain command
-    const rainComponent = document.querySelector('div.rain-feature') as HTMLElement;
-    if (rainComponent) {
-      // Access the RainFeature's processRainCommand method
-      const isRainCommand = (rainComponent as any).__reactProps$?.processRainCommand?.(trimmedMessage);
+    const isRainCommand = trimmedMessage.toLowerCase().startsWith('/rain');
+    
+    if (isRainCommand) {
+      // Notify the context that rain is active
+      setRainActive(true);
       
-      if (isRainCommand) {
-        setMessageInput('');
-        return;
+      // Check if this is a rain command with parameters
+      const rainParams = trimmedMessage.split(' ');
+      if (rainParams.length > 1) {
+        const rainAmount = parseInt(rainParams[1]);
+        if (!isNaN(rainAmount)) {
+          toast.success(`Starting a rain event of ${rainAmount} gems!`);
+        }
+      } else {
+        toast.success('Starting rain event!');
       }
+      
+      setMessageInput('');
+      return;
+    }
+
+    // Check for end rain command
+    if (trimmedMessage.toLowerCase() === '/endrain') {
+      setRainActive(false);
+      toast.info('Rain event ended');
+      setMessageInput('');
+      return;
     }
     
     if (!user) {
@@ -82,7 +101,10 @@ const ChatContainer = () => {
   return (
     <div className="flex flex-col h-full bg-black/60 backdrop-blur">
       <div className="p-3 border-b border-primary/20 flex justify-between items-center">
-        <h3 className="font-semibold">Live Chat</h3>
+        <div className="flex items-center">
+          <h3 className="font-semibold">Live Chat</h3>
+          <CloudRain className="ml-2 h-4 w-4 text-blue-400" />
+        </div>
         {user && (
           <div className="flex items-center text-sm">
             <Gem className="h-4 w-4 text-gem mr-1" />

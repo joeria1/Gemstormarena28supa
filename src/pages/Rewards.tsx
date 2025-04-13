@@ -1,364 +1,235 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
-import { Progress } from '../components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { toast } from '../hooks/use-toast';
-import { playSound } from '../utils/soundEffects';
-import { SOUNDS } from '../utils/soundEffects';
-import { Award, Gift, Star, CircleDollarSign, Copy } from 'lucide-react';
-
-interface UserLevel {
-  level: number;
-  xp: number;
-  nextLevelXp: number;
-  rakeback: number;
-  rewards: {
-    gems: number;
-    freeSpins: number;
-  };
-}
-
-const generateAffiliateCode = (): string => {
-  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let result = '';
-  for (let i = 0; i < 8; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return result;
-};
+import React from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Gift, Clock, Gift as GiftIcon, Award, Gem, User, Ticket, ChevronRight } from 'lucide-react';
+import { useUser } from '@/context/UserContext';
+import { toast } from 'sonner';
+import DailyFreeCase from '@/components/Rewards/DailyFreeCase';
+import ChatWindow from '@/components/Chat/ChatWindow';
 
 const Rewards: React.FC = () => {
-  const [affiliateCode, setAffiliateCode] = useState<string>('');
-  const [userAffiliateCode, setUserAffiliateCode] = useState<string>('');
-  const [userLevel, setUserLevel] = useState<UserLevel>({
-    level: 1,
-    xp: 0,
-    nextLevelXp: 1000,
-    rakeback: 0.05,
-    rewards: {
-      gems: 0,
-      freeSpins: 0,
-    }
-  });
-  const [wager, setWager] = useState<number>(0);
-  const [tab, setTab] = useState<string>('affiliate');
+  const { user, updateBalance } = useUser();
 
-  useEffect(() => {
-    // Load saved data from localStorage
-    const savedCode = localStorage.getItem('userAffiliateCode');
-    if (savedCode) {
-      setUserAffiliateCode(savedCode);
-    } else {
-      // Generate a new code if the user doesn't have one
-      const newCode = generateAffiliateCode();
-      setUserAffiliateCode(newCode);
-      localStorage.setItem('userAffiliateCode', newCode);
-    }
-
-    // Load user level data
-    const savedLevel = localStorage.getItem('userLevel');
-    if (savedLevel) {
-      setUserLevel(JSON.parse(savedLevel));
-    }
-
-    // Load wager data
-    const savedWager = localStorage.getItem('userWager');
-    if (savedWager) {
-      setWager(parseFloat(savedWager));
-    }
-  }, []);
-
-  const handleEnterAffiliateCode = () => {
-    if (!affiliateCode) {
-      toast({
-        title: 'Error',
-        description: 'Please enter an affiliate code',
-        variant: 'destructive',
-      });
+  const claimReward = (amount: number) => {
+    if (!user) {
+      toast.error('Please log in to claim rewards');
       return;
     }
-
-    const usedCodes = JSON.parse(localStorage.getItem('usedAffiliateCodes') || '[]');
     
-    if (usedCodes.includes(affiliateCode)) {
-      toast({
-        title: 'Error',
-        description: 'You have already used this affiliate code',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (affiliateCode === userAffiliateCode) {
-      toast({
-        title: 'Error',
-        description: 'You cannot use your own affiliate code',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Save the used code
-    localStorage.setItem('usedAffiliateCodes', JSON.stringify([...usedCodes, affiliateCode]));
-    
-    // Add gems to the user
-    const currentGems = parseInt(localStorage.getItem('userGems') || '0');
-    localStorage.setItem('userGems', (currentGems + 100).toString());
-    
-    playSound(SOUNDS.REWARD);
-    
-    toast({
-      title: 'Success',
-      description: 'You have earned 100 gems!',
-      variant: 'default',
-    });
-    
-    setAffiliateCode('');
-  };
-
-  const copyAffiliateCode = () => {
-    navigator.clipboard.writeText(userAffiliateCode);
-    toast({
-      title: 'Copied!',
-      description: 'Affiliate code copied to clipboard',
-      variant: 'default',
-    });
-  };
-
-  const simulateLevelUp = () => {
-    // This is for testing the level up system
-    const newWager = wager + 500;
-    const xpGained = Math.floor(newWager * 0.02);
-    const newXp = userLevel.xp + xpGained;
-    
-    let newLevel = userLevel.level;
-    let nextLevelXp = userLevel.nextLevelXp;
-    
-    if (newXp >= nextLevelXp) {
-      newLevel++;
-      nextLevelXp = Math.floor(nextLevelXp * 1.5);
-      
-      // Add rewards for level up
-      const gemReward = newLevel * 100;
-      const spinReward = Math.floor(newLevel / 2);
-      
-      const updatedUserLevel = {
-        level: newLevel,
-        xp: newXp,
-        nextLevelXp,
-        rakeback: Math.min(0.05 + (newLevel - 1) * 0.01, 0.25), // Max 25% rakeback
-        rewards: {
-          gems: userLevel.rewards.gems + gemReward,
-          freeSpins: userLevel.rewards.freeSpins + spinReward,
-        }
-      };
-      
-      setUserLevel(updatedUserLevel);
-      localStorage.setItem('userLevel', JSON.stringify(updatedUserLevel));
-      
-      // Add the gems to user balance
-      const currentGems = parseInt(localStorage.getItem('userGems') || '0');
-      localStorage.setItem('userGems', (currentGems + gemReward).toString());
-      
-      playSound(SOUNDS.LEVEL_UP);
-      
-      toast({
-        title: 'Level up!',
-        description: `You've reached level ${newLevel}! +${gemReward} gems, +${spinReward} free spins`,
-        variant: 'default',
-      });
-    } else {
-      const updatedUserLevel = {
-        ...userLevel,
-        xp: newXp,
-      };
-      
-      setUserLevel(updatedUserLevel);
-      localStorage.setItem('userLevel', JSON.stringify(updatedUserLevel));
-    }
-    
-    setWager(newWager);
-    localStorage.setItem('userWager', newWager.toString());
-  };
-
-  const claimRewards = () => {
-    if (userLevel.rewards.gems > 0 || userLevel.rewards.freeSpins > 0) {
-      // Reset rewards after claiming
-      const updatedUserLevel = {
-        ...userLevel,
-        rewards: {
-          gems: 0,
-          freeSpins: 0,
-        }
-      };
-      
-      setUserLevel(updatedUserLevel);
-      localStorage.setItem('userLevel', JSON.stringify(updatedUserLevel));
-      
-      playSound(SOUNDS.REWARD);
-      
-      toast({
-        title: 'Rewards Claimed',
-        description: 'Your rewards have been added to your account',
-        variant: 'default',
-      });
-    } else {
-      toast({
-        title: 'No Rewards',
-        description: 'You have no rewards to claim',
-        variant: 'default',
-      });
-    }
+    updateBalance(amount);
+    toast.success(`Claimed ${amount} gems!`);
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-8">Rewards & Affiliate</h1>
-      
-      <Tabs defaultValue={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid grid-cols-2 mb-6">
-          <TabsTrigger value="affiliate">Affiliate</TabsTrigger>
-          <TabsTrigger value="rewards">Rewards</TabsTrigger>
-        </TabsList>
+    <div className="container py-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
+            Rewards & Bonuses
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Claim free rewards, bonuses and participate in special events
+          </p>
+        </div>
         
-        <TabsContent value="affiliate" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Gift className="mr-2 h-5 w-5 text-primary" />
-                  Enter Affiliate Code
-                </CardTitle>
-                <CardDescription>
-                  Enter a friend's affiliate code to get 100 free gems
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex space-x-2">
-                  <Input
-                    placeholder="Enter code"
-                    value={affiliateCode}
-                    onChange={(e) => setAffiliateCode(e.target.value.toUpperCase())}
-                    maxLength={8}
-                  />
-                  <Button onClick={handleEnterAffiliateCode}>Submit</Button>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Award className="mr-2 h-5 w-5 text-primary" />
-                  Your Affiliate Code
-                </CardTitle>
-                <CardDescription>
-                  Share this code with friends to earn rewards
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex space-x-2">
-                  <Input
-                    value={userAffiliateCode}
-                    readOnly
-                  />
-                  <Button variant="outline" onClick={copyAffiliateCode}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground mt-4">
-                  You earn 10% of your referrals' first deposit
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="rewards" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Star className="mr-2 h-5 w-5 text-yellow-500" />
-                Level {userLevel.level}
-              </CardTitle>
-              <CardDescription>
-                {userLevel.xp}/{userLevel.nextLevelXp} XP
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Progress value={(userLevel.xp / userLevel.nextLevelXp) * 100} className="h-2" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <Tabs defaultValue="daily" className="w-full">
+              <TabsList className="grid grid-cols-4 mb-6 w-full">
+                <TabsTrigger value="daily">Daily</TabsTrigger>
+                <TabsTrigger value="promo">Promo Codes</TabsTrigger>
+                <TabsTrigger value="rakeback">Rake Back</TabsTrigger>
+                <TabsTrigger value="events">Events</TabsTrigger>
+              </TabsList>
               
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div className="bg-muted rounded-md p-4">
-                  <div className="text-sm text-muted-foreground">Rakeback</div>
-                  <div className="text-xl font-bold">{(userLevel.rakeback * 100).toFixed(2)}%</div>
-                </div>
-                <div className="bg-muted rounded-md p-4">
-                  <div className="text-sm text-muted-foreground">Total Wagered</div>
-                  <div className="text-xl font-bold">{wager.toFixed(2)}</div>
-                </div>
-              </div>
-              
-              <div className="mt-6">
-                <h4 className="font-medium mb-2">Rewards to Claim</h4>
-                <div className="flex space-x-4">
-                  <div className="flex items-center">
-                    <CircleDollarSign className="h-4 w-4 mr-1 text-primary" />
-                    <span>{userLevel.rewards.gems} gems</span>
+              <TabsContent value="daily" className="space-y-6">
+                <DailyFreeCase />
+                
+                <Card className="bg-black/40 border-white/10 p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="bg-primary/20 p-2 rounded-full mr-3">
+                      <Clock className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold">Hourly Rewards</h3>
                   </div>
-                  <div className="flex items-center">
-                    <Gift className="h-4 w-4 mr-1 text-primary" />
-                    <span>{userLevel.rewards.freeSpins} free spins</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={simulateLevelUp}>
-                Simulate Wager (+500)
-              </Button>
-              <Button onClick={claimRewards} disabled={userLevel.rewards.gems === 0 && userLevel.rewards.freeSpins === 0}>
-                Claim Rewards
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Level Benefits</CardTitle>
-              <CardDescription>
-                The more you play, the more you earn
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5].map((level) => (
-                  <div key={level} className={`p-3 rounded-md border ${userLevel.level >= level ? 'bg-muted/30 border-primary/50' : 'bg-muted/10 border-muted'}`}>
-                    <div className="flex justify-between items-center">
+
+                  <div className="grid grid-cols-1 gap-4 mb-6">
+                    <div className="bg-black/30 border border-white/10 rounded-lg p-4 flex justify-between items-center">
                       <div>
-                        <div className="font-bold flex items-center">
-                          <Star className={`h-4 w-4 mr-1 ${userLevel.level >= level ? 'text-yellow-500' : 'text-muted-foreground'}`} />
-                          Level {level}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {(0.05 + (level - 1) * 0.01).toFixed(2)}% Rakeback
-                        </div>
+                        <p className="font-medium">Active Time Bonus</p>
+                        <p className="text-sm text-muted-foreground">50 gems every hour you're online</p>
                       </div>
-                      <div className="text-sm">
-                        {level * 100} gems <br/>
-                        {Math.floor(level / 2)} free spins
+                      <Button onClick={() => claimReward(50)} disabled={!user}>Claim</Button>
+                    </div>
+                    
+                    <div className="bg-black/30 border border-white/10 rounded-lg p-4 flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">Bet Milestone</p>
+                        <p className="text-sm text-muted-foreground">100 gems for every 10 bets placed</p>
+                      </div>
+                      <Button onClick={() => claimReward(100)} disabled={!user}>Claim</Button>
+                    </div>
+                  </div>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="promo">
+                <Card className="bg-black/40 border-white/10 p-6">
+                  <div className="flex items-center mb-6">
+                    <div className="bg-primary/20 p-2 rounded-full mr-3">
+                      <Ticket className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold">Promo Codes</h3>
+                  </div>
+                  
+                  <div className="flex gap-4 mb-6">
+                    <div className="flex-1">
+                      <Label className="mb-2 block">Enter Promo Code</Label>
+                      <Input placeholder="Enter code here" className="bg-black/50" />
+                    </div>
+                    <Button className="self-end">Redeem</Button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-sm text-muted-foreground">Recently Redeemed</h4>
+                    {user ? (
+                      <div className="bg-black/30 border border-white/10 rounded-lg p-4">
+                        <p className="text-sm text-center text-muted-foreground">You haven't redeemed any codes yet</p>
+                      </div>
+                    ) : (
+                      <div className="bg-black/30 border border-white/10 rounded-lg p-4">
+                        <p className="text-sm text-center text-muted-foreground">Please log in to redeem promo codes</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="rakeback">
+                <Card className="bg-black/40 border-white/10 p-6">
+                  <div className="flex items-center mb-6">
+                    <div className="bg-primary/20 p-2 rounded-full mr-3">
+                      <Award className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold">Rake Back Rewards</h3>
+                  </div>
+                  
+                  {user ? (
+                    <>
+                      <div className="bg-gradient-to-b from-blue-900/30 to-purple-900/30 rounded-xl p-6 mb-6 border border-white/5">
+                        <div className="grid grid-cols-2 gap-6 mb-6">
+                          <div className="bg-black/40 border border-white/10 rounded-lg p-4 text-center">
+                            <p className="text-sm text-muted-foreground mb-1">Total Bets</p>
+                            <div className="text-2xl font-bold">
+                              <Gem className="inline h-5 w-5 text-cyan-400 mr-2" />
+                              {user.totalBets || 0}
+                            </div>
+                          </div>
+                          
+                          <div className="bg-black/40 border border-white/10 rounded-lg p-4 text-center">
+                            <p className="text-sm text-muted-foreground mb-1">Available Rake Back</p>
+                            <div className="text-2xl font-bold">
+                              <Gem className="inline h-5 w-5 text-cyan-400 mr-2" />
+                              {Math.floor((user.totalBets || 0) * 0.05)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <Button 
+                          className="w-full btn-primary"
+                          disabled={(user.totalBets || 0) === 0}
+                          onClick={() => {
+                            const rakebackAmount = Math.floor((user.totalBets || 0) * 0.05);
+                            if (rakebackAmount > 0) {
+                              updateBalance(rakebackAmount);
+                              toast.success(`Claimed ${rakebackAmount} gems in rakeback!`);
+                            }
+                          }}
+                        >
+                          Claim Rake Back
+                        </Button>
+                      </div>
+                      
+                      <div className="text-sm text-muted-foreground">
+                        <h4 className="font-medium mb-2">How Rake Back Works:</h4>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>You earn 5% rake back on all your bets</li>
+                          <li>Rake back is calculated based on your total bet amount</li>
+                          <li>Claim anytime to receive your accumulated rake back as gems</li>
+                        </ul>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="bg-black/30 border border-white/10 rounded-lg p-8 text-center">
+                      <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-lg font-medium mb-2">Please log in to view rake back</p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Earn 5% rake back on all your bets and claim anytime
+                      </p>
+                      <Button>Log In to Continue</Button>
+                    </div>
+                  )}
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="events">
+                <Card className="bg-black/40 border-white/10 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <div className="bg-primary/20 p-2 rounded-full mr-3">
+                        <GiftIcon className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="text-xl font-bold">Special Events</h3>
+                    </div>
+                    <Button variant="outline" size="sm">View All</Button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-lg p-4 border border-white/10 hover:border-white/20 transition-all">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-medium">Weekend Double Up</h4>
+                          <p className="text-sm text-muted-foreground">Double your rewards on all games</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gradient-to-r from-amber-900/30 to-red-900/30 rounded-lg p-4 border border-white/10 hover:border-white/20 transition-all">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-medium">Mega Rain Event</h4>
+                          <p className="text-sm text-muted-foreground">10x gems in chat rain events</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gradient-to-r from-green-900/30 to-teal-900/30 rounded-lg p-4 border border-white/10 hover:border-white/20 transition-all">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-medium">Referral Bonus</h4>
+                          <p className="text-sm text-muted-foreground">Earn 500 gems for each referral</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+          
+          <div className="col-span-1">
+            <ChatWindow className="h-full" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

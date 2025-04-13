@@ -1,422 +1,460 @@
 
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { toast } from "sonner";
-import { useUser } from "@/context/UserContext";
-import { useSound } from '@/components/SoundManager';
-import {
-  AlertCircle,
-  Bomb,
-  ChevronRight,
-  Gem,
-  Loader2,
-  RefreshCw,
-} from "lucide-react";
-import { preventAutoScroll, disableScrollRestoration } from "@/utils/scrollFix";
+import React, { useState, useEffect } from 'react';
+import MinesSettings from '@/components/Mines/MinesSettings';
+import MinesCustomSettings from '@/components/Mines/MinesCustomSettings';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { Bomb, Gift, Gem } from 'lucide-react';
+import { useUser } from '@/context/UserContext';
+import ChatWindow from '@/components/Chat/ChatWindow';
+import { playButtonSound } from '@/utils/sounds';
 
-// Number of rows and columns in the grid
-const ROWS = 5;
-const COLS = 5;
+// Types
+type TileState = 'hidden' | 'gem' | 'bomb';
 
-// Difficulty levels
-const DIFFICULTY_LEVELS = [
-  { name: "Easy", mineCount: 3, multiplier: 1.5 },
-  { name: "Medium", mineCount: 5, multiplier: 2 },
-  { name: "Hard", mineCount: 8, multiplier: 3 },
-  { name: "Extreme", mineCount: 12, multiplier: 5 },
-];
+interface GameStats {
+  gamesPlayed: number;
+  gamesWon: number;
+  totalWinnings: number;
+  highestWin: number;
+}
 
-const Mines = () => {
+const MAX_TILES = 25;
+
+const Mines: React.FC = () => {
+  const { toast } = useToast();
   const { user, updateBalance } = useUser();
-  const { playSound } = useSound();
-  const [betAmount, setBetAmount] = useState(100);
-  const [difficultyIndex, setDifficultyIndex] = useState(0);
-  const [grid, setGrid] = useState<Array<Array<number>>>([]); // 0: hidden, 1: gem, 2: mine
-  const [gameActive, setGameActive] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [winAmount, setWinAmount] = useState(0);
-  const [revealedCount, setRevealedCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [minePositions, setMinePositions] = useState<Array<[number, number]>>(
-    []
-  );
+  
+  // State
+  const [betAmount, setBetAmount] = useState<number>(10);
+  const [tiles, setTiles] = useState<TileState[]>(Array(MAX_TILES).fill('hidden'));
+  const [gameActive, setGameActive] = useState<boolean>(false);
+  const [mineCount, setMineCount] = useState<number>(5);
+  const [revealedCount, setRevealedCount] = useState<number>(0);
+  const [currentMultiplier, setCurrentMultiplier] = useState<number>(1);
+  const [currentWinnings, setCurrentWinnings] = useState<number>(0);
+  const [stats, setStats] = useState<GameStats>({
+    gamesPlayed: 0,
+    gamesWon: 0,
+    totalWinnings: 0,
+    highestWin: 0
+  });
+  
+  // Settings tab
+  const [settingsTab, setSettingsTab] = useState("preset");
 
-  // Prevent automatic scrolling
+  // Calculate max mines allowed (5-24)
+  const maxMinesAllowed = MAX_TILES - 1;
+  
+  // Effect to initialize stats from localStorage
   useEffect(() => {
-    preventAutoScroll();
-    disableScrollRestoration();
+    const savedStats = localStorage.getItem('minesStats');
+    if (savedStats) {
+      setStats(JSON.parse(savedStats));
+    }
   }, []);
-
-  // Initialize the grid
+  
+  // Save stats to localStorage when they change
   useEffect(() => {
-    resetGrid();
-  }, [difficultyIndex]);
-
-  // Reset the grid to initial state
-  const resetGrid = () => {
-    const newGrid = Array(ROWS)
-      .fill(0)
-      .map(() => Array(COLS).fill(0));
-    setGrid(newGrid);
-    setGameActive(false);
-    setGameOver(false);
-    setWinAmount(0);
-    setRevealedCount(0);
-    setMinePositions([]);
-  };
-
+    localStorage.setItem('minesStats', JSON.stringify(stats));
+  }, [stats]);
+  
   // Start a new game
   const startGame = () => {
     if (!user) {
-      toast.error("Please login to play");
+      toast({
+        title: "Login Required",
+        description: "Please login to play Mines",
+        variant: "destructive"
+      });
       return;
     }
-
-    if (user.balance < betAmount) {
-      toast.error("Insufficient balance");
+    
+    if (betAmount <= 0) {
+      toast({
+        title: "Invalid Bet",
+        description: "Please enter a valid bet amount",
+        variant: "destructive"
+      });
       return;
     }
-
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-interface-click-1126.mp3');
-    setLoading(true);
-
-    // Deduct bet amount from balance
+    
+    if (betAmount > (user?.balance || 0)) {
+      toast({
+        title: "Insufficient Balance",
+        description: "You don't have enough gems to place this bet",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Deduct bet amount
     updateBalance(-betAmount);
-
-    // Generate mine positions
-    const mines: Array<[number, number]> = [];
-    const difficulty = DIFFICULTY_LEVELS[difficultyIndex];
-    const totalMines = difficulty.mineCount;
-
-    while (mines.length < totalMines) {
-      const row = Math.floor(Math.random() * ROWS);
-      const col = Math.floor(Math.random() * COLS);
-      const positionExists = mines.some(
-        ([r, c]) => r === row && c === col
-      );
-
-      if (!positionExists) {
-        mines.push([row, col]);
-      }
-    }
-
-    setMinePositions(mines);
+    
+    // Initialize new game
+    const newTiles = Array(MAX_TILES).fill('hidden');
+    setTiles(newTiles);
     setGameActive(true);
-    setWinAmount(betAmount);
-
-    setTimeout(() => {
-      setLoading(false);
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-game-level-music-689.mp3');
-    }, 500);
+    setRevealedCount(0);
+    setCurrentMultiplier(1);
+    setCurrentWinnings(0);
+    
+    // Update stats
+    setStats(prev => ({
+      ...prev,
+      gamesPlayed: prev.gamesPlayed + 1
+    }));
+    
+    // Play sound
+    playButtonSound();
+    
+    toast({
+      title: "Game Started",
+      description: `Placed a bet of ${betAmount} gems. Good luck!`,
+    });
   };
-
+  
+  // Place mines on the first click
+  const placeMines = (clickedIndex: number) => {
+    const newTiles = [...tiles];
+    
+    // Make sure clickedIndex doesn't get a mine
+    let minesPlaced = 0;
+    while (minesPlaced < mineCount) {
+      const randIndex = Math.floor(Math.random() * MAX_TILES);
+      if (randIndex !== clickedIndex && newTiles[randIndex] !== 'bomb') {
+        newTiles[randIndex] = 'bomb';
+        minesPlaced++;
+      }
+    }
+    
+    // All other tiles are gems
+    for (let i = 0; i < MAX_TILES; i++) {
+      if (newTiles[i] === 'hidden') {
+        newTiles[i] = 'gem';
+      }
+    }
+    
+    return newTiles;
+  };
+  
   // Handle tile click
-  const handleTileClick = (row: number, col: number) => {
-    if (!gameActive || gameOver || grid[row][col] !== 0) return;
-
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-interface-click-1126.mp3');
-
-    const isMine = minePositions.some(
-      ([r, c]) => r === row && c === col
-    );
-
-    const newGrid = [...grid];
-
-    if (isMine) {
-      // Hit a mine
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-explosion-impact-1699.mp3');
-      newGrid[row][col] = 2; // Mark as mine
-      setGrid(newGrid);
-      setGameOver(true);
-
-      // Reveal all mines
-      setTimeout(() => {
-        const finalGrid = [...newGrid];
-        minePositions.forEach(([r, c]) => {
-          finalGrid[r][c] = 2;
+  const handleTileClick = (index: number) => {
+    if (!gameActive) return;
+    
+    let newTiles = [...tiles];
+    const isFirstClick = revealedCount === 0;
+    
+    // If this is the first click, place mines after user clicks
+    if (isFirstClick) {
+      newTiles = placeMines(index);
+    }
+    
+    // Check if tile is already revealed
+    if (newTiles[index] !== 'hidden') {
+      // This tile's state is already determined (but still visually hidden from user)
+      if (newTiles[index] === 'bomb') {
+        // Game over - hit a mine
+        setGameActive(false);
+        
+        // Reveal all tiles
+        const revealedTiles = newTiles.map(tile => tile);
+        setTiles(revealedTiles);
+        
+        toast({
+          title: "Boom! Game Over",
+          description: `You hit a mine and lost ${betAmount} gems`,
+          variant: "destructive"
         });
-        setGrid(finalGrid);
-        toast.error("Game Over! You hit a mine.");
-      }, 500);
-    } else {
-      // Found a gem
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-bonus-earned-in-video-game-2058.mp3');
-      newGrid[row][col] = 1; // Mark as gem
-      setGrid(newGrid);
-
-      const difficulty = DIFFICULTY_LEVELS[difficultyIndex];
-      const newWinAmount = Math.floor(winAmount * (1 + 0.1 * difficulty.multiplier));
-      setWinAmount(newWinAmount);
-
-      const newRevealedCount = revealedCount + 1;
-      setRevealedCount(newRevealedCount);
-
-      // Check if all non-mine tiles are revealed
-      const totalSafeTiles = ROWS * COLS - difficulty.mineCount;
-      if (newRevealedCount === totalSafeTiles) {
-        setGameOver(true);
-        updateBalance(newWinAmount);
-        toast.success(`Congratulations! You won ${newWinAmount} gems!`);
+        
+        return;
+      } else if (newTiles[index] === 'gem') {
+        // Reveal this gem
+        const visiblyRevealedTiles = [...newTiles];
+        
+        // Mark visibly as revealed to user
+        visiblyRevealedTiles[index] = 'gem';
+        setTiles(visiblyRevealedTiles);
+        
+        // Increment revealed count
+        setRevealedCount(prev => prev + 1);
+        
+        // Calculate new multiplier based on revealed gems
+        const newMultiplier = calculateMultiplier(revealedCount + 1);
+        setCurrentMultiplier(newMultiplier);
+        
+        // Calculate current potential winnings
+        const winnings = Math.floor(betAmount * newMultiplier);
+        setCurrentWinnings(winnings);
+        
+        // Check if all non-mine tiles are revealed
+        const totalGems = MAX_TILES - mineCount;
+        if (revealedCount + 1 === totalGems) {
+          // Player won by revealing all gems!
+          setGameActive(false);
+          
+          // Award winnings
+          updateBalance(winnings);
+          
+          // Update stats
+          setStats(prev => ({
+            ...prev,
+            gamesWon: prev.gamesWon + 1,
+            totalWinnings: prev.totalWinnings + winnings,
+            highestWin: Math.max(prev.highestWin, winnings)
+          }));
+          
+          toast({
+            title: "Amazing! Perfect Game!",
+            description: `You revealed all gems and won ${winnings} gems!`,
+          });
+        }
       }
     }
   };
-
+  
+  // Calculate multiplier based on gems revealed and mine count
+  const calculateMultiplier = (gemsRevealed: number) => {
+    if (gemsRevealed === 0) return 1;
+    
+    // This is a simplified formula - in real games these would be precisely calculated
+    const baseMultiplier = 0.1 * mineCount + 1;
+    return parseFloat((baseMultiplier * (1 + gemsRevealed * 0.05)).toFixed(2));
+  };
+  
   // Cash out current winnings
   const cashOut = () => {
-    if (!gameActive || gameOver) return;
-
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-    updateBalance(winAmount);
-    setGameOver(true);
-    toast.success(`You cashed out ${winAmount} gems!`);
-
-    // Reveal all mines
-    const finalGrid = [...grid];
-    minePositions.forEach(([r, c]) => {
-      if (finalGrid[r][c] === 0) {
-        finalGrid[r][c] = 2;
+    if (!gameActive || revealedCount === 0) return;
+    
+    const winnings = currentWinnings;
+    
+    // Update balance
+    updateBalance(winnings);
+    
+    // Update stats
+    setStats(prev => ({
+      ...prev,
+      gamesWon: prev.gamesWon + 1,
+      totalWinnings: prev.totalWinnings + winnings,
+      highestWin: Math.max(prev.highestWin, winnings)
+    }));
+    
+    // End game and reveal mines
+    setGameActive(false);
+    
+    // Reveal just the bombs
+    const revealedTiles = [...tiles];
+    for (let i = 0; i < revealedTiles.length; i++) {
+      if (revealedTiles[i] === 'bomb') {
+        // Make bombs visible
+        revealedTiles[i] = 'bomb';
       }
+    }
+    setTiles(revealedTiles);
+    
+    toast({
+      title: "Cashed Out!",
+      description: `You won ${winnings} gems!`,
     });
-    setGrid(finalGrid);
   };
-
-  // Calculate win probability
-  const getWinProbability = () => {
-    if (!gameActive) return 100;
-    const difficulty = DIFFICULTY_LEVELS[difficultyIndex];
-    const totalTiles = ROWS * COLS;
-    const remainingTiles = totalTiles - revealedCount;
-    const remainingMines = difficulty.mineCount;
-    return Math.round(((remainingTiles - remainingMines) / remainingTiles) * 100);
+  
+  // Handle bet amount change
+  const handleBetChange = (amount: number) => {
+    if (gameActive) return;
+    setBetAmount(amount);
   };
-
-  // Play UI sounds
-  const handleButtonSound = () => {
-    playSound('https://assets.mixkit.co/sfx/preview/mixkit-interface-click-1126.mp3');
+  
+  // Handle mine count change from preset
+  const handleMineCountChange = (count: number) => {
+    if (gameActive) return;
+    
+    if (count >= 1 && count <= maxMinesAllowed) {
+      setMineCount(count);
+    }
   };
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-[#1EAEDB] to-[#33C3F0] bg-clip-text text-transparent">
-            GemStorm Mines
+    <div className="container py-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
+            Mines
           </h1>
           <p className="text-muted-foreground mt-2">
-            Uncover gems while avoiding mines to multiply your bet!
+            Find the gems while avoiding the mines to increase your multiplier
           </p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Game controls */}
-          <div className="md:col-span-1 space-y-6">
-            <div className="bg-black/40 border border-primary/20 p-6 rounded-xl backdrop-blur-sm">
-              <h2 className="text-xl font-semibold mb-4">Game Settings</h2>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-muted-foreground">
-                    Bet Amount: {betAmount} gems
-                  </label>
-                  <Slider
-                    disabled={gameActive}
-                    value={[betAmount]}
-                    min={10}
-                    max={1000}
-                    step={10}
-                    onValueChange={(value) => setBetAmount(value[0])}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm text-muted-foreground">
-                    Difficulty
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {DIFFICULTY_LEVELS.map((level, index) => (
-                      <Button
-                        key={level.name}
-                        variant={difficultyIndex === index ? "default" : "outline"}
-                        onClick={() => setDifficultyIndex(index)}
-                        disabled={gameActive}
-                        className="text-xs py-1 h-auto"
-                      >
-                        {level.name}
-                      </Button>
-                    ))}
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <Card>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="col-span-1 bg-blue-900/20 rounded-lg p-4 border border-blue-900/40">
+                    <div className="text-sm text-muted-foreground mb-1">Current Bet</div>
+                    <div className="text-2xl font-bold flex items-center">
+                      <Gem className="h-5 w-5 text-cyan-400 mr-2" />
+                      {betAmount}
+                    </div>
+                  </div>
+                  
+                  <div className="col-span-1 bg-purple-900/20 rounded-lg p-4 border border-purple-900/40">
+                    <div className="text-sm text-muted-foreground mb-1">Current Multiplier</div>
+                    <div className="text-2xl font-bold">{currentMultiplier}x</div>
+                  </div>
+                  
+                  <div className="col-span-1 bg-green-900/20 rounded-lg p-4 border border-green-900/40">
+                    <div className="text-sm text-muted-foreground mb-1">Potential Win</div>
+                    <div className="text-2xl font-bold flex items-center">
+                      <Gem className="h-5 w-5 text-cyan-400 mr-2" />
+                      {currentWinnings}
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Mines:</span>
-                  <span className="font-semibold">
-                    {DIFFICULTY_LEVELS[difficultyIndex].mineCount}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Max Multiplier:</span>
-                  <span className="font-semibold">
-                    {DIFFICULTY_LEVELS[difficultyIndex].multiplier}x
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Your Balance:</span>
-                  <span className="flex items-center">
-                    <Gem className="h-4 w-4 text-gem mr-1" />
-                    <span className="font-semibold">{user?.balance || 0}</span>
-                  </span>
-                </div>
-
-                <Button
-                  onClick={gameActive ? resetGrid : startGame}
-                  disabled={loading || (!gameActive && (!user || user.balance < betAmount))}
-                  className="w-full bg-gradient-to-r from-[#1EAEDB] to-[#33C3F0] hover:from-[#33C3F0] hover:to-[#1EAEDB]"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Loading...
-                    </>
-                  ) : gameActive ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      New Game
-                    </>
-                  ) : (
-                    "Start Game"
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            {gameActive && (
-              <div className="bg-black/40 border border-primary/20 p-6 rounded-xl backdrop-blur-sm">
-                <h2 className="text-xl font-semibold mb-4">Game Stats</h2>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Current Win:</span>
-                    <span className="flex items-center text-xl font-bold">
-                      <Gem className="h-5 w-5 text-white mr-1" />
-                      {winAmount}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Multiplier:</span>
-                    <span className="font-semibold text-green-400">
-                      {(winAmount / betAmount).toFixed(2)}x
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      Next Tile Safety:
-                    </span>
-                    <span className="font-semibold">
-                      {getWinProbability()}%
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Gems Found:</span>
-                    <span className="font-semibold">{revealedCount}</span>
-                  </div>
-
-                  <Button
-                    onClick={cashOut}
-                    disabled={gameOver}
-                    variant="outline"
-                    className="w-full border-green-500 text-green-500 hover:bg-green-500/10"
-                  >
-                    Cash Out
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Game grid */}
-          <div className="md:col-span-2">
-            <div className="bg-black/40 border border-primary/20 p-6 rounded-xl backdrop-blur-sm">
-              <div className="grid grid-cols-5 gap-2 mb-4">
-                {grid.map((row, rowIndex) =>
-                  row.map((cell, colIndex) => (
+                
+                <div className="grid grid-cols-5 gap-2 mb-6">
+                  {tiles.map((tile, index) => (
                     <button
-                      key={`${rowIndex}-${colIndex}`}
-                      className={`
-                        aspect-square rounded-md flex items-center justify-center transition-all
-                        ${
-                          cell === 0
-                            ? "bg-black/50 hover:bg-black/70 border border-white/10"
-                            : cell === 1
-                            ? "bg-gradient-to-b from-green-500/80 to-green-600/80 border border-green-400"
-                            : "bg-gradient-to-b from-red-500/80 to-red-600/80 border border-red-400"
-                        }
-                        ${
-                          gameActive && !gameOver && cell === 0
-                            ? "cursor-pointer"
-                            : "cursor-default"
-                        }
-                      `}
-                      onClick={() => handleTileClick(rowIndex, colIndex)}
-                      disabled={!gameActive || gameOver || cell !== 0}
+                      key={index}
+                      onClick={() => handleTileClick(index)}
+                      disabled={!gameActive || tile !== 'hidden'}
+                      className={`aspect-square rounded-lg border ${
+                        tile === 'hidden'
+                          ? 'bg-black/30 border-white/20 hover:bg-black/40 hover:border-white/30'
+                          : tile === 'gem'
+                            ? 'bg-green-900/30 border-green-500 text-green-400'
+                            : 'bg-red-900/30 border-red-500 text-red-400'
+                      } flex items-center justify-center transition-all`}
                     >
-                      {cell === 1 ? (
-                        <Gem className="h-6 w-6 text-white" />
-                      ) : cell === 2 ? (
-                        <Bomb className="h-6 w-6 text-white" />
-                      ) : null}
+                      {tile === 'hidden' ? (
+                        <span className="text-2xl">?</span>
+                      ) : tile === 'gem' ? (
+                        <Gem className="h-6 w-6" />
+                      ) : (
+                        <Bomb className="h-6 w-6" />
+                      )}
                     </button>
-                  ))
-                )}
-              </div>
-
-              {!gameActive && !gameOver && (
-                <div className="text-center p-4 border border-dashed border-white/20 rounded-lg">
-                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-primary/60" />
-                  <h3 className="text-lg font-medium mb-1">How to Play</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Set your bet amount and difficulty, then click "Start Game".
-                    Uncover gems to increase your winnings, but be careful of
-                    mines! Cash out anytime to secure your winnings.
-                  </p>
+                  ))}
                 </div>
-              )}
-
-              {gameOver && (
-                <div
-                  className={`text-center p-4 border border-dashed rounded-lg ${
-                    winAmount > betAmount
-                      ? "border-green-500/40"
-                      : "border-red-500/40"
-                  }`}
-                >
-                  <h3 className="text-lg font-medium mb-2">Game Over</h3>
-                  {winAmount > betAmount ? (
-                    <p className="text-green-400">
-                      Congratulations! You won {winAmount} gems!
-                    </p>
+                
+                <div className="flex gap-4">
+                  {!gameActive ? (
+                    <Button 
+                      className="flex-1 btn-primary"
+                      onClick={startGame}
+                      disabled={!user || betAmount <= 0 || (user && betAmount > user.balance)}
+                    >
+                      Start Game
+                    </Button>
                   ) : (
-                    <p className="text-red-400">
-                      Better luck next time! You lost {betAmount} gems.
-                    </p>
+                    <Button 
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      onClick={cashOut}
+                      disabled={revealedCount === 0}
+                    >
+                      Cash Out ({currentWinnings})
+                    </Button>
                   )}
-                  <Button
-                    onClick={resetGrid}
-                    className="mt-2"
-                    variant="outline"
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Play Again
-                  </Button>
                 </div>
-              )}
+              </CardContent>
+            </Card>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-medium mb-4">Game Settings</h3>
+                  
+                  <Tabs value={settingsTab} onValueChange={setSettingsTab}>
+                    <TabsList className="grid grid-cols-2 mb-4">
+                      <TabsTrigger value="preset">Preset Mines</TabsTrigger>
+                      <TabsTrigger value="custom">Custom Mines</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="preset">
+                      <MinesSettings 
+                        onBetChange={handleBetChange} 
+                        onMineCountChange={handleMineCountChange}
+                        currentBet={betAmount}
+                        currentMineCount={mineCount}
+                        isGameActive={gameActive}
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="custom">
+                      <MinesCustomSettings 
+                        onMineCountChange={handleMineCountChange}
+                        currentMineCount={mineCount}
+                        maxMines={maxMinesAllowed}
+                        isGameActive={gameActive}
+                      />
+                      
+                      <Separator className="my-4" />
+                      
+                      <MinesSettings 
+                        onBetChange={handleBetChange} 
+                        onMineCountChange={handleMineCountChange}
+                        currentBet={betAmount}
+                        currentMineCount={mineCount}
+                        isGameActive={gameActive}
+                        hideMineButtons={true}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-medium mb-4">Stats</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Games Played</span>
+                      <span className="font-medium">{stats.gamesPlayed}</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Games Won</span>
+                      <span className="font-medium">{stats.gamesWon}</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Win Rate</span>
+                      <span className="font-medium">
+                        {stats.gamesPlayed > 0 
+                          ? `${Math.round((stats.gamesWon / stats.gamesPlayed) * 100)}%` 
+                          : '0%'}
+                      </span>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Winnings</span>
+                      <span className="font-medium flex items-center">
+                        <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                        {stats.totalWinnings}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Highest Win</span>
+                      <span className="font-medium flex items-center">
+                        <Gem className="h-4 w-4 text-cyan-400 mr-1" />
+                        {stats.highestWin}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+          </div>
+          
+          <div className="col-span-1">
+            <ChatWindow className="h-full" />
           </div>
         </div>
       </div>

@@ -8,14 +8,14 @@ import { useUser } from '@/context/UserContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowRight, Clock, Crown, Plus, Users, Bot, Dice1, RotateCw } from 'lucide-react';
+import { ArrowRight, Clock, Crown, Plus, Users, Bot, Dice1, RotateCw, Vs } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Battle participant interface
 export interface BattleParticipant {
   id: string;
   name: string;
-  username?: string; // Make username optional since we're using name as the primary display field
+  username: string;
   avatar: string;
   rewards?: {
     id: string;
@@ -48,24 +48,6 @@ export interface Battle {
   }[];
 }
 
-// Old CaseBattle interface for backward compatibility
-interface CaseBattle {
-  id: string;
-  creatorId: string;
-  cases: {
-    id: string;
-    name: string;
-    image: string;
-    price: number;
-  }[];
-  participants: BattleParticipant[];
-  maxParticipants: number;
-  totalValue: number;
-  status: 'waiting' | 'in-progress' | 'completed' | 'starting';
-  winner?: BattleParticipant;
-  createdAt: Date;
-}
-
 // Battle list component props
 interface BattleListProps {
   battles: Battle[];
@@ -73,118 +55,10 @@ interface BattleListProps {
   onSpectate: (battleId: string) => void;
 }
 
-// Mock data
-const demoRewards = [
-  { id: 'reward1', name: 'Dragon Lore', image: '/placeholder.svg', value: 5000 },
-  { id: 'reward2', name: 'Karambit Fade', image: '/placeholder.svg', value: 2500 },
-  { id: 'reward3', name: 'AK-47 Wild Lotus', image: '/placeholder.svg', value: 1750 },
-  { id: 'reward4', name: 'AWP Gungnir', image: '/placeholder.svg', value: 3200 },
-];
-
-const demoCases = [
-  { id: 'case1', name: 'Premium Case', image: '/placeholder.svg', price: 500 },
-  { id: 'case2', name: 'Luxury Case', image: '/placeholder.svg', price: 1000 },
-  { id: 'case3', name: 'Elite Case', image: '/placeholder.svg', price: 2000 },
-];
-
-// Mock battle data
-const mockBattles: Battle[] = [
-  {
-    id: 'battle1',
-    type: '2v2',
-    caseType: 'Premium',
-    rounds: 3,
-    cursedMode: false,
-    creator: {
-      id: 'user1',
-      username: 'CryptoKing',
-      name: 'CryptoKing',
-      avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=CryptoKing',
-    },
-    players: [
-      {
-        id: 'user1',
-        username: 'CryptoKing',
-        name: 'CryptoKing',
-        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=CryptoKing',
-      }
-    ],
-    maxPlayers: 4,
-    cost: 500,
-    status: 'waiting',
-    createdAt: new Date(),
-    cases: demoCases,
-  },
-  {
-    id: 'battle2',
-    type: '1v1',
-    caseType: 'Luxury',
-    rounds: 2,
-    cursedMode: true,
-    creator: {
-      id: 'user2',
-      username: 'DiamondHands',
-      name: 'DiamondHands',
-      avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DiamondHands',
-    },
-    players: [
-      {
-        id: 'user2',
-        username: 'DiamondHands',
-        name: 'DiamondHands',
-        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DiamondHands',
-      },
-      {
-        id: 'user3',
-        username: 'MoonShooter',
-        name: 'MoonShooter',
-        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=MoonShooter',
-        isBot: true,
-      }
-    ],
-    maxPlayers: 2,
-    cost: 1000,
-    status: 'in-progress',
-    createdAt: new Date(),
-    cases: demoCases,
-  },
-  {
-    id: 'battle3',
-    type: '2v2',
-    caseType: 'Elite',
-    rounds: 5,
-    cursedMode: false,
-    creator: {
-      id: 'user4',
-      username: 'SatoshiLover',
-      name: 'SatoshiLover',
-      avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=SatoshiLover',
-    },
-    players: [
-      {
-        id: 'user4',
-        username: 'SatoshiLover',
-        name: 'SatoshiLover',
-        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=SatoshiLover',
-      },
-      {
-        id: 'user5',
-        username: 'GemCollector',
-        name: 'GemCollector',
-        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=GemCollector',
-      }
-    ],
-    maxPlayers: 4,
-    cost: 2000,
-    status: 'waiting',
-    createdAt: new Date(),
-    cases: demoCases,
-  }
-];
-
-const CaseBattlesList: React.FC<BattleListProps> = ({ battles = mockBattles, onJoinBattle, onSpectate }) => {
+const CaseBattlesList: React.FC<BattleListProps> = ({ battles = [], onJoinBattle, onSpectate }) => {
   const { user } = useUser();
   const [selectedBattle, setSelectedBattle] = useState<Battle | null>(null);
+  const [activeBattleView, setActiveBattleView] = useState<Battle | null>(null);
 
   const handleJoinBattle = (battleId: string) => {
     if (!user) {
@@ -196,40 +70,118 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = mockBattles, onJ
 
   const handleSpectate = (battleId: string) => {
     onSpectate(battleId);
-  };
-
-  const addBot = (battle: Battle) => {
-    if (!user) {
-      toast.error('You need to log in to add a bot');
-      return;
+    const battle = battles.find(b => b.id === battleId);
+    if (battle) {
+      setActiveBattleView(battle);
     }
-
-    // Create a bot player
-    const botId = `bot-${Date.now()}`;
-    const botNames = ['CryptoBot', 'DiamondBot', 'MoonBot', 'SatoshiBot', 'GemBot'];
-    const randomBotName = botNames[Math.floor(Math.random() * botNames.length)];
-    
-    const newBot: BattleParticipant = {
-      id: botId,
-      username: randomBotName,
-      name: randomBotName,
-      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${randomBotName}`,
-      isBot: true
-    };
-    
-    // Clone the battle and add the bot
-    const updatedBattle = {
-      ...battle,
-      players: [...battle.players, newBot]
-    };
-    
-    // For demo purposes, just update the UI
-    toast.success(`${randomBotName} joined the battle!`);
-    
-    // In a real app, you would call an API here
-    // For now, we'll just update our local state
-    setSelectedBattle(updatedBattle as Battle);
   };
+
+  if (activeBattleView) {
+    // Battle view UI - similar to the provided image
+    return (
+      <div className="w-full">
+        <div className="flex justify-between items-center mb-6">
+          <Button variant="outline" onClick={() => setActiveBattleView(null)}>
+            Back to Battles
+          </Button>
+          <h2 className="text-xl font-bold">{activeBattleView.type} Battle</h2>
+          <div className="flex items-center">
+            <span className="font-bold mr-2">Total Value</span>
+            <div className="bg-black/40 px-3 py-1.5 rounded-md flex items-center">
+              <span className="text-yellow-400 font-bold">
+                {activeBattleView.cost * activeBattleView.maxPlayers}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Battle UI matching the image */}
+        <div className="bg-gradient-to-b from-blue-950 to-black/90 rounded-xl p-6 border border-blue-900/50">
+          {/* Battle type header */}
+          <div className="flex justify-between items-center mb-8">
+            <div className="bg-green-600/20 text-green-400 border border-green-600/30 px-4 py-1 rounded-md">
+              {activeBattleView.type}
+            </div>
+            <div className="text-white/70 text-sm">
+              {activeBattleView.rounds} Rounds • {activeBattleView.caseType} Case
+            </div>
+          </div>
+
+          {/* Players row */}
+          <div className="grid grid-cols-4 gap-4 mb-10">
+            {Array.from({ length: activeBattleView.maxPlayers }).map((_, index) => {
+              const player = activeBattleView.players[index];
+              
+              return (
+                <div key={index} className="relative">
+                  {/* Player panel */}
+                  <div className="bg-blue-950/60 rounded-lg border border-blue-900/50 overflow-hidden">
+                    {/* Player avatar and info */}
+                    <div className="flex items-center gap-2 p-3 border-b border-blue-900/50">
+                      <div className="flex items-center gap-2">
+                        {player ? (
+                          <>
+                            <img 
+                              src={player.avatar} 
+                              alt={player.name} 
+                              className="w-8 h-8 rounded-full"
+                            />
+                            <div className="text-white">0</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-blue-900/30 flex items-center justify-center">
+                              <span className="text-blue-400">?</span>
+                            </div>
+                            <div className="text-white">0</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Empty case slot area */}
+                    <div className="h-40 flex items-center justify-center">
+                      {player ? (
+                        <div className="text-xs text-blue-400">Waiting to open cases...</div>
+                      ) : (
+                        <div className="text-xs text-blue-400">Empty slot</div>
+                      )}
+                    </div>
+                    
+                    {/* Join button area */}
+                    <div className="p-3 border-t border-blue-900/50">
+                      {player ? (
+                        <div className="text-sm text-center text-blue-300">
+                          {player.name}
+                        </div>
+                      ) : (
+                        <Button 
+                          className="w-full bg-green-500 hover:bg-green-600"
+                          onClick={() => handleJoinBattle(activeBattleView.id)}
+                        >
+                          <Plus className="mr-1 h-3 w-3" />
+                          Join Battle
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* VS badge between players */}
+                  {index === 1 && (
+                    <div className="absolute -right-6 top-1/2 transform -translate-y-1/2 z-10">
+                      <div className="bg-blue-800 text-blue-200 px-2 py-1 rounded text-xs font-bold">
+                        VS
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -414,12 +366,9 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = mockBattles, onJ
                     <Button 
                       variant="outline"
                       className="w-full text-xs h-8"
-                      onClick={() => battle.status === 'waiting' 
-                        ? handleJoinBattle(battle.id) 
-                        : handleSpectate(battle.id)
-                      }
+                      onClick={() => handleSpectate(battle.id)}
                     >
-                      {battle.status === 'waiting' ? 'Join Battle' : 'View Battle'}
+                      View Battle
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Card>
@@ -433,97 +382,6 @@ const CaseBattlesList: React.FC<BattleListProps> = ({ battles = mockBattles, onJ
           </ScrollArea>
         </TabsContent>
       </Tabs>
-
-      {/* Battle Detail Dialog */}
-      <Dialog open={!!selectedBattle} onOpenChange={() => setSelectedBattle(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Battle Details</DialogTitle>
-            <DialogDescription>
-              View battle information and participants
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedBattle && (
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <div>
-                  <h3 className="font-semibold">{selectedBattle.type} Battle</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedBattle.rounds} rounds with {selectedBattle.caseType} cases
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">{selectedBattle.cost * selectedBattle.rounds} Gems</p>
-                  <p className="text-sm text-muted-foreground">Total Value</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {selectedBattle.players.map((player, index) => (
-                  <div key={index} className="bg-black/40 p-3 rounded-md">
-                    <div className="flex items-center">
-                      <Avatar className="h-8 w-8 mr-2">
-                        <AvatarImage src={player.avatar} alt={player.name} />
-                        <AvatarFallback>{player.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium truncate">{player.name}</p>
-                        {player.isBot && (
-                          <Badge variant="outline" className="text-xs">Bot</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Empty slots */}
-                {Array.from({ length: selectedBattle.maxPlayers - selectedBattle.players.length }).map((_, index) => (
-                  <div key={`empty-${index}`} className="bg-black/20 p-3 rounded-md border border-dashed border-white/10 flex items-center justify-center">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="h-auto p-1 text-xs"
-                      onClick={() => addBot(selectedBattle)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Bot
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Cases</h4>
-                <div className="grid grid-cols-5 gap-2">
-                  {selectedBattle.cases && selectedBattle.cases.map((caseItem, index) => (
-                    <div key={index} className="aspect-square bg-primary/10 rounded-md p-2 flex flex-col items-center justify-between">
-                      <img src={caseItem.image} alt={caseItem.name} className="w-full h-2/3 object-contain" />
-                      <p className="text-xs text-center truncate w-full">{caseItem.name}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setSelectedBattle(null)}>
-                  Close
-                </Button>
-                <Button 
-                  onClick={() => {
-                    handleJoinBattle(selectedBattle.id);
-                    setSelectedBattle(null);
-                  }}
-                  disabled={selectedBattle.players.some(p => p.id === user?.id) || 
-                    selectedBattle.players.length >= selectedBattle.maxPlayers}
-                >
-                  Join Battle
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
