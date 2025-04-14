@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
+import EnhancedHome from './pages/EnhancedHome';
 import Blackjack from './pages/Blackjack';
 import CaseBattles from './pages/CaseBattles';
 import Cases from './pages/Cases';
@@ -31,7 +32,8 @@ const App = () => {
           <Navbar />
           
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<EnhancedHome />} />
+            <Route path="/home-old" element={<Home />} />
             <Route path="/blackjack" element={<Blackjack />} />
             <Route path="/case-battles" element={<CaseBattles />} />
             <Route path="/cases" element={<Cases />} />

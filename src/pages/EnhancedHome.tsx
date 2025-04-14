@@ -10,6 +10,7 @@ import GameCard from '../components/GameCard';
 import { useToast } from "../hooks/use-toast";
 import DailyFreeCase from '../components/Rewards/DailyFreeCase';
 import { Trophy, Dice1 as Dice, ChevronRight, Zap, Users, Gift } from 'lucide-react';
+import HomepagePopup from '../components/HomePage/HomepagePopup';
 
 const EnhancedHome = () => {
   const { toast } = useToast();
@@ -218,38 +219,8 @@ const EnhancedHome = () => {
         />
       </section>
 
-      {showWelcomePopup && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-md bg-gray-800 rounded-lg p-6 shadow-2xl border border-purple-500"
-        >
-          <button 
-            onClick={() => setShowWelcomePopup(false)}
-            className="absolute top-2 right-2 text-gray-400 hover:text-white"
-          >
-            &times;
-          </button>
-          <div className="text-center">
-            <Gift size={48} className="mx-auto mb-4 text-purple-400" />
-            <h3 className="text-2xl font-bold mb-2">Welcome Back!</h3>
-            <p className="mb-4">We've missed you! Check out our latest games and rewards.</p>
-            <Button 
-              onClick={() => {
-                setShowWelcomePopup(false);
-                toast({
-                  title: "Daily Reward Available!",
-                  description: "Don't forget to claim your daily free case!"
-                });
-              }}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600"
-            >
-              Claim Rewards
-            </Button>
-          </div>
-        </motion.div>
-      )}
+      {/* Replace the old popup with our new enhanced one */}
+      <HomepagePopup isOpen={showWelcomePopup} onClose={() => setShowWelcomePopup(false)} />
     </div>
   );
 };

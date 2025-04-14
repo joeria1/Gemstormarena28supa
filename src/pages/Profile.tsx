@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useUser } from '../context/UserContext';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -7,9 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, User, Award, Trophy, BarChart3, History, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import FullProfileView from '../components/Profile/FullProfileView';
+import ProfileSettings from '../components/Profile/ProfileSettings';
 
 const Profile = () => {
   const { user } = useUser();
+  const [showFullProfile, setShowFullProfile] = useState(false);
   
   // Calculate progress for the XP bar
   const level = user.level || 1;
@@ -180,8 +183,11 @@ const Profile = () => {
               
               <Separator className="bg-gray-700 my-4" />
               
-              <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                Edit Profile
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                onClick={() => setShowFullProfile(true)}
+              >
+                View Full Profile
               </Button>
             </div>
           </Card>
@@ -229,6 +235,9 @@ const Profile = () => {
           </Card>
         </div>
       </div>
+      
+      {/* Full Profile Modal */}
+      <FullProfileView isOpen={showFullProfile} onClose={() => setShowFullProfile(false)} />
     </div>
   );
 };
