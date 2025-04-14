@@ -10,10 +10,9 @@ interface GameResultProps {
   message: string;
   multiplier?: number;
   amount?: number;
-  duration?: number; // Using a standard name instead of displayTime
 }
 
-export const showGameResult = ({ success, message, multiplier, amount, duration = 5000 }: GameResultProps) => {
+export const showGameResult = ({ success, message, multiplier, amount }: GameResultProps) => {
   // Play appropriate sound
   if (success) {
     playSound(SOUNDS.CASH_OUT);
@@ -40,6 +39,6 @@ export const showGameResult = ({ success, message, multiplier, amount, duration 
       </div>
     ),
     variant: success ? "default" : "destructive",
-    duration: duration,
+    duration: 5000,
   });
 };

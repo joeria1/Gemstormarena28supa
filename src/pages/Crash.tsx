@@ -7,8 +7,6 @@ import { useSound } from '../components/SoundManager';
 import { showGameResult } from '../components/GameResultNotification';
 import { Rocket, TrendingUp, Clock, ArrowRight, Users } from 'lucide-react';
 import { SOUNDS, playSound } from '../utils/soundEffects';
-import { useUser } from '../context/UserContext';
-import { RocketLogo } from '../components/RocketLogo';
 
 interface Player {
   name: string;
@@ -30,7 +28,6 @@ const Crash: React.FC = () => {
   const [crashHistory, setCrashHistory] = useState<number[]>([2.31, 1.42, 5.37, 1.11, 1.98, 3.25]);
   const animationFrameId = useRef<number | null>(null);
   const { playSound } = useSound();
-  const { user, updateBalance, addBet, addXp } = useUser();
 
   // Generate random crash point between 1 and 10, with probabilities skewed toward lower values
   const generateCrashPoint = (): number => {
@@ -159,23 +156,6 @@ const Crash: React.FC = () => {
 
   const handleBet = () => {
     if (betAmount <= 0 || gameState === 'running') return;
-    
-    if (user.balance < betAmount) {
-      showGameResult({
-        success: false,
-        message: "Insufficient balance",
-        amount: betAmount
-      });
-      return;
-    }
-    
-    // Deduct bet amount from balance
-    updateBalance(-betAmount);
-    
-    // Add to wagered amount and increase XP
-    addBet(betAmount);
-    addXp(Math.floor(betAmount / 2));
-    
     setHasBet(true);
     playSound('/sounds/deposit.mp3');
   };
@@ -185,9 +165,6 @@ const Crash: React.FC = () => {
     
     const winnings = betAmount * multiplier;
     setHasUserCashedOut(true);
-    
-    // Add winnings to balance
-    updateBalance(winnings);
     
     // Add user to players list
     setPlayers(prev => [
@@ -310,7 +287,7 @@ const Crash: React.FC = () => {
                 {/* Rocket */}
                 {gameState !== 'waiting' && (
                   <div 
-                    className="absolute transition-all duration-300 ease-out w-32" 
+                    className="absolute transition-all duration-300 ease-out w-20" 
                     style={{ 
                       bottom: '60px', 
                       height: getRocketHeight(),
@@ -321,21 +298,17 @@ const Crash: React.FC = () => {
                       <div className={`relative ${gameState === 'crashed' ? 'animate-bounce' : ''}`}>
                         {/* Fire effect */}
                         {gameState === 'running' && (
-                          <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 w-16 h-20">
-                            <div className="absolute w-full h-full">
-                              <div className="absolute inset-0 bg-orange-600 opacity-30 rounded-full animate-pulse blur-md"></div>
-                              <div className="absolute inset-1 bg-orange-500 opacity-40 rounded-full animate-pulse blur-sm"></div>
-                              <div className="absolute inset-2 bg-yellow-500 opacity-50 rounded-full animate-pulse"></div>
-                              <div className="absolute inset-3 bg-orange-400 opacity-60 rounded-full animate-pulse"></div>
-                              <div className="absolute inset-4 bg-yellow-300 opacity-70 rounded-full animate-pulse"></div>
-                            </div>
+                          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-8 h-12">
+                            <div className="absolute w-full h-full bg-gradient-to-t from-orange-600 via-yellow-500 to-transparent opacity-80 animate-pulse rounded-b-lg" />
                           </div>
                         )}
                         
                         {/* Rocket */}
-                        <div className="h-24 w-24 transform rotate-180">
-                          <RocketLogo className="h-24 w-24" />
-                        </div>
+                        <Rocket 
+                          className={`h-12 w-12 ${
+                            gameState === 'crashed' ? 'text-red-500 rotate-45' : 'text-white'
+                          }`} 
+                        />
                       </div>
                     </div>
                     
@@ -414,7 +387,7 @@ const Crash: React.FC = () => {
                 <Button 
                   className="flex-1" 
                   onClick={handleBet}
-                  disabled={betAmount <= 0 || hasBet || gameState === 'crashed' || user.balance < betAmount}
+                  disabled={betAmount <= 0 || hasBet || gameState === 'crashed'}
                 >
                   Place Bet
                 </Button>
@@ -457,7 +430,7 @@ const Crash: React.FC = () => {
                         alt={player.name} 
                         className="w-6 h-6 rounded-full"
                       />
-                      <span className={`text-sm ${player.name === 'You' ? 'font-bold text-yellow-400' : ''}`}>{player.name}</span>
+                      <span className="text-sm">{player.name}</span>
                     </div>
                     <div className="flex items-center">
                       <span className="text-sm font-mono mr-2">{player.betAmount}</span>
