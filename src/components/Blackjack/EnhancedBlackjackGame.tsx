@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -13,7 +12,7 @@ import LightningEffect from '../GameEffects/LightningEffect';
 interface CardType {
   suit: string;
   value: string;
-  hidden?: boolean;
+  hidden: boolean;
 }
 
 interface BlackjackHand {
@@ -55,7 +54,6 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
   const suits = ['♠️', '♥️', '♦️', '♣️'];
   const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
-  // Add/remove hand controls
   const addHand = () => {
     if (activeHandCount < MAX_HANDS) {
       setActiveHandCount(prev => prev + 1);
@@ -72,7 +70,7 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     let deck: CardType[] = [];
     for (let suit of suits) {
       for (let value of values) {
-        deck.push({ suit, value });
+        deck.push({ suit, value, hidden: false });
       }
     }
     return shuffleDeck(deck);
@@ -112,18 +110,19 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     
     const deck = createDeck();
     
-    // Initialize dealer's hand
     const newDealerHand = [
-      deck.pop()!,
+      { ...deck.pop()!, hidden: false },
       { ...deck.pop()!, hidden: true }
     ];
     
-    // Initialize player hands
     const initialHands: BlackjackHand[] = [];
     
     for (let i = 0; i < activeHandCount; i++) {
       initialHands.push({
-        cards: [deck.pop()!, deck.pop()!],
+        cards: [
+          { ...deck.pop()!, hidden: false }, 
+          { ...deck.pop()!, hidden: false }
+        ],
         bet: bet,
         result: 'playing',
         doubledDown: false
@@ -136,14 +135,11 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     setGameState('playing');
     setTotalWon(0);
     
-    // Check for natural blackjacks
     initialHands.forEach((hand, index) => {
       if (calculateHandValue(hand.cards) === 21) {
         const updatedHands = [...initialHands];
         
-        // Check if dealer also has blackjack
-        const dealerCards = [newDealerHand[0], {...newDealerHand[1], hidden: false}];
-        if (calculateHandValue(dealerCards) === 21) {
+        if (calculateHandValue([newDealerHand[0], {...newDealerHand[1], hidden: false}]) === 21) {
           updatedHands[index] = {...hand, result: 'push'};
         } else {
           updatedHands[index] = {...hand, result: 'blackjack'};
@@ -190,19 +186,16 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     
     currentHand.cards = [...currentHand.cards, newCard];
     
-    // Check for bust
     const handValue = calculateHandValue(currentHand.cards);
     if (handValue > 21) {
       currentHand.result = 'lose';
       
-      // Move to next hand or dealer phase
       updatedHands[currentHandIndex] = currentHand;
       setPlayerHands(updatedHands);
       
       if (currentHandIndex < playerHands.length - 1) {
         setCurrentHandIndex(currentHandIndex + 1);
       } else {
-        // Check if all hands are finished
         const allHandsFinished = updatedHands.every(hand => 
           hand.result !== 'playing'
         );
@@ -225,10 +218,8 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     if (gameState !== 'playing') return;
     
     if (currentHandIndex < playerHands.length - 1) {
-      // Move to next hand
       setCurrentHandIndex(currentHandIndex + 1);
     } else {
-      // All hands have been played, move to dealer's turn
       setGameState('dealerTurn');
       dealerPlay();
     }
@@ -261,7 +252,6 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     currentHand.bet = currentHand.bet * 2;
     currentHand.doubledDown = true;
     
-    // Check for bust
     const handValue = calculateHandValue(currentHand.cards);
     if (handValue > 21) {
       currentHand.result = 'lose';
@@ -273,7 +263,6 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     if (currentHandIndex < playerHands.length - 1) {
       setCurrentHandIndex(currentHandIndex + 1);
     } else {
-      // Check if all hands are busted
       const allHandsBusted = updatedHands.every(hand => 
         hand.result === 'lose' || hand.result === 'blackjack' || hand.result === 'push'
       );
@@ -289,11 +278,9 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
   };
 
   const dealerPlay = () => {
-    // Reveal the dealer's hidden card
     const revealedDealerHand = dealerHand.map(card => ({ ...card, hidden: false }));
     setDealerHand(revealedDealerHand);
     
-    // Check if all player hands are busted, blackjack, or push
     const allHandsSettled = playerHands.every(hand => 
       hand.result !== 'playing'
     );
@@ -304,7 +291,6 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
       return;
     }
     
-    // Dealer draws until 17 or higher
     setTimeout(() => {
       let newDealerHand = [...revealedDealerHand];
       const deck = createDeck();
@@ -323,7 +309,6 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
             drawCard();
           }, 800);
         } else {
-          // Dealer is done drawing, calculate results
           setGameState('gameOver');
           calculateResults(newDealerHand);
         }
@@ -340,18 +325,15 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     let winAmount = 0;
     
     const updatedHands = playerHands.map(hand => {
-      // Skip hands that already have a result
       if (hand.result !== null && hand.result !== 'playing') return hand;
       
       const handValue = calculateHandValue(hand.cards);
       
-      // Determine result
       let result: BlackjackHand['result'] = 'playing';
       
       if (hand.result === 'blackjack') {
-        // Blackjack pays 3:2
         winAmount += hand.bet * 2.5;
-        return hand; // Already processed
+        return hand;
       } else if (dealerBusted) {
         result = 'win';
         winAmount += hand.bet * 2;
@@ -380,7 +362,11 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
         setShowLightning(true);
       }
       
-      toast.success(`You won ${winAmount} gems!`);
+      toast({
+        title: "Win!",
+        description: `You won ${winAmount} gems!`,
+        variant: "default"
+      });
     }
   };
 

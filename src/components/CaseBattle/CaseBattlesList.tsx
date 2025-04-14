@@ -81,11 +81,16 @@ const mockBattles: Battle[] = [
 
 interface CaseBattlesListProps {
   onJoinBattle: (battleId: string) => void;
+  onSpectate?: (battleId: string) => void;
+  battles?: Battle[]; // Make battles prop optional
 }
 
-const CaseBattlesList: React.FC<CaseBattlesListProps> = ({ onJoinBattle }) => {
+const CaseBattlesList: React.FC<CaseBattlesListProps> = ({ 
+  onJoinBattle, 
+  onSpectate = () => {}, // Default empty function if not provided
+  battles = mockBattles // Use mockBattles as default if not provided
+}) => {
   const { user } = useUser();
-  const [battles, setBattles] = useState<Battle[]>(mockBattles);
   
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
