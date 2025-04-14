@@ -21,9 +21,29 @@ import { ChatProvider } from './context/ChatContext';
 import ChatContainer from './components/Chat/ChatContainer';
 import ChatToggle from './components/Chat/ChatToggle';
 import Profile from './pages/Profile';
+import LightningEffect from './components/GameEffects/LightningEffect';
+import { useState as useStateImported } from 'react';
 
 const App = () => {
   const [theme, setTheme] = useState('dark');
+  const [showCaseBattleLightning, setShowCaseBattleLightning] = useState(false);
+
+  // Randomly show lightning effects for case battles
+  React.useEffect(() => {
+    const lightningInterval = setInterval(() => {
+      const path = window.location.pathname;
+      // Only show lightning effects on case battles page
+      if (path.includes('case-battles')) {
+        const shouldShowLightning = Math.random() > 0.8; // 20% chance
+        if (shouldShowLightning) {
+          setShowCaseBattleLightning(true);
+          setTimeout(() => setShowCaseBattleLightning(false), 2000);
+        }
+      }
+    }, 10000);
+    
+    return () => clearInterval(lightningInterval);
+  }, []);
 
   return (
     <BrowserRouter>
@@ -51,6 +71,12 @@ const App = () => {
           <ChatContainer />
           <ChatToggle />
           <Toaster richColors closeButton />
+          
+          {/* Lightning effect for case battles */}
+          <LightningEffect 
+            isVisible={showCaseBattleLightning} 
+            onComplete={() => setShowCaseBattleLightning(false)} 
+          />
         </ChatProvider>
       </UserProvider>
     </BrowserRouter>

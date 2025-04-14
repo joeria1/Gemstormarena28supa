@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from "../../hooks/use-toast";
 import LightningEffect from '../GameEffects/LightningEffect';
 import ItemGlowEffect from '../GameEffects/ItemGlowEffect';
-import { Bomb, Diamond, DollarSign, RotateCw, Shield, ChevronRight } from 'lucide-react';
+import PulseAnimation from '../GameEffects/PulseAnimation';
+import { Bomb, Diamond, DollarSign, RotateCw, Shield, ChevronRight, Percent } from 'lucide-react';
 
 interface GameSettings {
   gridSize: number;
@@ -19,18 +20,19 @@ interface TileProps {
   hasMine: boolean;
   onClick: () => void;
   disabled: boolean;
+  safetyPercent: number;
 }
 
-const Tile: React.FC<TileProps> = ({ revealed, hasMine, onClick, disabled }) => {
+const Tile: React.FC<TileProps> = ({ revealed, hasMine, onClick, disabled, safetyPercent }) => {
   return (
     <motion.div
       whileHover={!disabled && !revealed ? { scale: 1.05 } : {}}
       whileTap={!disabled && !revealed ? { scale: 0.95 } : {}}
       onClick={!disabled && !revealed ? onClick : undefined}
       className={`
-        w-12 h-12 md:w-16 md:h-16 rounded-lg shadow-lg
+        w-10 h-10 md:w-14 md:h-14 rounded-lg shadow-lg
         flex items-center justify-center cursor-pointer
-        transform transition-all duration-200
+        transform transition-all duration-200 relative
         ${revealed
           ? hasMine
             ? 'bg-gradient-to-br from-red-500 to-red-700'
@@ -47,11 +49,17 @@ const Tile: React.FC<TileProps> = ({ revealed, hasMine, onClick, disabled }) => 
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
         >
           {hasMine ? (
-            <Bomb size={24} className="text-white" />
+            <Bomb size={20} className="text-white" />
           ) : (
-            <Diamond size={24} className="text-white" />
+            <Diamond size={20} className="text-white" />
           )}
         </motion.div>
+      )}
+      
+      {!revealed && !disabled && (
+        <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 text-white text-xs px-2 py-1 rounded">
+          {safetyPercent.toFixed(1)}% safe
+        </div>
       )}
     </motion.div>
   );
@@ -215,7 +223,7 @@ const EnhancedMinesGame: React.FC = () => {
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="w-full md:w-1/4 bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-4 flex flex-col gap-4"
+        className="w-full md:w-1/3 bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-4 flex flex-col gap-4"
       >
         <div className="flex flex-col">
           <h3 className="text-lg font-semibold text-gray-300 mb-2">Balance</h3>
@@ -276,20 +284,23 @@ const EnhancedMinesGame: React.FC = () => {
           <div className="flex items-center gap-2 mb-2">
             <Shield size={20} className={nextTileSafety > 70 ? "text-green-400" : nextTileSafety > 40 ? "text-yellow-400" : "text-red-400"} />
             <span className="text-md font-medium text-gray-200">Next Tile Safety:</span>
-            <span className={`text-lg font-bold ${
-              nextTileSafety > 70 ? "text-green-400" : nextTileSafety > 40 ? "text-yellow-400" : "text-red-400"
-            }`}>
-              {nextTileSafety}%
-            </span>
+            <PulseAnimation isActive={gameState === 'playing'} intensity="low" type="scale">
+              <span className={`text-lg font-bold ${
+                nextTileSafety > 70 ? "text-green-400" : nextTileSafety > 40 ? "text-yellow-400" : "text-red-400"
+              }`}>
+                {nextTileSafety}%
+              </span>
+            </PulseAnimation>
           </div>
           
           <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-            <div 
+            <motion.div 
               className={`h-full ${
                 nextTileSafety > 70 ? "bg-green-500" : nextTileSafety > 40 ? "bg-yellow-500" : "bg-red-500"
               }`}
-              style={{ width: `${nextTileSafety}%` }}
-            ></div>
+              animate={{ width: `${nextTileSafety}%` }}
+              transition={{ duration: 0.5 }}
+            ></motion.div>
           </div>
         </div>
         
@@ -315,7 +326,7 @@ const EnhancedMinesGame: React.FC = () => {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="w-full md:w-3/4 bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-4"
+        className="w-full md:w-2/3 bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-4"
       >
         <div className="mb-4 flex justify-between items-center">
           <h2 className="text-xl font-bold text-white">Mines</h2>
@@ -347,8 +358,8 @@ const EnhancedMinesGame: React.FC = () => {
           </div>
         )}
         
-        <div className="p-4 flex justify-center">
-          <div className="grid grid-cols-5 gap-2">
+        <div className="flex justify-center">
+          <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
             {board.length > 0 && board.map((row, rowIndex) => (
               row.map((hasMine, colIndex) => (
                 <Tile
@@ -357,6 +368,7 @@ const EnhancedMinesGame: React.FC = () => {
                   hasMine={hasMine}
                   onClick={() => handleTileClick(rowIndex, colIndex)}
                   disabled={gameState !== 'playing'}
+                  safetyPercent={nextTileSafety}
                 />
               ))
             ))}

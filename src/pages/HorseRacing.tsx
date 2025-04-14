@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useContext } from 'react';
 import { useUser } from '../context/UserContext';
 import { toast } from 'sonner';
@@ -8,6 +9,7 @@ import { Card } from '../components/ui/card';
 import { Trophy, DollarSign, User, Clock } from 'lucide-react';
 import HorseIcon from '../components/HorseRacing/HorseIcon';
 import PulseAnimation from '../components/GameEffects/PulseAnimation';
+import LightningEffect from '../components/GameEffects/LightningEffect';
 
 const horses = [
   { id: 1, name: "Thunder Bolt", odds: 5, color: "bg-amber-700" },
@@ -28,6 +30,7 @@ const HorseRacing = () => {
   const [timeToNextRace, setTimeToNextRace] = useState<number>(10);
   const [isAutoRacing, setIsAutoRacing] = useState<boolean>(true);
   const [hasBet, setHasBet] = useState<boolean>(false);
+  const [showLightning, setShowLightning] = useState<boolean>(false);
 
   // Initialize horse positions
   useEffect(() => {
@@ -94,6 +97,10 @@ const HorseRacing = () => {
     resetPositions();
     setRaceCompleted(false);
     setIsRacing(true);
+    
+    // Show lightning effect at race start
+    setShowLightning(true);
+    setTimeout(() => setShowLightning(false), 1500);
     
     // Race simulation logic
     const raceInterval = setInterval(() => {
@@ -328,6 +335,9 @@ const HorseRacing = () => {
           </Card>
         </div>
       </div>
+      
+      {/* Lightning effect for race start */}
+      <LightningEffect isVisible={showLightning} onComplete={() => setShowLightning(false)} />
     </div>
   );
 };

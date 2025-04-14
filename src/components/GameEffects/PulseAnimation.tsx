@@ -59,7 +59,7 @@ const PulseAnimation: React.FC<PulseAnimationProps> = ({
     ]
   } : {};
 
-  // Animation timing - fixed to use Infinity instead of "infinite" string
+  // Animation timing - using Infinity for infinite repeats
   const transition = isActive ? {
     duration: duration,
     repeat: repeat === 'infinity' ? Infinity : repeat,

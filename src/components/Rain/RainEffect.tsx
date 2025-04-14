@@ -1,8 +1,10 @@
 
 import React, { useEffect, useRef } from 'react';
+import { useChat } from '../../context/ChatContext';
 
 const RainEffect: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { rainStatus } = useChat();
   
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -28,6 +30,8 @@ const RainEffect: React.FC = () => {
     
     // Animation loop
     const animate = () => {
+      if (rainStatus !== 'active') return;
+      
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       ctx.strokeStyle = '#3b82f6'; // Blue color
@@ -57,7 +61,7 @@ const RainEffect: React.FC = () => {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, []);
+  }, [rainStatus]);
   
   return (
     <canvas 
