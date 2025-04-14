@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -13,6 +14,7 @@ import { Trophy, Dice1 as Dice, ChevronRight, Zap, Users, Gift } from 'lucide-re
 const EnhancedHome = () => {
   const { toast } = useToast();
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [battles, setBattles] = useState([]);
   
   useEffect(() => {
     const hasVisitedBefore = localStorage.getItem('hasVisitedBefore');
@@ -22,6 +24,84 @@ const EnhancedHome = () => {
       setShowWelcomePopup(true);
       setTimeout(() => setShowWelcomePopup(false), 5000);
     }
+    
+    // Mock battle data for demonstration
+    const mockBattles = [
+      {
+        id: '1',
+        type: '1v1',
+        caseType: 'Standard',
+        rounds: 3,
+        cursedMode: false,
+        creator: {
+          id: 'user1',
+          name: 'Player1',
+          username: 'player1',
+          avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Player1'
+        },
+        players: [
+          {
+            id: 'user1',
+            name: 'Player1',
+            username: 'player1',
+            avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Player1'
+          }
+        ],
+        maxPlayers: 2,
+        cost: 100,
+        status: 'waiting',
+        createdAt: new Date(),
+        cases: [
+          {
+            id: 'case1',
+            name: 'Standard Case',
+            image: '/placeholder.svg',
+            price: 100
+          }
+        ]
+      },
+      {
+        id: '2',
+        type: '2v2',
+        caseType: 'Premium',
+        rounds: 5,
+        cursedMode: true,
+        creator: {
+          id: 'user2',
+          name: 'Player2',
+          username: 'player2',
+          avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Player2'
+        },
+        players: [
+          {
+            id: 'user2',
+            name: 'Player2',
+            username: 'player2',
+            avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Player2'
+          },
+          {
+            id: 'user3',
+            name: 'Player3',
+            username: 'player3',
+            avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Player3'
+          }
+        ],
+        maxPlayers: 4,
+        cost: 250,
+        status: 'in-progress',
+        createdAt: new Date(),
+        cases: [
+          {
+            id: 'case2',
+            name: 'Premium Case',
+            image: '/placeholder.svg',
+            price: 250
+          }
+        ]
+      }
+    ];
+    
+    setBattles(mockBattles);
   }, []);
 
   const games = [
@@ -32,6 +112,22 @@ const EnhancedHome = () => {
     { title: "Tower", icon: <ChevronRight size={24} />, path: "/tower", description: "Climb to win big prizes" },
     { title: "Horse Racing", icon: <Users size={24} />, path: "/horse-racing", description: "Bet on your favorite horse" },
   ];
+
+  const handleJoinBattle = (battleId: string) => {
+    toast({
+      title: "Joining Battle",
+      description: `Attempting to join battle ${battleId}`,
+    });
+    // In a real app, this would call an API to join the battle
+  };
+
+  const handleSpectateBattle = (battleId: string) => {
+    toast({
+      title: "Spectating Battle",
+      description: `Now spectating battle ${battleId}`,
+    });
+    // In a real app, this would navigate to a battle view page
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white pb-16">
@@ -115,7 +211,11 @@ const EnhancedHome = () => {
 
       <section className="py-12 px-4 max-w-7xl mx-auto">
         <h2 className="text-3xl font-bold mb-8 text-center">Live Case Battles</h2>
-        <CaseBattlesList />
+        <CaseBattlesList 
+          battles={battles} 
+          onJoinBattle={handleJoinBattle} 
+          onSpectate={handleSpectateBattle} 
+        />
       </section>
 
       {showWelcomePopup && (
