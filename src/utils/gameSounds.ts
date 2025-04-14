@@ -35,7 +35,8 @@ const gameSoundPaths = {
   // Generic sounds
   buttonClick: '/sounds/button-click.mp3',
   win: '/sounds/win.mp3',
-  lose: '/sounds/lose.mp3'
+  lose: '/sounds/lose.mp3',
+  cashout: '/sounds/win.mp3' // Adding cashout sound (using win sound)
 };
 
 // Preload sound files
@@ -66,14 +67,23 @@ const initAudioContext = () => {
 if (typeof window !== 'undefined') {
   const enableAudio = () => {
     initAudioContext();
+    // Force audio to play a silent sound to unlock audio on iOS/Safari
+    const silentSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAUAAAiSAAODg4ODhkZGRkZJCQkJCQvLy8vLzo6Ojo6RUVFRUVRUVFRUXZ2dnZ2goKCgoKNjY2NjZmZmZmZpKSkpKSwsLCwsLu7u7u7xsbGxsbS0tLS0t3d3d3d6Ojo6Oj09PT09P////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJARgAAAAAAAAIkh591hAAAAA');
+    silentSound.volume = 0.01;
+    silentSound.play().then(() => {
+      console.log('Silent sound played to unlock audio');
+    }).catch(e => {
+      console.warn('Could not play silent sound:', e);
+    });
+    
     document.removeEventListener('click', enableAudio);
     document.removeEventListener('touchstart', enableAudio);
     document.removeEventListener('keydown', enableAudio);
   };
   
-  document.addEventListener('click', enableAudio);
-  document.addEventListener('touchstart', enableAudio);
-  document.addEventListener('keydown', enableAudio);
+  document.addEventListener('click', enableAudio, { once: true });
+  document.addEventListener('touchstart', enableAudio, { once: true });
+  document.addEventListener('keydown', enableAudio, { once: true });
 }
 
 // Helper function to create and configure Audio element
@@ -106,30 +116,29 @@ export const playGameSound = (soundName: keyof typeof gameSoundPaths, volume = 0
     audio.currentTime = 0;
     audio.volume = volume;
     
-    // Use a promise to handle playback
-    const playPromise = audio.play();
+    // Forcefully unlock audio on Safari/iOS
+    const playAttempt = () => {
+      const playPromise = audio!.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // Playback started successfully
+            console.log(`Playing ${soundName} sound at volume ${volume}`);
+          })
+          .catch(error => {
+            console.warn('Audio play error, trying again:', error);
+            
+            // Try one more time with user interaction
+            document.addEventListener('click', function playOnce() {
+              audio!.play().catch(e => console.error('Still cannot play audio:', e));
+              document.removeEventListener('click', playOnce);
+            }, { once: true });
+          });
+      }
+    };
     
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          // Playback started successfully
-          console.log(`Playing ${soundName} sound`);
-        })
-        .catch(error => {
-          // Auto-play was prevented or there was an error
-          console.info('Audio play error:', error);
-          
-          // Create and play a silent sound to enable audio on next interaction
-          const silentSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAUAAAiSAAODg4ODhkZGRkZJCQkJCQvLy8vLzo6Ojo6RUVFRUVRUVFRUXZ2dnZ2goKCgoKNjY2NjZmZmZmZpKSkpKSwsLCwsLu7u7u7xsbGxsbS0tLS0t3d3d3d6Ojo6Oj09PT09P////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJARgAAAAAAAAIkh591hAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/84REAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
-          silentSound.volume = 0.001;
-          const silentPlayPromise = silentSound.play();
-          if (silentPlayPromise !== undefined) {
-            silentPlayPromise.catch(() => {
-              // Ignore errors - this is just to enable audio
-            });
-          }
-        });
-    }
+    playAttempt();
   } catch (error) {
     console.error(`Error with sound ${soundName}:`, error);
   }
@@ -159,6 +168,23 @@ export const pauseGameSound = (soundName: keyof typeof gameSoundPaths) => {
   if (audio) {
     audio.pause();
   }
+};
+
+// Forcefully play a sound (useful for debugging)
+export const forcePlaySound = (soundName: keyof typeof gameSoundPaths) => {
+  const soundPath = gameSoundPaths[soundName];
+  if (!soundPath) {
+    console.error(`Sound "${soundName}" not found`);
+    return;
+  }
+  
+  const audio = new Audio(soundPath);
+  audio.volume = 1.0; // Full volume for testing
+  audio.play().then(() => {
+    console.log(`Forced play of ${soundName}`);
+  }).catch(e => {
+    console.error(`Couldn't force play ${soundName}:`, e);
+  });
 };
 
 // Initialize sounds on load

@@ -1,11 +1,16 @@
 
 import React, { useEffect } from 'react';
-import { playGameSound, pauseGameSound } from '../utils/gameSounds';
+import { playGameSound } from '../utils/gameSounds';
+import { useSound } from './ui/sound-context';
 
 // This component is responsible for integrating sounds into the existing games
 // without modifying their core functionality
 const SoundIntegration: React.FC = () => {
+  const { isMuted, volume } = useSound();
+  
   useEffect(() => {
+    if (isMuted) return;
+    
     // Function to add click handlers for different game elements
     const addSoundHandlers = () => {
       // Mines Game
@@ -13,41 +18,48 @@ const SoundIntegration: React.FC = () => {
         tile.addEventListener('click', (e) => {
           const target = e.currentTarget as HTMLElement;
           if (target.classList.contains('mine')) {
-            playGameSound('mineExplosion');
+            playGameSound('mineExplosion', volume);
           } else {
-            playGameSound('mineClick');
+            playGameSound('mineClick', volume);
           }
+        });
+      });
+
+      // Cashout buttons for all games
+      document.querySelectorAll('.cashout-button, [data-cashout="true"]').forEach(button => {
+        button.addEventListener('click', () => {
+          playGameSound('cashout', volume);
         });
       });
 
       // Blackjack Game
       document.querySelectorAll('.blackjack-deal').forEach(button => {
         button.addEventListener('click', () => {
-          playGameSound('cardShuffle');
-          setTimeout(() => playGameSound('cardDeal'), 500);
+          playGameSound('cardShuffle', volume);
+          setTimeout(() => playGameSound('cardDeal', volume), 500);
         });
       });
 
       document.querySelectorAll('.blackjack-hit').forEach(button => {
         button.addEventListener('click', () => {
-          playGameSound('cardHit');
+          playGameSound('cardHit', volume);
         });
       });
 
       // Cases
       document.querySelectorAll('.case-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
-          playGameSound('caseHover');
+          playGameSound('caseHover', volume);
         });
         item.addEventListener('click', () => {
-          playGameSound('caseSelect');
+          playGameSound('caseSelect', volume);
         });
       });
 
       // Horse Racing
       document.querySelectorAll('.race-start-button').forEach(button => {
         button.addEventListener('click', () => {
-          playGameSound('raceStart');
+          playGameSound('raceStart', volume);
         });
       });
 
@@ -58,7 +70,7 @@ const SoundIntegration: React.FC = () => {
             if (mutation.attributeName === 'class') {
               const element = mutation.target as HTMLElement;
               if (element.classList.contains('active')) {
-                playGameSound('lightning');
+                playGameSound('lightning', volume);
               }
             }
           });
@@ -74,10 +86,9 @@ const SoundIntegration: React.FC = () => {
             if (mutation.attributeName === 'class') {
               const element = mutation.target as HTMLElement;
               if (element.classList.contains('active')) {
-                playGameSound('rocketFly');
+                playGameSound('rocketFly', volume);
               } else if (element.classList.contains('crashed')) {
-                pauseGameSound('rocketFly');
-                playGameSound('rocketCrash');
+                playGameSound('rocketCrash', volume);
               }
             }
           });
@@ -91,9 +102,9 @@ const SoundIntegration: React.FC = () => {
         tile.addEventListener('click', (e) => {
           const target = e.currentTarget as HTMLElement;
           if (target.classList.contains('bomb')) {
-            playGameSound('towerFail');
+            playGameSound('towerFail', volume);
           } else {
-            playGameSound('towerSuccess');
+            playGameSound('towerSuccess', volume);
           }
         });
       });
@@ -115,7 +126,7 @@ const SoundIntegration: React.FC = () => {
     return () => {
       bodyObserver.disconnect();
     };
-  }, []);
+  }, [isMuted, volume]);
 
   return null; // This component doesn't render anything
 };

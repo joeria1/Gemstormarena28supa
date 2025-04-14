@@ -1,18 +1,18 @@
 
-import { playGameSound, pauseGameSound } from './gameSounds';
+import { playGameSound } from './gameSounds';
 
 // This function will integrate sound effects with existing elements
 // without modifying their original code
-export const initializeSoundEffects = () => {
+export const initializeSoundEffects = (volume = 0.5) => {
   // Add event listeners for Mines game
   const addMinesListeners = () => {
     document.querySelectorAll('.mine-cell').forEach(cell => {
       cell.addEventListener('click', () => {
         const isMine = cell.classList.contains('is-mine');
         if (isMine) {
-          playGameSound('mineExplosion');
+          playGameSound('mineExplosion', volume);
         } else {
-          playGameSound('mineClick');
+          playGameSound('mineClick', volume);
         }
       });
     });
@@ -22,14 +22,14 @@ export const initializeSoundEffects = () => {
   const addBlackjackListeners = () => {
     document.querySelectorAll('.deal-button').forEach(button => {
       button.addEventListener('click', () => {
-        playGameSound('cardShuffle');
-        setTimeout(() => playGameSound('cardDeal'), 500);
+        playGameSound('cardShuffle', volume);
+        setTimeout(() => playGameSound('cardDeal', volume), 500);
       });
     });
 
     document.querySelectorAll('.hit-button').forEach(button => {
       button.addEventListener('click', () => {
-        playGameSound('cardHit');
+        playGameSound('cardHit', volume);
       });
     });
   };
@@ -38,11 +38,11 @@ export const initializeSoundEffects = () => {
   const addCasesListeners = () => {
     document.querySelectorAll('.case-item').forEach(item => {
       item.addEventListener('mouseenter', () => {
-        playGameSound('caseHover');
+        playGameSound('caseHover', volume);
       });
       
       item.addEventListener('click', () => {
-        playGameSound('caseSelect');
+        playGameSound('caseSelect', volume);
       });
     });
   };
@@ -51,7 +51,7 @@ export const initializeSoundEffects = () => {
   const addHorseRacingListeners = () => {
     document.querySelectorAll('.start-race-button').forEach(button => {
       button.addEventListener('click', () => {
-        playGameSound('raceStart');
+        playGameSound('raceStart', volume);
       });
     });
   };
@@ -66,7 +66,7 @@ export const initializeSoundEffects = () => {
           if (mutation.attributeName === 'class') {
             const target = mutation.target as HTMLElement;
             if (target.classList.contains('active')) {
-              playGameSound('lightning');
+              playGameSound('lightning', volume);
             }
           }
         });
@@ -86,10 +86,9 @@ export const initializeSoundEffects = () => {
           if (mutation.attributeName === 'class') {
             const target = mutation.target as HTMLElement;
             if (target.classList.contains('flying')) {
-              playGameSound('rocketFly');
+              playGameSound('rocketFly', volume);
             } else if (target.classList.contains('crashed')) {
-              pauseGameSound('rocketFly');
-              playGameSound('rocketCrash');
+              playGameSound('rocketCrash', volume);
             }
           }
         });
@@ -105,10 +104,19 @@ export const initializeSoundEffects = () => {
       tile.addEventListener('click', () => {
         const isSuccess = !tile.classList.contains('trap');
         if (isSuccess) {
-          playGameSound('towerSuccess');
+          playGameSound('towerSuccess', volume);
         } else {
-          playGameSound('towerFail');
+          playGameSound('towerFail', volume);
         }
+      });
+    });
+  };
+
+  // Add event listeners for Cashout buttons (all games)
+  const addCashoutListeners = () => {
+    document.querySelectorAll('.cashout-button, [data-cashout="true"]').forEach(button => {
+      button.addEventListener('click', () => {
+        playGameSound('cashout', volume);
       });
     });
   };
@@ -122,6 +130,7 @@ export const initializeSoundEffects = () => {
     addLightningListeners();
     addCrashListeners();
     addTowerListeners();
+    addCashoutListeners();
   };
 
   // Set up mutation observer to handle dynamically added elements

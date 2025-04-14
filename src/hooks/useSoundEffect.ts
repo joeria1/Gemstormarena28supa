@@ -1,7 +1,7 @@
 
 import { useCallback } from 'react';
 import { useSound } from '../components/ui/sound-context';
-import { playGameSound } from '../utils/gameSounds';
+import { playGameSound, forcePlaySound } from '../utils/gameSounds';
 
 export const useSoundEffect = () => {
   const { isMuted, volume } = useSound();
@@ -24,17 +24,30 @@ export const useSoundEffect = () => {
     }
   }, [isMuted, volume]);
   
+  const playCashoutSound = useCallback(() => {
+    if (!isMuted) {
+      playGameSound('cashout', volume);
+    }
+  }, [isMuted, volume]);
+  
   const playSound = useCallback((soundName: string) => {
     if (!isMuted) {
       playGameSound(soundName as any, volume);
     }
   }, [isMuted, volume]);
   
+  // For debugging purposes
+  const forceSound = useCallback((soundName: string) => {
+    forcePlaySound(soundName as any);
+  }, []);
+  
   return {
     playButtonSound,
     playWinSound,
     playLoseSound,
-    playSound
+    playCashoutSound,
+    playSound,
+    forceSound
   };
 };
 

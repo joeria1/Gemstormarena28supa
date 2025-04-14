@@ -5,6 +5,8 @@ import PlinkoControls from './PlinkoControls';
 import PlinkoResults from './PlinkoResults';
 import { useSound } from '../ui/sound-context';
 import { playGameSound } from '../../utils/gameSounds';
+import { useSoundEffect } from '../../hooks/useSoundEffect';
+import { toast } from 'sonner';
 
 interface BallResult {
   id: number;
@@ -22,11 +24,57 @@ const PlinkoGame: React.FC = () => {
   const nextBallId = useRef(1);
   const animationInProgress = useRef(false);
   const { volume, isMuted } = useSound();
+  const { playSound } = useSoundEffect();
 
   const riskMultipliers = {
     low: [1.2, 1.4, 1.6, 1.8, 2.1, 2.4, 2.9, 3.5, 4.9, 8.9],
     medium: [1.5, 1.8, 2.2, 2.6, 3.5, 5.2, 9.5, 16.2, 44, 100],
     high: [2.7, 3.5, 5.2, 8.1, 15, 29, 58, 140, 400, 1000]
+  };
+
+  // Function to create a more realistic bouncing path
+  const createBouncingPath = () => {
+    const path: number[] = [];
+    const rows = 12;
+    let currentPosition = 0;
+    
+    // Starting point
+    path.push(0);
+    
+    for (let i = 0; i < rows; i++) {
+      // Each bounce has some randomness but also depends on the previous direction
+      // This creates a more realistic physics simulation
+      const random = Math.random();
+      const previousDirection = path.length > 1 ? 
+        path[path.length - 1] - path[path.length - 2] : 0;
+      
+      let direction;
+      
+      // Bias the direction based on previous movement (momentum)
+      if (previousDirection > 0) {
+        // Ball was moving right, more likely to continue right
+        direction = random < 0.6 ? 1 : 0;
+      } else if (previousDirection < 0) {
+        // Ball was moving left, more likely to continue left
+        direction = random < 0.6 ? 0 : 1;
+      } else {
+        // No previous movement, random direction
+        direction = random < 0.5 ? 0 : 1;
+      }
+      
+      // Calculate next position
+      if (direction === 0) {
+        // Go left (position doesn't increase)
+        path.push(currentPosition);
+      } else {
+        // Go right (increment position)
+        currentPosition += 1;
+        path.push(currentPosition);
+      }
+    }
+    
+    console.log("Ball path:", path);
+    return path;
   };
 
   const dropBall = () => {
@@ -37,37 +85,13 @@ const PlinkoGame: React.FC = () => {
     const ballId = nextBallId.current++;
     animationInProgress.current = true;
     
-    // Generate random path through the pegs
-    const path: number[] = [];
-    const rows = 12;
-    let currentPosition = 0;
-    
-    // Create initial path for the ball
-    path.push(0); // Start at position 0
-    
-    for (let i = 0; i < rows; i++) {
-      // Randomly decide to go left or right
-      const direction = Math.random() < 0.5 ? 0 : 1;
-      
-      // Calculate next position
-      if (direction === 0) {
-        // Go left (stay at current position)
-        path.push(currentPosition);
-      } else {
-        // Go right (increment position)
-        currentPosition += 1;
-        path.push(currentPosition);
-      }
-      
-      // Schedule peg hit sound with delay based on row
-      setTimeout(() => {
-        if (!isMuted) {
-          playGameSound('plinkoPeg', volume);
-        }
-      }, i * 300);
+    // Play drop sound
+    if (!isMuted) {
+      playGameSound('plinkoPeg', volume);
     }
     
-    console.log("Ball path:", path);
+    // Generate a more realistic path with bouncing physics
+    const path = createBouncingPath();
     
     // Add the active ball with its path
     setActiveBalls(prev => [...prev, { id: ballId, path: path.slice(0, 1) }]);
@@ -84,6 +108,8 @@ const PlinkoGame: React.FC = () => {
           )
         );
         currentStep++;
+        
+        // Play peg hit sound with delay based on row (handled in PlinkoBoard component)
       } else {
         // Animation complete
         clearInterval(animationInterval);
@@ -110,7 +136,15 @@ const PlinkoGame: React.FC = () => {
           // Play win sound
           if (!isMuted) {
             playGameSound('plinkoWin', volume);
+            // Also play the cashout sound for the win
+            playGameSound('win', volume);
           }
+          
+          // Show toast notification
+          toast.success(`You won ${multiplier}x - $${winAmount.toFixed(2)}!`, {
+            position: 'top-center',
+            duration: 3000,
+          });
           
           // Remove ball from active balls (after showing the result)
           setTimeout(() => {
