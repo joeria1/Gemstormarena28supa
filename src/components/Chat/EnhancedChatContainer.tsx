@@ -4,6 +4,7 @@ import ChatToggle from '../Chat/ChatToggle';
 import { CloudRain, Gem, Send, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/context/UserContext';
+import { useChat } from '@/context/ChatContext';
 
 interface Message {
   id: string;
@@ -19,14 +20,11 @@ interface EnhancedChatContainerProps {
 
 const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className }) => {
   const { user, updateBalance } = useUser();
+  const { isRainActive, claimRain, rainAmount } = useChat();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isRaining, setIsRaining] = useState(false);
-  const [canClaim, setCanClaim] = useState(false);
   const [hasClaimed, setHasClaimed] = useState(false);
-  const [pendingReward, setPendingReward] = useState(0);
-  const [raindrops, setRaindrops] = useState<React.CSSProperties[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -81,23 +79,8 @@ const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className
       setMessages(prev => [...prev, newMessage]);
     }, Math.random() * 30000 + 30000);
     
-    // Start rain check timer
-    const rainCheckInterval = setInterval(() => {
-      // 10% chance of rain every minute
-      if (Math.random() < 0.10) {
-        startRain();
-      }
-    }, 60000);
-    
-    // For testing purposes, start rain soon after load
-    const testRainTimer = setTimeout(() => {
-      startRain();
-    }, 5000);
-    
     return () => {
       clearInterval(interval);
-      clearInterval(rainCheckInterval);
-      clearTimeout(testRainTimer);
     };
   }, []);
 
@@ -130,103 +113,23 @@ const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute:'2-digit' });
   };
   
-  const startRain = () => {
-    if (!isRaining) {
-      setIsRaining(true);
-      setCanClaim(true);
-      setHasClaimed(false);
-      setPendingReward(0);
-      
-      // Create raindrops
-      const drops: React.CSSProperties[] = [];
-      for (let i = 0; i < 30; i++) {
-        drops.push({
-          left: `${Math.random() * 100}%`,
-          animationDuration: `${Math.random() * 2 + 2}s`,
-          animationDelay: `${Math.random() * 3}s`,
-          fontSize: `${Math.random() * 16 + 16}px`,
-        });
-      }
-      
-      setRaindrops(drops);
-      
-      // Add rain announcement message
-      const rainMessage: Message = {
-        id: Date.now().toString(),
-        sender: 'System',
-        text: '☔ RAIN EVENT STARTED! Gems are up for grabs! You have 2 minutes to claim. ☔',
-        timestamp: new Date(),
-        avatar: '/placeholder.svg'
-      };
-      
-      setMessages(prev => [...prev, rainMessage]);
-      
-      // Open chat if closed
-      if (!isOpen) {
-        setIsOpen(true);
-      }
-      
-      // End rain after 20 seconds
-      setTimeout(() => {
-        setIsRaining(false);
-        setRaindrops([]);
-        
-        // If user has claimed, give the reward now
-        if (hasClaimed && pendingReward > 0) {
-          updateBalance(pendingReward);
-          
-          const rewardMessage: Message = {
-            id: Date.now().toString(),
-            sender: 'System',
-            text: `You received ${pendingReward} gems from the rain!`,
-            timestamp: new Date(),
-            avatar: '/placeholder.svg'
-          };
-          
-          setMessages(prev => [...prev, rewardMessage]);
-          
-          toast.success(`Received ${pendingReward} gems from the rain!`);
-          setPendingReward(0);
-        }
-        
-        // Add rain ended message
-        const endMessage: Message = {
-          id: Date.now().toString(),
-          sender: 'System',
-          text: '☔ RAIN EVENT ENDED! Next rain in 15 minutes. ☔',
-          timestamp: new Date(),
-          avatar: '/placeholder.svg'
-        };
-        
-        setMessages(prev => [...prev, endMessage]);
-        
-        // Cancel claim if not claimed after rain ends
-        setCanClaim(false);
-      }, 20000);
-    }
-  };
-  
-  const claimRain = () => {
-    if (canClaim && !hasClaimed) {
-      // Add random amount between 50-500 gems
-      const amount = Math.floor(Math.random() * 450) + 50;
-      
-      // Store the pending reward amount
-      setPendingReward(amount);
+  const handleClaimRain = () => {
+    if (isRainActive && !hasClaimed) {
+      claimRain();
       setHasClaimed(true);
       
       // Add claim message
       const claimMessage: Message = {
         id: Date.now().toString(),
         sender: 'System',
-        text: `You've claimed ${amount} gems from the rain! You'll receive them when the rain ends.`,
+        text: `You've claimed ${rainAmount} gems from the rain! You'll receive them when the rain ends.`,
         timestamp: new Date(),
         avatar: '/placeholder.svg'
       };
       
       setMessages(prev => [...prev, claimMessage]);
       
-      toast.success(`Claimed ${amount} gems from the rain!`, {
+      toast.success(`Claimed ${rainAmount} gems from the rain!`, {
         description: "Gems will be added to your balance when the rain ends."
       });
     }
@@ -329,60 +232,23 @@ const EnhancedChatContainer: React.FC<EnhancedChatContainerProps> = ({ className
               </div>
             </form>
           </div>
-
-          {isRaining && (
-            <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
-              {raindrops.map((style, index) => (
-                <div 
-                  key={index} 
-                  className="absolute text-yellow-400 animate-fall" 
-                  style={style}
-                >
-                  💰
-                </div>
-              ))}
-            </div>
-          )}
           
-          {canClaim && !hasClaimed && (
+          {isRainActive && !hasClaimed && (
             <button
-              onClick={claimRain}
+              onClick={handleClaimRain}
               className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold px-4 py-2 rounded-md z-50 animate-pulse hover:animate-none hover:from-yellow-500 hover:to-yellow-700 transition-all"
             >
               CLAIM RAIN!
             </button>
           )}
           
-          {hasClaimed && isRaining && (
+          {hasClaimed && isRainActive && (
             <div className="absolute top-2 right-2 bg-gradient-to-r from-green-400 to-green-600 text-black font-bold px-4 py-2 rounded-md z-50">
-              CLAIMED! ({pendingReward} gems)
+              CLAIMED! ({rainAmount} gems)
             </div>
           )}
         </div>
       )}
-            
-      <style>
-        {`
-        @keyframes fall {
-          0% {
-            transform: translateY(-100px);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(calc(100vh + 100px));
-            opacity: 0;
-          }
-        }
-        .animate-fall {
-          animation-name: fall;
-          animation-timing-function: linear;
-          animation-iteration-count: infinite;
-        }
-        `}
-      </style>
     </>
   );
 };

@@ -5,7 +5,9 @@ import { Card } from "../ui/card";
 import { motion } from 'framer-motion';
 import { useToast } from "../../hooks/use-toast";
 import ItemGlowEffect from '../GameEffects/ItemGlowEffect';
-import { Gift, DollarSign, RotateCcw } from 'lucide-react';
+import { Gift, DollarSign, RotateCcw, Sparkles, Shield, ChevronUp } from 'lucide-react';
+import PulseAnimation from '../GameEffects/PulseAnimation';
+import LightningEffect from '../GameEffects/LightningEffect';
 
 interface CardType {
   suit: string;
@@ -22,6 +24,7 @@ const EnhancedBlackjackGame = () => {
   const [bet, setBet] = useState(10);
   const [balance, setBalance] = useState(1000);
   const [showAnimation, setShowAnimation] = useState(false);
+  const [showLightning, setShowLightning] = useState(false);
 
   const suits = ['♠️', '♥️', '♦️', '♣️'];
   const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -84,6 +87,8 @@ const EnhancedBlackjackGame = () => {
         setTimeout(() => {
           setGameState('gameOver');
           setResult('win');
+          setShowAnimation(true);
+          setShowLightning(true);
           setBalance(prev => prev + bet * 2.5);
         }, 1000);
       }
@@ -169,6 +174,7 @@ const EnhancedBlackjackGame = () => {
         setResult('win');
         setBalance(prev => prev + bet * 2);
         setShowAnimation(true);
+        setShowLightning(true);
       } else if (playerValue < dealerValue) {
         setGameState('gameOver');
         setResult('lose');
@@ -218,6 +224,7 @@ const EnhancedBlackjackGame = () => {
     setGameState('betting');
     setResult(null);
     setShowAnimation(false);
+    setShowLightning(false);
   };
 
   // Get card color based on suit
@@ -231,7 +238,13 @@ const EnhancedBlackjackGame = () => {
         setShowAnimation(false);
       }, 3000);
     }
-  }, [showAnimation]);
+    
+    if (showLightning) {
+      setTimeout(() => {
+        setShowLightning(false);
+      }, 1500);
+    }
+  }, [showAnimation, showLightning]);
 
   const getResultMessage = () => {
     switch (result) {
@@ -263,63 +276,93 @@ const EnhancedBlackjackGame = () => {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex flex-col items-center justify-between min-h-[80vh] p-4 md:p-8 bg-gradient-to-b from-green-900/40 to-gray-900 rounded-xl"
+      className="flex flex-col items-center justify-between min-h-[80vh] p-4 md:p-8 bg-gradient-to-b from-green-900/40 to-gray-900 rounded-xl border-2 border-green-800/50 relative overflow-hidden"
     >
+      {/* Background patterns for table */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-green-800/20 to-green-900/10 z-0"></div>
+        <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoIGQ9Ik01NCA0OEw2IDQ4TDYgNnY0OGg0OHoiIGZpbGw9Imdyb3VwIiBvcGFjaXR5PSIwLjAyIiAvPgogICAgPHBhdGggZD0iTTEyIDEySDE4VjE4SDI0VjI0SDMwVjEySDM2VjEySDQyVjE4SDQ4VjMwSDQyVjM2SDM2VjQySDMwVjQ4SDI0VjQySDEyVjM2SDZWMzBIMTJWMjRIMTJWMTJaIgogICAgICAgIHN0cm9rZT0iIzBmNjYzMCIgc3Ryb2tlLW9wYWNpdHk9IjAuMDgiIGZpbGw9Im5vbmUiIC8+Cjwvc3ZnPg==')] opacity-10 z-0"></div>
+      </div>
+      
+      {showLightning && <LightningEffect isVisible={true} onComplete={() => setShowLightning(false)} />}
+      
       {/* Top Info Bar */}
       <motion.div 
-        className="w-full flex justify-between items-center mb-6 text-white"
+        className="w-full flex justify-between items-center mb-6 text-white relative z-10"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
       >
-        <div className="flex items-center">
+        <div className="flex items-center bg-black/40 rounded-lg px-4 py-2 backdrop-blur-sm">
           <DollarSign className="mr-2 text-yellow-400" />
           <span className="text-xl font-bold">{balance}</span>
         </div>
-        <div className="flex items-center">
-          <span className="text-lg font-medium mr-2">Current Bet:</span>
-          <span className="text-xl font-bold text-yellow-400">{bet}</span>
-        </div>
+        
+        <PulseAnimation isActive={gameState === 'playing' || gameState === 'dealerTurn'} className="bg-black/40 rounded-lg px-4 py-2 backdrop-blur-sm">
+          <div className="flex items-center">
+            <span className="text-lg font-medium mr-2">Current Bet:</span>
+            <span className="text-xl font-bold text-yellow-400">{bet}</span>
+          </div>
+        </PulseAnimation>
       </motion.div>
       
       {/* Dealer's Area */}
       <motion.div 
-        className="w-full mb-10"
+        className="w-full mb-10 relative z-10"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
-        <h2 className="text-xl font-bold mb-4 text-white text-center">
-          Dealer's Hand ({dealerHand.some(card => card.hidden) ? '?' : calculateHandValue(dealerHand)})
-        </h2>
-        <div className="flex justify-center flex-wrap gap-2">
-          {dealerHand.map((card, index) => (
-            <motion.div
-              key={index}
-              initial={{ rotateY: card.hidden ? 180 : 0 }}
-              animate={{ 
-                rotateY: card.hidden ? 180 : 0,
-                scale: [1, gameState === 'gameOver' && result === 'lose' ? 1.1 : 1]
-              }}
-              transition={{ duration: 0.5 }}
-              className="relative perspective"
-              style={{ transformStyle: 'preserve-3d' }}
-            >
-              <Card className={`w-20 h-32 flex items-center justify-center text-2xl font-bold bg-white shadow-xl ${card.hidden ? 'invisible' : ''}`}>
-                <div className={getCardColor(card.suit)}>
-                  <div>{card.value}</div>
-                  <div>{card.suit}</div>
-                </div>
-              </Card>
-              {card.hidden && (
-                <Card className="w-20 h-32 flex items-center justify-center absolute inset-0 bg-gradient-to-br from-blue-800 to-blue-600 text-white"
-                  style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
-                >
-                  <div className="font-bold text-2xl">?</div>
+        <div className="flex items-center justify-center mb-2">
+          <div className="bg-black/40 backdrop-blur-sm px-4 py-1 rounded-full">
+            <h2 className="text-xl font-bold text-white text-center flex items-center">
+              <Shield className="h-5 w-5 text-red-400 mr-2" />
+              Dealer's Hand
+              <span className={`ml-2 font-mono ${dealerHand.some(card => card.hidden) ? 'text-gray-400' : 'text-white'}`}>
+                ({dealerHand.some(card => card.hidden) ? '?' : calculateHandValue(dealerHand)})
+              </span>
+            </h2>
+          </div>
+        </div>
+        
+        <div className="relative flex justify-center">
+          <div className="absolute -inset-4 bg-gradient-to-b from-gray-800/20 to-transparent rounded-xl z-0"></div>
+          <div className="flex justify-center flex-wrap gap-2 z-10">
+            {dealerHand.map((card, index) => (
+              <motion.div
+                key={index}
+                initial={{ rotateY: card.hidden ? 180 : 0, y: -20 }}
+                animate={{ 
+                  rotateY: card.hidden ? 180 : 0,
+                  scale: [1, gameState === 'gameOver' && result === 'lose' ? 1.1 : 1],
+                  y: 0
+                }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="relative perspective"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <Card className={`w-24 h-36 flex flex-col items-center justify-center text-2xl font-bold bg-white shadow-xl border-2 ${card.hidden ? 'invisible' : ''}`}>
+                  <div className={`absolute top-2 left-2 ${getCardColor(card.suit)}`}>
+                    <div>{card.value}</div>
+                  </div>
+                  <div className={`text-4xl ${getCardColor(card.suit)}`}>
+                    {card.suit}
+                  </div>
+                  <div className={`absolute bottom-2 right-2 ${getCardColor(card.suit)}`}>
+                    <div>{card.value}</div>
+                  </div>
                 </Card>
-              )}
-            </motion.div>
-          ))}
+                {card.hidden && (
+                  <Card className="w-24 h-36 flex items-center justify-center absolute inset-0 bg-gradient-to-br from-blue-800 to-blue-600 text-white border-2 border-blue-500"
+                    style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
+                  >
+                    <div className="w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoIGQ9Ik0wIDIwQzAgOC45NTQzMSA4Ljk1NDMxIDAgMjAgMEMzMS4wNDU3IDAgNDAgOC45NTQzMSA0MCAyMEM0MCAzMS4wNDU3IDMxLjA0NTcgNDAgMjAgNDBDOC45NTQzMSA0MCAwIDMxLjA0NTcgMCAyMFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmYiIG9wYWNpdHk9IjAuMiIvPgogICAgPHBhdGggZD0iTTIwIDVMMjAgMjBMMzUgMjAiIHN0cm9rZT0iI2ZmZmYiIG9wYWNpdHk9IjAuMyIgc3Ryb2tlLXdpZHRoPSIyLjUiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4=')] bg-center opacity-30"></div>
+                    <div className="font-bold text-4xl">?</div>
+                  </Card>
+                )}
+              </motion.div>
+            ))}
+          </div>
         </div>
       </motion.div>
       
@@ -328,77 +371,104 @@ const EnhancedBlackjackGame = () => {
         <ItemGlowEffect 
           isActive={true}
           color={result === 'win' ? "rgba(0, 255, 0, 0.5)" : result === 'lose' ? "rgba(255, 0, 0, 0.5)" : "rgba(255, 255, 0, 0.5)"}
-          className="my-4"
+          className="my-4 z-10"
         >
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`text-3xl font-bold ${getResultColor()} px-6 py-3 rounded-lg bg-black/30 backdrop-blur-sm`}
+            className={`text-3xl font-bold ${getResultColor()} px-6 py-3 rounded-lg bg-black/50 backdrop-blur-sm border ${result === 'win' ? 'border-green-500' : result === 'lose' ? 'border-red-500' : 'border-yellow-500'}`}
           >
+            {result === 'win' && <Sparkles className="inline-block mr-2 text-yellow-400" />}
             {getResultMessage()}
+            {result === 'win' && <Sparkles className="inline-block ml-2 text-yellow-400" />}
           </motion.div>
         </ItemGlowEffect>
       )}
       
       {/* Player's Area */}
       <motion.div 
-        className="w-full mt-10"
+        className="w-full mt-10 relative z-10"
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.4 }}
       >
-        <h2 className="text-xl font-bold mb-4 text-white text-center">
-          Your Hand ({calculateHandValue(playerHand)})
-        </h2>
-        <div className="flex justify-center flex-wrap gap-2">
-          {playerHand.map((card, index) => (
-            <ItemGlowEffect 
-              key={index}
-              isActive={gameState === 'gameOver' && result === 'win'}
-              color="rgba(0, 255, 0, 0.5)"
-            >
-              <Card className="w-20 h-32 flex items-center justify-center text-2xl font-bold bg-white shadow-xl">
-                <div className={getCardColor(card.suit)}>
-                  <div>{card.value}</div>
-                  <div>{card.suit}</div>
-                </div>
-              </Card>
-            </ItemGlowEffect>
-          ))}
+        <div className="flex items-center justify-center mb-2">
+          <div className="bg-black/40 backdrop-blur-sm px-4 py-1 rounded-full">
+            <h2 className="text-xl font-bold text-white text-center flex items-center">
+              <User className="h-5 w-5 text-blue-400 mr-2" />
+              Your Hand
+              <span className={`ml-2 font-mono ${calculateHandValue(playerHand) > 21 ? 'text-red-400' : calculateHandValue(playerHand) === 21 ? 'text-yellow-400' : 'text-white'}`}>
+                ({calculateHandValue(playerHand)})
+              </span>
+            </h2>
+          </div>
+        </div>
+        
+        <div className="relative flex justify-center">
+          <div className="absolute -inset-4 bg-gradient-to-t from-gray-800/20 to-transparent rounded-xl z-0"></div>
+          <div className="flex justify-center flex-wrap gap-3 z-10">
+            {playerHand.map((card, index) => (
+              <ItemGlowEffect 
+                key={index}
+                isActive={gameState === 'gameOver' && result === 'win'}
+                color="rgba(0, 255, 0, 0.5)"
+              >
+                <motion.div
+                  initial={{ y: 50, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 + 0.2 }}
+                >
+                  <Card className="w-24 h-36 flex flex-col items-center justify-center text-2xl font-bold bg-white shadow-xl border-2">
+                    <div className={`absolute top-2 left-2 ${getCardColor(card.suit)}`}>
+                      <div>{card.value}</div>
+                    </div>
+                    <div className={`text-4xl ${getCardColor(card.suit)}`}>
+                      {card.suit}
+                    </div>
+                    <div className={`absolute bottom-2 right-2 ${getCardColor(card.suit)}`}>
+                      <div>{card.value}</div>
+                    </div>
+                  </Card>
+                </motion.div>
+              </ItemGlowEffect>
+            ))}
+          </div>
         </div>
       </motion.div>
       
       {/* Controls Area */}
       <motion.div 
-        className="w-full mt-8 flex flex-col items-center"
+        className="w-full mt-8 flex flex-col items-center relative z-10"
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5 }}
       >
         {gameState === 'betting' && (
-          <div className="w-full max-w-md">
+          <div className="w-full max-w-md bg-black/30 p-4 rounded-xl backdrop-blur-sm border border-gray-700/50">
             <div className="flex justify-between items-center mb-4">
               <Button 
                 variant="outline"
                 onClick={() => setBet(prev => Math.max(5, prev - 5))}
                 disabled={bet <= 5}
-                className="w-12 h-12 rounded-full"
+                className="w-12 h-12 rounded-full bg-red-900/50 border-red-500/50 text-white hover:bg-red-800"
               >
                 -
               </Button>
-              <div className="text-2xl font-bold text-yellow-400">${bet}</div>
+              <div className="text-2xl font-bold text-yellow-400 bg-black/50 px-6 py-2 rounded-lg border border-yellow-500/30">
+                ${bet}
+              </div>
               <Button 
                 variant="outline"
                 onClick={() => setBet(prev => Math.min(balance, prev + 5))}
                 disabled={bet >= balance}
-                className="w-12 h-12 rounded-full"
+                className="w-12 h-12 rounded-full bg-green-900/50 border-green-500/50 text-white hover:bg-green-800"
               >
                 +
               </Button>
             </div>
             <Button 
               onClick={dealCards}
-              className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3 rounded-lg"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 rounded-lg border border-blue-400/30 shadow-lg"
             >
               Deal Cards
             </Button>
@@ -406,45 +476,56 @@ const EnhancedBlackjackGame = () => {
         )}
         
         {gameState === 'playing' && (
-          <div className="grid grid-cols-3 gap-2 w-full max-w-md">
-            <Button 
-              onClick={hit}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-lg"
-            >
-              Hit
-            </Button>
+          <div className="grid grid-cols-3 gap-3 w-full max-w-md bg-black/30 p-4 rounded-xl backdrop-blur-sm border border-gray-700/50">
+            <PulseAnimation isActive={true} intensity="low" className="col-span-1">
+              <Button 
+                onClick={hit}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-bold py-3 rounded-lg border border-blue-400/30"
+              >
+                Hit
+              </Button>
+            </PulseAnimation>
+            
             <Button 
               onClick={stand}
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-3 rounded-lg"
+              className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold py-3 rounded-lg border border-red-400/30 col-span-1"
             >
               Stand
             </Button>
+            
             <Button 
               onClick={doubleDown}
               disabled={playerHand.length > 2 || balance < bet}
-              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-3 rounded-lg"
+              className="w-full bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white font-bold py-3 rounded-lg border border-purple-400/30 col-span-1 relative overflow-hidden"
             >
-              Double
+              <span className="relative z-10">Double</span>
+              {playerHand.length === 2 && balance >= bet && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="absolute h-10 w-10 bg-purple-400/20 rounded-full animate-ping"></span>
+                </span>
+              )}
             </Button>
           </div>
         )}
         
         {gameState === 'dealerTurn' && (
-          <div className="w-full max-w-md">
-            <Button 
-              disabled
-              className="w-full bg-gray-600 text-white font-bold py-3 rounded-lg"
-            >
-              Dealer's Turn...
-            </Button>
+          <div className="w-full max-w-md bg-black/30 p-4 rounded-xl backdrop-blur-sm border border-gray-700/50">
+            <PulseAnimation isActive={true}>
+              <Button 
+                disabled
+                className="w-full bg-gradient-to-r from-amber-600 to-amber-800 text-white font-bold py-3 rounded-lg border border-amber-500/30"
+              >
+                Dealer's Turn...
+              </Button>
+            </PulseAnimation>
           </div>
         )}
         
         {gameState === 'gameOver' && (
-          <div className="w-full max-w-md">
+          <div className="w-full max-w-md bg-black/30 p-4 rounded-xl backdrop-blur-sm border border-gray-700/50">
             <Button 
               onClick={newGame}
-              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold flex items-center justify-center py-3 rounded-lg"
+              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 text-white font-bold flex items-center justify-center py-3 rounded-lg border border-indigo-400/30"
             >
               <RotateCcw className="mr-2" size={16} />
               New Game
@@ -452,6 +533,17 @@ const EnhancedBlackjackGame = () => {
           </div>
         )}
       </motion.div>
+      
+      {/* Chips decoration */}
+      <div className="absolute bottom-4 left-4 z-0 opacity-40">
+        <div className="w-12 h-12 rounded-full bg-red-600 border-4 border-red-400 shadow-lg transform -rotate-12"></div>
+      </div>
+      <div className="absolute bottom-8 left-12 z-0 opacity-40">
+        <div className="w-10 h-10 rounded-full bg-blue-600 border-4 border-blue-400 shadow-lg transform rotate-6"></div>
+      </div>
+      <div className="absolute bottom-6 left-20 z-0 opacity-40">
+        <div className="w-8 h-8 rounded-full bg-green-600 border-4 border-green-400 shadow-lg"></div>
+      </div>
     </motion.div>
   );
 };

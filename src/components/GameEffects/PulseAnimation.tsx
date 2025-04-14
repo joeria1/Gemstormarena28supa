@@ -8,6 +8,10 @@ interface PulseAnimationProps {
   className?: string;
   color?: string;
   intensity?: 'low' | 'medium' | 'high';
+  duration?: number;
+  delay?: number;
+  type?: 'scale' | 'glow' | 'both';
+  repeat?: number | 'infinite';
 }
 
 const PulseAnimation: React.FC<PulseAnimationProps> = ({ 
@@ -15,48 +19,59 @@ const PulseAnimation: React.FC<PulseAnimationProps> = ({
   children, 
   className = "",
   color = "255, 255, 255",
-  intensity = 'medium'
+  intensity = 'medium',
+  duration = 1.5,
+  delay = 0,
+  type = 'both',
+  repeat = 'infinite'
 }) => {
   const getIntensityValues = () => {
     switch (intensity) {
       case 'low':
         return {
-          scale: [1, 1.03, 1, 1.02, 1],
-          shadow: [0, 10, 5, 15, 0]
+          scale: type === 'glow' ? [1, 1, 1, 1, 1] : [1, 1.02, 1, 1.01, 1],
+          shadow: [0, 8, 4, 10, 0]
         };
       case 'high':
         return {
-          scale: [1, 1.08, 1, 1.05, 1],
-          shadow: [0, 30, 15, 25, 0]
+          scale: type === 'glow' ? [1, 1, 1, 1, 1] : [1, 1.08, 1, 1.05, 1],
+          shadow: [0, 35, 20, 30, 0]
         };
       default: // medium
         return {
-          scale: [1, 1.05, 1, 1.03, 1],
-          shadow: [0, 20, 10, 15, 0]
+          scale: type === 'glow' ? [1, 1, 1, 1, 1] : [1, 1.05, 1, 1.03, 1],
+          shadow: [0, 25, 15, 20, 0]
         };
     }
   };
   
   const intensityValues = getIntensityValues();
   
+  // Only set up the animation if the component is active
+  const animation = isActive ? {
+    scale: type === 'glow' ? 1 : intensityValues.scale,
+    boxShadow: type === 'scale' ? undefined : [
+      `0 0 0 rgba(${color}, 0)`,
+      `0 0 ${intensityValues.shadow[1]}px rgba(${color}, 0.5)`,
+      `0 0 ${intensityValues.shadow[2]}px rgba(${color}, 0.3)`,
+      `0 0 ${intensityValues.shadow[3]}px rgba(${color}, 0.5)`,
+      `0 0 0 rgba(${color}, 0)`
+    ]
+  } : {};
+
+  // Animation timing
+  const transition = isActive ? {
+    duration: duration,
+    repeat: repeat,
+    repeatType: "reverse" as const,
+    delay: delay
+  } : {};
+
   return (
     <motion.div 
       className={className}
-      animate={isActive ? {
-        scale: intensityValues.scale,
-        boxShadow: [
-          `0 0 0 rgba(${color}, 0)`,
-          `0 0 ${intensityValues.shadow[1]}px rgba(${color}, 0.5)`,
-          `0 0 ${intensityValues.shadow[2]}px rgba(${color}, 0.3)`,
-          `0 0 ${intensityValues.shadow[3]}px rgba(${color}, 0.5)`,
-          `0 0 0 rgba(${color}, 0)`
-        ]
-      } : {}}
-      transition={isActive ? {
-        duration: 1.5,
-        repeat: Infinity,
-        repeatType: "reverse"
-      } : {}}
+      animate={animation}
+      transition={transition}
     >
       {children}
     </motion.div>

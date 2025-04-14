@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext } from 'react';
 import { useUser } from '../context/UserContext';
 import { toast } from 'sonner';
@@ -52,6 +51,7 @@ const HorseRacing = () => {
   }, []);
 
   const resetPositions = () => {
+    // Make sure horses always start from position 0 (left side of track)
     setPositions(horses.map(horse => ({ id: horse.id, position: 0 })));
     setWinner(null);
     setHasBet(false);
@@ -90,7 +90,7 @@ const HorseRacing = () => {
   const startAutoRace = () => {
     if (isRacing) return;
     
-    // Reset for a new race
+    // Reset for a new race - ensure all horses start from position 0
     resetPositions();
     setRaceCompleted(false);
     setIsRacing(true);
