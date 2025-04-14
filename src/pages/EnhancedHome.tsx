@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -10,6 +11,7 @@ import { useToast } from "../components/ui/use-toast";
 import DailyFreeCase from '../components/Rewards/DailyFreeCase';
 import { Trophy, Dice1 as Dice, ChevronRight, Zap, Users, Gift, CircleDot } from 'lucide-react';
 import HomepagePopup from '../components/HomePage/HomepagePopup';
+import { playGameSound } from '../utils/gameSounds';
 
 const EnhancedHome = () => {
   const { toast } = useToast();
@@ -17,6 +19,11 @@ const EnhancedHome = () => {
   const [battles, setBattles] = useState([]);
   
   useEffect(() => {
+    // Try to play a sound when the page loads to initialize the audio system
+    setTimeout(() => {
+      playGameSound('buttonClick', 0.3);
+    }, 1000);
+    
     const hasVisitedBefore = localStorage.getItem('hasVisitedBefore');
     if (!hasVisitedBefore) {
       localStorage.setItem('hasVisitedBefore', 'true');
@@ -187,7 +194,7 @@ const EnhancedHome = () => {
               whileTap={{ scale: 0.95 }}
               className="transition-all duration-300"
             >
-              <Link to={game.path}>
+              <Link to={game.path} onClick={() => playGameSound('buttonClick', 0.3)}>
                 <Card className="bg-gray-800 border-gray-700 hover:bg-gray-700 transition-all duration-300 h-full overflow-hidden relative">
                   <div className="p-6">
                     <div className="flex items-center mb-4">

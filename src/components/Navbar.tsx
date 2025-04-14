@@ -18,7 +18,8 @@ import {
   Gift,
   User,
   Award,
-  Building2
+  Building2,
+  CircleDot
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -76,6 +77,9 @@ const Navbar = () => {
             </NavLink>
             <NavLink to="/rewards" isActive={isActive("/rewards")} icon={<Gift className="w-4 h-4" />}>
               Rewards
+            </NavLink>
+            <NavLink to="/plinko" isActive={isActive("/plinko")} icon={<CircleDot className="w-4 h-4" />}>
+              Plinko
             </NavLink>
             
             <DropdownMenu>
