@@ -5,7 +5,10 @@ import { Input } from '../components/ui/input';
 import { useSound } from '../components/SoundManager';
 import { showGameResult } from '../components/GameResultNotification';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SOUNDS, playSound } from '../utils/soundEffects';
+import PulseAnimation from '../components/GameEffects/PulseAnimation';
+import LightningEffect from '../components/GameEffects/LightningEffect';
 
 enum DifficultyLevel {
   EASY = 'easy',
@@ -35,6 +38,7 @@ const Tower: React.FC = () => {
   const [multiplier, setMultiplier] = useState<number>(1);
   const [maxLevel, setMaxLevel] = useState<number>(10);
   const [lastBombHit, setLastBombHit] = useState<{ level: number, tileIndex: number } | null>(null);
+  const [showLightning, setShowLightning] = useState<boolean>(false);
   const { playSound } = useSound();
 
   const diffSettings = difficultySettings[difficulty];
@@ -74,41 +78,47 @@ const Tower: React.FC = () => {
     setCurrentLevel(0);
     setMultiplier(1);
     setLastBombHit(null);
+    setShowLightning(false);
     generateTower();
     playSound(SOUNDS.BUTTON_CLICK);
   };
   
-  const handleTileClick = (tileIndex: number) => {
+  const handleTileClick = (row: number, col: number) => {
     if (!gameActive) return;
     
     const currentTowerLevel = tower[currentLevel];
     
     // Check if already clicked
-    if (currentTowerLevel.clicked.includes(tileIndex)) return;
+    if (currentTowerLevel.clicked.includes(col)) return;
     
     // Update clicked tiles
     const updatedTower = [...tower];
     updatedTower[currentLevel] = {
       ...currentTowerLevel,
-      clicked: [...currentTowerLevel.clicked, tileIndex]
+      clicked: [...currentTowerLevel.clicked, col]
     };
     
     setTower(updatedTower);
     
-    // Check if bomb hit
-    if (currentTowerLevel.bombs.includes(tileIndex)) {
+    // Check if tile has mine
+    if (currentTowerLevel.bombs.includes(col)) {
       // Game over - hit a bomb
       playSound(SOUNDS.TOWER_WRONG);
-      setLastBombHit({ level: currentLevel, tileIndex });
+      setShowLightning(true);
+      setLastBombHit({ level: currentLevel, tileIndex: col });
       
-      showGameResult({
-        success: false,
-        message: "You hit a bomb!",
-        multiplier: multiplier,
-        amount: bet
-      });
-      // Keep game active to show the bomb hit, but disable interactions
-      setGameActive(false);
+      setTimeout(() => {
+        setShowLightning(false);
+        
+        showGameResult({
+          success: false,
+          message: "You hit a bomb!",
+          multiplier: multiplier,
+          amount: bet
+        });
+        // Keep game active to show the bomb hit, but disable interactions
+        setGameActive(false);
+      }, 1000);
     } else {
       // Safe tile
       playSound(SOUNDS.TOWER_CORRECT);
@@ -136,7 +146,7 @@ const Tower: React.FC = () => {
       } else {
         // For Medium and Hard modes, check if all safe tiles for this level are clicked
         const allSafeClicked = currentTowerLevel.safe.every(safeIndex => 
-          [...currentTowerLevel.clicked, tileIndex].includes(safeIndex)
+          [...currentTowerLevel.clicked, col].includes(safeIndex)
         );
         
         if (allSafeClicked) {
@@ -194,17 +204,26 @@ const Tower: React.FC = () => {
       if (!isVisibleLevel && !isGameOver) return null;
       
       return (
-        <div 
+        <motion.div 
           key={`level-${levelIndex}`}
-          className={`flex justify-center space-x-2 my-2 transition-all ${
-            isCurrentLevel ? 'scale-100 opacity-100' : 
-            isPastLevel ? 'scale-90 opacity-70' : 
-            'scale-90 opacity-50'
-          }`}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ 
+            opacity: isCurrentLevel ? 1 : isPastLevel ? 0.7 : 0.5, 
+            scale: isCurrentLevel ? 1 : 0.9,
+            y: 0
+          }}
+          transition={{ duration: 0.3 }}
+          className="flex justify-center space-x-2 my-2"
         >
-          <div className="flex-shrink-0 w-10 text-right font-bold">
-            {maxLevel - levelIndex}
-          </div>
+          <PulseAnimation 
+            isActive={isCurrentLevel}
+            className="flex-shrink-0 w-10 text-right font-bold flex items-center justify-end"
+          >
+            <span className={`${isCurrentLevel ? 'text-yellow-400 text-lg' : 'text-gray-400'}`}>
+              {maxLevel - levelIndex}
+            </span>
+          </PulseAnimation>
+          
           <div className="flex justify-center space-x-2">
             {Array.from({ length: totalTiles }).map((_, tileIndex) => {
               const isClicked = level.clicked.includes(tileIndex);
@@ -213,29 +232,37 @@ const Tower: React.FC = () => {
               const isLastBombHit = isGameOver && lastBombHit?.level === levelIndex && lastBombHit?.tileIndex === tileIndex;
               
               return (
-                <Button 
+                <motion.div
                   key={`tile-${levelIndex}-${tileIndex}`}
-                  disabled={isDisabled || isClicked}
-                  onClick={() => handleTileClick(tileIndex)}
-                  variant={isPastLevel ? "default" : "outline"}
-                  className={`w-12 h-12 ${
-                    isLastBombHit ? 'bg-red-500 hover:bg-red-600 border-white border-2 animate-pulse' :
-                    isPastLevel && isBomb ? 'bg-red-500 hover:bg-red-600' :
-                    isPastLevel && isSafe ? 'bg-green-500 hover:bg-green-600' :
-                    isClicked && isBomb ? 'bg-red-500 hover:bg-red-600' :
-                    isClicked && isSafe ? 'bg-green-500 hover:bg-green-600' :
-                    'bg-muted hover:bg-muted/70'
-                  }`}
+                  whileHover={!isDisabled && !isClicked ? { scale: 1.1 } : {}}
+                  whileTap={!isDisabled && !isClicked ? { scale: 0.95 } : {}}
                 >
-                  {(isPastLevel || isLastBombHit) && isBomb && '💣'}
-                  {isPastLevel && isSafe && '✓'}
-                  {isCurrentLevel && isClicked && isBomb && '💣'}
-                  {isCurrentLevel && isClicked && isSafe && '✓'}
-                </Button>
+                  <PulseAnimation isActive={isLastBombHit} color="255, 99, 71" intensity="high">
+                    <Button 
+                      disabled={isDisabled || isClicked}
+                      onClick={() => handleTileClick(levelIndex, tileIndex)}
+                      variant={isPastLevel ? "default" : "outline"}
+                      className={`w-12 h-12 ${
+                        isLastBombHit ? 'bg-red-500 hover:bg-red-600 border-white border-2' :
+                        isPastLevel && isBomb ? 'bg-red-500 hover:bg-red-600' :
+                        isPastLevel && isSafe ? 'bg-green-500 hover:bg-green-600' :
+                        isClicked && isBomb ? 'bg-red-500 hover:bg-red-600' :
+                        isClicked && isSafe ? 'bg-green-500 hover:bg-green-600' :
+                        isCurrentLevel ? 'bg-muted/80 hover:bg-muted border-2 border-gray-600 shadow-md' :
+                        'bg-muted/50 hover:bg-muted/70'
+                      }`}
+                    >
+                      {(isPastLevel || isLastBombHit) && isBomb && '💣'}
+                      {isPastLevel && isSafe && '✓'}
+                      {isCurrentLevel && isClicked && isBomb && '💣'}
+                      {isCurrentLevel && isClicked && isSafe && '✓'}
+                    </Button>
+                  </PulseAnimation>
+                </motion.div>
               );
             })}
           </div>
-        </div>
+        </motion.div>
       );
     }).reverse(); // Display tower from bottom to top
   };
@@ -300,7 +327,7 @@ const Tower: React.FC = () => {
                   Start
                 </Button>
                 <Button 
-                  className="flex-1"
+                  className={`flex-1 ${gameActive && currentLevel > 0 ? 'bg-green-600 hover:bg-green-700 animate-pulse' : ''}`}
                   variant="secondary"
                   onClick={cashOut}
                   disabled={!gameActive || currentLevel === 0}
@@ -319,11 +346,31 @@ const Tower: React.FC = () => {
                 <p>Hard: 2 bombs, 1 safe spot (all needed)</p>
               </div>
             </div>
+            
+            {gameActive && (
+              <div className="w-full bg-gradient-to-r from-blue-900/40 to-purple-900/40 rounded-md p-3 border border-blue-500/20">
+                <div className="text-sm font-medium text-blue-300">Current Progress</div>
+                <div className="mt-2 flex justify-between items-center">
+                  <span className="text-xs">Level {currentLevel + 1}/{maxLevel}</span>
+                  <span className="text-sm font-bold text-yellow-400">{multiplier}x</span>
+                </div>
+                <div className="mt-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <motion.div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                    initial={{ width: "0%" }}
+                    animate={{ width: `${(currentLevel / maxLevel) * 100}%` }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </div>
+              </div>
+            )}
           </CardFooter>
         </Card>
         
         <Card className="lg:col-span-2">
-          <CardContent className="pt-6 pb-6 h-[600px] overflow-y-auto">
+          <CardContent className="pt-6 pb-6 h-[600px] overflow-y-auto relative">
+            {showLightning && <LightningEffect isVisible={true} onComplete={() => setShowLightning(false)} />}
+            
             <div className="flex flex-col items-center space-y-2">
               {gameActive || lastBombHit ? renderGrid() : (
                 <div className="flex flex-col items-center justify-center h-full">

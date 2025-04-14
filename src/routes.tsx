@@ -1,3 +1,4 @@
+
 // This file is no longer used since routing is handled directly in App.tsx
 // Keeping this file for reference only
 import React from 'react';
@@ -14,12 +15,15 @@ import Rewards from './pages/Rewards';
 import Tower from './pages/Tower';
 import HorseRacing from './pages/HorseRacing';
 import Affiliates from './pages/Affiliates';
+import EnhancedGames from './pages/EnhancedGames';
+import EnhancedHome from './pages/EnhancedHome';
+import EnhancedProfile from './pages/EnhancedProfile';
 
 // NOTE: This component is not used anymore, as routing is now directly handled in App.tsx
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
+      <Route path="/" element={<EnhancedHome />} />
       <Route path="/blackjack" element={<Blackjack />} />
       <Route path="/case-battles" element={<CaseBattles />} />
       <Route path="/cases" element={<Cases />} />
@@ -30,6 +34,8 @@ const AppRoutes = () => {
       <Route path="/tower" element={<Tower />} />
       <Route path="/horse-racing" element={<HorseRacing />} />
       <Route path="/affiliates" element={<Affiliates />} />
+      <Route path="/profile" element={<EnhancedProfile />} />
+      <Route path="/games/:game" element={<EnhancedGames />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -7,6 +7,7 @@ import { Badge } from "../ui/badge";
 import { useToast } from "../../hooks/use-toast";
 import { Gift, Lock, Check } from 'lucide-react';
 import LightningEffect from '../GameEffects/LightningEffect';
+import PulseAnimation from '../GameEffects/PulseAnimation';
 
 interface Reward {
   id: number;
@@ -134,27 +135,33 @@ const LevelRewards: React.FC<LevelRewardsProps> = ({ currentLevel }) => {
                 whileHover={{ scale: 1.03 }}
                 className="h-full"
               >
-                <Card className="p-4 bg-gradient-to-br from-gray-800 to-gray-900 border-purple-500 h-full flex flex-col">
-                  <div className="flex items-center mb-2">
-                    <div className={`w-10 h-10 rounded-full ${getRewardColor(reward.type)} flex items-center justify-center mr-3`}>
-                      <Gift size={20} className="text-white" />
+                <PulseAnimation 
+                  isActive={true}
+                  color="147, 51, 234"
+                  className="h-full"
+                >
+                  <Card className="p-4 bg-gradient-to-br from-gray-800 to-gray-900 border-purple-500 h-full flex flex-col">
+                    <div className="flex items-center mb-2">
+                      <div className={`w-10 h-10 rounded-full ${getRewardColor(reward.type)} flex items-center justify-center mr-3`}>
+                        <Gift size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <Badge className="bg-purple-600 mb-1">{`Level ${reward.level}`}</Badge>
+                        <h4 className="text-lg font-bold text-white">{reward.title}</h4>
+                      </div>
                     </div>
-                    <div>
-                      <Badge className="bg-purple-600 mb-1">{`Level ${reward.level}`}</Badge>
-                      <h4 className="text-lg font-bold text-white">{reward.title}</h4>
+                    <p className="text-gray-300 text-sm mb-3">{reward.description}</p>
+                    <div className="mt-auto">
+                      <Button
+                        onClick={() => handleClaimReward(reward)}
+                        disabled={claimingRewardId !== null}
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                      >
+                        {claimingRewardId === reward.id ? "Claiming..." : "Claim Reward"}
+                      </Button>
                     </div>
-                  </div>
-                  <p className="text-gray-300 text-sm mb-3">{reward.description}</p>
-                  <div className="mt-auto">
-                    <Button
-                      onClick={() => handleClaimReward(reward)}
-                      disabled={claimingRewardId !== null}
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                    >
-                      {claimingRewardId === reward.id ? "Claiming..." : "Claim Reward"}
-                    </Button>
-                  </div>
-                </Card>
+                  </Card>
+                </PulseAnimation>
               </motion.div>
             ))}
           </div>

@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { Card } from '../components/ui/card';
 import { Trophy, DollarSign, User, Clock } from 'lucide-react';
 import HorseIcon from '../components/HorseRacing/HorseIcon';
+import PulseAnimation from '../components/GameEffects/PulseAnimation';
 
 const horses = [
   { id: 1, name: "Thunder Bolt", odds: 5, color: "bg-amber-700" },
@@ -153,12 +154,12 @@ const HorseRacing = () => {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-white">Race Track</h2>
             
-            <div className="flex items-center bg-blue-900 rounded-lg px-3 py-1">
+            <PulseAnimation isActive={isRacing} className="flex items-center bg-blue-900 rounded-lg px-3 py-1">
               <Clock className="h-4 w-4 text-blue-300 mr-2" />
               <span className="text-white">
                 {isRacing ? "Race in progress" : `Next race in ${timeToNextRace}s`}
               </span>
-            </div>
+            </PulseAnimation>
           </div>
           
           <div className="relative bg-green-900 rounded-lg p-4 min-h-[400px]">
@@ -184,6 +185,7 @@ const HorseRacing = () => {
             {horses.map((horse, index) => {
               const position = positions.find(p => p.id === horse.id)?.position || 0;
               const isSelected = selectedHorse === horse.id;
+              const isWinner = winner === horse.id;
               
               return (
                 <div 
@@ -196,21 +198,23 @@ const HorseRacing = () => {
                     transition: 'left 0.3s ease-in-out'
                   }}
                 >
-                  <div className={`w-10 h-6 ${horse.color} rounded-md flex items-center justify-center relative ${isSelected && hasBet ? 'ring-2 ring-yellow-500' : ''}`}>
-                    <HorseIcon className="text-white w-4 h-4" />
-                    {isSelected && hasBet && (
-                      <div className="absolute -top-5 left-1/2 transform -translate-x-1/2">
-                        <div className="bg-yellow-500 text-xs px-1 rounded text-black font-bold">
-                          YOU
+                  <PulseAnimation isActive={isWinner && raceCompleted}>
+                    <div className={`w-10 h-6 ${horse.color} rounded-md flex items-center justify-center relative ${isSelected && hasBet ? 'ring-2 ring-yellow-500' : ''}`}>
+                      <HorseIcon className="text-white w-4 h-4" />
+                      {isSelected && hasBet && (
+                        <div className="absolute -top-5 left-1/2 transform -translate-x-1/2">
+                          <div className="bg-yellow-500 text-xs px-1 rounded text-black font-bold">
+                            YOU
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {winner === horse.id && (
-                      <div className="absolute -top-5 right-0 transform translate-x-full">
-                        <Trophy className="text-yellow-500 w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
+                      )}
+                      {isWinner && (
+                        <div className="absolute -top-5 right-0 transform translate-x-full">
+                          <Trophy className="text-yellow-500 w-4 h-4" />
+                        </div>
+                      )}
+                    </div>
+                  </PulseAnimation>
                 </div>
               );
             })}
@@ -260,8 +264,10 @@ const HorseRacing = () => {
                 <h3 className="text-sm font-medium mb-2">Select Horse</h3>
                 <div className="space-y-2">
                   {horses.map(horse => (
-                    <div
+                    <motion.div
                       key={horse.id}
+                      whileHover={!isRacing && !hasBet ? { scale: 1.02, x: 3 } : {}}
+                      whileTap={!isRacing && !hasBet ? { scale: 0.98 } : {}}
                       className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between ${
                         selectedHorse === horse.id 
                           ? 'bg-gray-800 border-green-500' 
@@ -278,7 +284,7 @@ const HorseRacing = () => {
                       <div className="text-yellow-500 font-bold">
                         {horse.odds}x
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
