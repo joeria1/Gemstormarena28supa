@@ -9,7 +9,6 @@ import { useSound } from '../SoundManager';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
-// Mine grid configurations
 const GRID_SIZES = {
   "5x1": { rows: 5, cols: 1 },
   "3x3": { rows: 3, cols: 3 },
@@ -23,7 +22,6 @@ const ImprovedMinesGame: React.FC = () => {
   const { playSound } = useSound();
   const { toast } = useToast();
 
-  // Game settings
   const [gridSize, setGridSize] = useState<GridSize>("5x5");
   const [minesCount, setMinesCount] = useState<number>(5);
   const [betAmount, setBetAmount] = useState<number>(10);
@@ -33,22 +31,18 @@ const ImprovedMinesGame: React.FC = () => {
   const [nextTileIsSafe, setNextTileIsSafe] = useState<boolean>(false);
   const [usedSafety, setUsedSafety] = useState<boolean>(false);
 
-  // Game state
   const [grid, setGrid] = useState<Array<{ isMine: boolean; revealed: boolean; multiplier: number }>>([]);
   const [revealedCount, setRevealedCount] = useState<number>(0);
   const [minePositions, setMinePositions] = useState<number[]>([]);
   const [currentMultiplier, setCurrentMultiplier] = useState<number>(1);
   const [potentialWinnings, setPotentialWinnings] = useState<number>(0);
 
-  // Custom bet presets
   const betPresets = [5, 10, 25, 50, 100];
 
-  // Initialize or reset the game
   const initializeGame = () => {
     const { rows, cols } = GRID_SIZES[gridSize];
     const totalTiles = rows * cols;
     
-    // Create empty grid
     const newGrid = Array(totalTiles).fill(null).map(() => ({
       isMine: false,
       revealed: false,
@@ -65,46 +59,36 @@ const ImprovedMinesGame: React.FC = () => {
     setUsedSafety(false);
   };
 
-  // Reset everything when changing grid size
   useEffect(() => {
     initializeGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridSize]);
 
-  // Calculate max possible mines based on grid size
   const calculateMaxMines = (): number => {
     const { rows, cols } = GRID_SIZES[gridSize];
-    return Math.floor((rows * cols) * 0.8); // Max 80% of tiles can be mines
+    return Math.floor((rows * cols) * 0.8);
   };
 
-  // Start the game
   const startGame = () => {
     if (!user) {
-      toast({
-        title: "Login Required",
-        description: "You need to be logged in to play.",
-        variant: "destructive",
+      toast.error("Login Required", {
+        description: "You need to be logged in to play."
       });
       return;
     }
 
     if (user.balance < betAmount) {
-      toast({
-        title: "Insufficient Balance",
-        description: `You need $${betAmount.toFixed(2)} to play.`,
-        variant: "destructive",
+      toast.error("Insufficient Balance", {
+        description: `You need $${betAmount.toFixed(2)} to play.`
       });
       return;
     }
 
-    // Deduct bet amount
     updateBalance(-betAmount);
     
-    // Initialize grid
     const { rows, cols } = GRID_SIZES[gridSize];
     const totalTiles = rows * cols;
     
-    // Generate random mine positions
     const minePos: number[] = [];
     while (minePos.length < minesCount) {
       const pos = Math.floor(Math.random() * totalTiles);
@@ -113,13 +97,11 @@ const ImprovedMinesGame: React.FC = () => {
       }
     }
     
-    // Set up multipliers for each non-mine tile
     const newGrid = [...grid];
     minePos.forEach(pos => {
       newGrid[pos].isMine = true;
     });
     
-    // Calculate multipliers for non-mine tiles
     calculateMultipliers(newGrid, minePos);
     
     setGrid(newGrid);
@@ -130,35 +112,26 @@ const ImprovedMinesGame: React.FC = () => {
     playSound('gameStart');
   };
 
-  // Calculate multipliers for each possible next tile
   const calculateMultipliers = (currentGrid: typeof grid, mines: number[]) => {
     const { rows, cols } = GRID_SIZES[gridSize];
     const totalTiles = rows * cols;
     const safeTiles = totalTiles - mines.length;
     
-    // Base multiplier calculation
-    // Using a simplified model: each safe tile increases win by factor based on remaining tiles
     const baseMultiplier = 0.95 / (1 - (mines.length / totalTiles));
     
-    // Initialize all multipliers
     for (let i = 0; i < totalTiles; i++) {
       if (!currentGrid[i].isMine) {
-        // Calculate how this specific tile affects odds
         const tileMultiplier = baseMultiplier * (totalTiles / (totalTiles - 1 - revealedCount));
         currentGrid[i].multiplier = parseFloat((currentMultiplier * tileMultiplier).toFixed(2));
       }
     }
   };
 
-  // Handle revealing a tile
   const revealTile = (index: number) => {
     if (!isPlaying || grid[index].revealed) return;
     
-    // Check if safety was used for this tile
     if (nextTileIsSafe && !usedSafety) {
-      // If this is a mine, find a safe tile instead
       if (grid[index].isMine) {
-        // Find a safe tile to reveal instead
         const safeTileIndex = grid.findIndex(tile => !tile.isMine && !tile.revealed);
         if (safeTileIndex !== -1) {
           handleTileClick(safeTileIndex);
@@ -173,16 +146,13 @@ const ImprovedMinesGame: React.FC = () => {
     setNextTileIsSafe(false);
   };
 
-  // Handle the actual tile click logic
   const handleTileClick = (index: number) => {
     const newGrid = [...grid];
     newGrid[index].revealed = true;
     
     if (newGrid[index].isMine) {
-      // Game over - hit a mine
       playSound('gameLose');
       
-      // Reveal all mines
       minePositions.forEach(pos => {
         newGrid[pos].revealed = true;
       });
@@ -191,13 +161,10 @@ const ImprovedMinesGame: React.FC = () => {
       setIsPlaying(false);
       setGameCompleted(true);
       
-      toast({
-        title: "Game Over!",
-        description: "You hit a mine!",
-        variant: "destructive",
+      toast.error("Game Over!", {
+        description: "You hit a mine!"
       });
     } else {
-      // Safe tile - continue game
       playSound('tileClick');
       
       const newRevealedCount = revealedCount + 1;
@@ -209,39 +176,32 @@ const ImprovedMinesGame: React.FC = () => {
       setCurrentMultiplier(newMultiplier);
       setPotentialWinnings(newWinnings);
       
-      // Recalculate multipliers for remaining tiles
       calculateMultipliers(newGrid, minePositions);
       
-      // Check if all safe tiles are revealed
       const { rows, cols } = GRID_SIZES[gridSize];
       const totalTiles = rows * cols;
       const safeTiles = totalTiles - minesCount;
       
       if (newRevealedCount === safeTiles) {
-        // Player won by revealing all safe tiles
         playSound('gameWin');
         
         setIsPlaying(false);
         setGameCompleted(true);
         updateBalance(newWinnings);
         
-        toast({
-          title: "You Won!",
-          description: `You found all safe tiles and won $${newWinnings.toFixed(2)}!`,
+        toast.success("You Won!", {
+          description: `You found all safe tiles and won $${newWinnings.toFixed(2)}!`
         });
       }
     }
   };
 
-  // Cash out current winnings
   const cashOut = () => {
     if (!isPlaying) return;
     
-    // Award current winnings
     const winnings = potentialWinnings;
     updateBalance(winnings);
     
-    // Reveal all mines and end game
     const newGrid = [...grid];
     minePositions.forEach(pos => {
       newGrid[pos].revealed = true;
@@ -253,28 +213,22 @@ const ImprovedMinesGame: React.FC = () => {
     
     playSound('cashOut');
     
-    toast({
-      title: "Cashed Out!",
-      description: `You cashed out $${winnings.toFixed(2)}!`,
+    toast.success("Cashed Out!", {
+      description: `You cashed out $${winnings.toFixed(2)}!`
     });
   };
 
-  // Handle the safety feature for next tile
   const toggleSafetyForNextTile = () => {
     if (usedSafety) {
-      toast({
-        title: "Safety Already Used",
-        description: "You can only use the safety feature once per game.",
-        variant: "destructive",
+      toast.error("Safety Already Used", {
+        description: "You can only use the safety feature once per game."
       });
       return;
     }
     
     if (!isPlaying) {
-      toast({
-        title: "Game Not Active",
-        description: "Start a game first to use the safety feature.",
-        variant: "destructive",
+      toast.error("Game Not Active", {
+        description: "Start a game first to use the safety feature."
       });
       return;
     }
@@ -282,7 +236,6 @@ const ImprovedMinesGame: React.FC = () => {
     setNextTileIsSafe(!nextTileIsSafe);
   };
 
-  // Render mine field
   const renderMineField = () => {
     const { rows, cols } = GRID_SIZES[gridSize];
     
@@ -318,7 +271,6 @@ const ImprovedMinesGame: React.FC = () => {
     );
   };
 
-  // Render game controls
   const renderControls = () => {
     return (
       <Card className="p-4 space-y-4 bg-gray-800 text-white">
