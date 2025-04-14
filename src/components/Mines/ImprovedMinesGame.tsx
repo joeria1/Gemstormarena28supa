@@ -22,7 +22,7 @@ type GridSize = keyof typeof GRID_SIZES;
 const ImprovedMinesGame: React.FC = () => {
   const { user, updateBalance } = useUser();
   const { playSound } = useSound();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
 
   const [gridSize, setGridSize] = useState<GridSize>("5x5");
   const [minesCount, setMinesCount] = useState<number>(5);
@@ -73,16 +73,12 @@ const ImprovedMinesGame: React.FC = () => {
 
   const startGame = () => {
     if (!user) {
-      toast("Login Required", {
-        description: "You need to be logged in to play."
-      });
+      toast("Login Required - You need to be logged in to play.");
       return;
     }
 
     if (user.balance < betAmount) {
-      toast("Insufficient Balance", {
-        description: `You need $${betAmount.toFixed(2)} to play.`
-      });
+      toast(`Insufficient Balance - You need $${betAmount.toFixed(2)} to play.`);
       return;
     }
 
@@ -163,10 +159,7 @@ const ImprovedMinesGame: React.FC = () => {
       setIsPlaying(false);
       setGameCompleted(true);
       
-      toast("Game Over!", {
-        description: "You hit a mine!",
-        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
-      });
+      toast("Game Over! You hit a mine!");
     } else {
       playSound('tileClick');
       
@@ -192,10 +185,7 @@ const ImprovedMinesGame: React.FC = () => {
         setGameCompleted(true);
         updateBalance(newWinnings);
         
-        toast("You Won!", {
-          description: `You found all safe tiles and won $${newWinnings.toFixed(2)}!`,
-          style: { backgroundColor: 'rgb(34, 197, 94)', color: 'white' }
-        });
+        toast(`You Won! You found all safe tiles and won $${newWinnings.toFixed(2)}!`);
       }
     }
   };
@@ -217,26 +207,17 @@ const ImprovedMinesGame: React.FC = () => {
     
     playSound('cashOut');
     
-    toast("Cashed Out!", {
-      description: `You cashed out $${winnings.toFixed(2)}!`,
-      style: { backgroundColor: 'rgb(34, 197, 94)', color: 'white' }
-    });
+    toast(`Cashed Out! You cashed out $${winnings.toFixed(2)}!`);
   };
 
   const toggleSafetyForNextTile = () => {
     if (usedSafety) {
-      toast("Safety Already Used", {
-        description: "You can only use the safety feature once per game.",
-        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
-      });
+      toast("Safety Already Used - You can only use the safety feature once per game.");
       return;
     }
     
     if (!isPlaying) {
-      toast("Game Not Active", {
-        description: "Start a game first to use the safety feature.",
-        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
-      });
+      toast("Game Not Active - Start a game first to use the safety feature.");
       return;
     }
     
