@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import CaseBattlesList from '../components/CaseBattle/CaseBattlesList';
+import CaseBattlesList, { Battle, BattleParticipant } from '../components/CaseBattle/CaseBattlesList';
 import ImprovedCaseBattleCreator from '../components/CaseBattle/ImprovedCaseBattleCreator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { motion } from 'framer-motion';
@@ -8,27 +8,50 @@ import { Button } from '../components/ui/button';
 import LightningEffect from '../components/GameEffects/LightningEffect';
 import PulseAnimation from '../components/GameEffects/PulseAnimation';
 
+// Mock creator participants
+const mockCreator1: BattleParticipant = {
+  id: 'user1',
+  name: 'Player123',
+  username: 'player123',
+  avatar: '/placeholder.svg'
+};
+
+const mockCreator2: BattleParticipant = {
+  id: 'user2',
+  name: 'Gamer456',
+  username: 'gamer456',
+  avatar: '/placeholder.svg'
+};
+
 // Mock data for case battles
-const mockBattles = [
+const mockBattles: Battle[] = [
   {
     id: '1',
-    name: 'High Roller Battle',
-    creator: 'Player123',
-    status: 'waiting',
+    type: 'High Roller',
+    caseType: 'Premium',
+    rounds: 3,
+    cursedMode: false,
+    creator: mockCreator1,
+    players: [mockCreator1],
     maxPlayers: 2,
-    currentPlayers: 1,
-    cases: [{ id: 'case1', name: 'Premium Case', price: 100 }],
-    totalValue: 200
+    cost: 100,
+    status: 'waiting',
+    createdAt: new Date(),
+    cases: [{ id: 'case1', name: 'Premium Case', image: '/placeholder.svg', price: 100 }]
   },
   {
     id: '2',
-    name: 'Budget Battle',
-    creator: 'Gamer456',
-    status: 'in_progress',
+    type: 'Budget',
+    caseType: 'Basic',
+    rounds: 2,
+    cursedMode: true,
+    creator: mockCreator2,
+    players: [mockCreator2, { id: 'user3', name: 'Casual123', username: 'casual123', avatar: '/placeholder.svg' }, { id: 'user4', name: 'Gamer789', username: 'gamer789', avatar: '/placeholder.svg' }],
     maxPlayers: 4,
-    currentPlayers: 3,
-    cases: [{ id: 'case2', name: 'Basic Case', price: 25 }],
-    totalValue: 100
+    cost: 25,
+    status: 'in-progress',
+    createdAt: new Date(),
+    cases: [{ id: 'case2', name: 'Basic Case', image: '/placeholder.svg', price: 25 }]
   }
 ];
 
