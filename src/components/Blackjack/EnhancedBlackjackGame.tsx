@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -15,21 +14,29 @@ interface CardType {
   hidden?: boolean;
 }
 
-const EnhancedBlackjackGame = () => {
+interface EnhancedBlackjackGameProps {
+  minBet: number;
+  maxBet: number;
+}
+
+const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) => {
   const { toast } = useToast();
   const [playerHand, setPlayerHand] = useState<CardType[]>([]);
   const [dealerHand, setDealerHand] = useState<CardType[]>([]);
   const [gameState, setGameState] = useState<'betting' | 'playing' | 'dealerTurn' | 'gameOver'>('betting');
   const [result, setResult] = useState<'win' | 'lose' | 'push' | null>(null);
-  const [bet, setBet] = useState(10);
+  const [bet, setBet] = useState(minBet);
   const [balance, setBalance] = useState(1000);
   const [showAnimation, setShowAnimation] = useState(false);
   const [showLightning, setShowLightning] = useState(false);
 
+  useEffect(() => {
+    setBet(minBet);
+  }, [minBet]);
+
   const suits = ['♠️', '♥️', '♦️', '♣️'];
   const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
-  // Create a new deck and shuffle it
   const createDeck = () => {
     let deck: CardType[] = [];
     for (let suit of suits) {
@@ -40,7 +47,6 @@ const EnhancedBlackjackGame = () => {
     return shuffleDeck(deck);
   };
 
-  // Shuffle the deck using Fisher-Yates algorithm
   const shuffleDeck = (deck: CardType[]) => {
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -49,7 +55,6 @@ const EnhancedBlackjackGame = () => {
     return deck;
   };
 
-  // Deal initial cards
   const dealCards = () => {
     if (bet > balance) {
       toast({
@@ -73,17 +78,16 @@ const EnhancedBlackjackGame = () => {
     setGameState('playing');
     setResult(null);
     
-    // Check for natural blackjack
     if (calculateHandValue(newPlayerHand) === 21) {
       if (calculateHandValue([deck[1], deck[3]]) === 21) {
-        setDealerHand([deck[1], deck[3]]); // Reveal dealer's second card
+        setDealerHand([deck[1], deck[3]]);
         setTimeout(() => {
           setGameState('gameOver');
           setResult('push');
           setBalance(prev => prev + bet);
         }, 1000);
       } else {
-        setDealerHand([deck[1], deck[3]]); // Reveal dealer's second card
+        setDealerHand([deck[1], deck[3]]);
         setTimeout(() => {
           setGameState('gameOver');
           setResult('win');
@@ -95,7 +99,6 @@ const EnhancedBlackjackGame = () => {
     }
   };
 
-  // Calculate the value of a hand
   const calculateHandValue = (hand: CardType[]) => {
     let value = 0;
     let aces = 0;
@@ -113,7 +116,6 @@ const EnhancedBlackjackGame = () => {
       }
     }
     
-    // Adjust for aces if needed
     while (value > 21 && aces > 0) {
       value -= 10;
       aces -= 1;
@@ -122,25 +124,21 @@ const EnhancedBlackjackGame = () => {
     return value;
   };
 
-  // Player hits
   const hit = () => {
     const deck = createDeck();
     const newCard = deck[0];
     const newHand = [...playerHand, newCard];
     setPlayerHand(newHand);
     
-    // Check if player busts
     if (calculateHandValue(newHand) > 21) {
       setGameState('gameOver');
       setResult('lose');
     }
   };
 
-  // Player stands, dealer's turn
   const stand = () => {
     setGameState('dealerTurn');
     
-    // Reveal dealer's hidden card
     const revealedDealerHand = dealerHand.map(card => ({ ...card, hidden: false }));
     setDealerHand(revealedDealerHand);
     
@@ -149,14 +147,12 @@ const EnhancedBlackjackGame = () => {
     }, 1000);
   };
 
-  // Dealer's turn
   const dealerPlay = (currentDealerHand: CardType[]) => {
     let newDealerHand = [...currentDealerHand];
     const deck = createDeck();
     let dealerValue = calculateHandValue(newDealerHand);
     let deckIndex = 0;
     
-    // Dealer draws until 17 or higher
     while (dealerValue < 17) {
       const newCard = deck[deckIndex++];
       newDealerHand = [...newDealerHand, newCard];
@@ -165,7 +161,6 @@ const EnhancedBlackjackGame = () => {
     
     setDealerHand(newDealerHand);
     
-    // Determine the winner
     const playerValue = calculateHandValue(playerHand);
     
     setTimeout(() => {
@@ -186,7 +181,6 @@ const EnhancedBlackjackGame = () => {
     }, 1000);
   };
 
-  // Double down
   const doubleDown = () => {
     if (balance < bet) {
       toast({
@@ -200,13 +194,11 @@ const EnhancedBlackjackGame = () => {
     setBalance(prev => prev - bet);
     setBet(prev => prev * 2);
     
-    // Deal one more card to the player
     const deck = createDeck();
     const newCard = deck[0];
     const newHand = [...playerHand, newCard];
     setPlayerHand(newHand);
     
-    // Then stand
     setTimeout(() => {
       if (calculateHandValue(newHand) <= 21) {
         stand();
@@ -217,7 +209,6 @@ const EnhancedBlackjackGame = () => {
     }, 1000);
   };
 
-  // Reset the game
   const newGame = () => {
     setPlayerHand([]);
     setDealerHand([]);
@@ -227,7 +218,6 @@ const EnhancedBlackjackGame = () => {
     setShowLightning(false);
   };
 
-  // Get card color based on suit
   const getCardColor = (suit: string) => {
     return suit === '♥️' || suit === '♦️' ? 'text-red-500' : 'text-black';
   };
@@ -278,7 +268,6 @@ const EnhancedBlackjackGame = () => {
       animate={{ opacity: 1 }}
       className="flex flex-col items-center justify-between min-h-[80vh] p-4 md:p-8 bg-gradient-to-b from-green-900/40 to-gray-900 rounded-xl border-2 border-green-800/50 relative overflow-hidden"
     >
-      {/* Background patterns for table */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-green-800/20 to-green-900/10 z-0"></div>
         <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoIGQ9Ik01NCA0OEw2IDQ4TDYgNnY0OGg0OHoiIGZpbGw9Imdyb3VwIiBvcGFjaXR5PSIwLjAyIiAvPgogICAgPHBhdGggZD0iTTEyIDEySDE4VjE4SDI0VjI0SDMwVjEySDM2VjEySDQyVjE4SDQ4VjMwSDQyVjM2SDM2VjQySDMwVjQ4SDI0VjQySDEyVjM2SDZWMzBIMTJWMjRIMTJWMTJaIgogICAgICAgIHN0cm9rZT0iIzBmNjYzMCIgc3Ryb2tlLW9wYWNpdHk9IjAuMDgiIGZpbGw9Im5vbmUiIC8+Cjwvc3ZnPg==')] opacity-10 z-0"></div>
@@ -286,7 +275,6 @@ const EnhancedBlackjackGame = () => {
       
       {showLightning && <LightningEffect isVisible={true} onComplete={() => setShowLightning(false)} />}
       
-      {/* Top Info Bar */}
       <motion.div 
         className="w-full flex justify-between items-center mb-6 text-white relative z-10"
         initial={{ y: -20, opacity: 0 }}
@@ -306,7 +294,6 @@ const EnhancedBlackjackGame = () => {
         </PulseAnimation>
       </motion.div>
       
-      {/* Dealer's Area */}
       <motion.div 
         className="w-full mb-10 relative z-10"
         initial={{ y: -20, opacity: 0 }}
@@ -366,7 +353,6 @@ const EnhancedBlackjackGame = () => {
         </div>
       </motion.div>
       
-      {/* Result Message */}
       {result && (
         <ItemGlowEffect 
           isActive={true}
@@ -385,7 +371,6 @@ const EnhancedBlackjackGame = () => {
         </ItemGlowEffect>
       )}
       
-      {/* Player's Area */}
       <motion.div 
         className="w-full mt-10 relative z-10"
         initial={{ y: 20, opacity: 0 }}
@@ -436,7 +421,6 @@ const EnhancedBlackjackGame = () => {
         </div>
       </motion.div>
       
-      {/* Controls Area */}
       <motion.div 
         className="w-full mt-8 flex flex-col items-center relative z-10"
         initial={{ y: 20, opacity: 0 }}
@@ -448,8 +432,8 @@ const EnhancedBlackjackGame = () => {
             <div className="flex justify-between items-center mb-4">
               <Button 
                 variant="outline"
-                onClick={() => setBet(prev => Math.max(5, prev - 5))}
-                disabled={bet <= 5}
+                onClick={() => setBet(prev => Math.max(minBet, prev - 5))}
+                disabled={bet <= minBet}
                 className="w-12 h-12 rounded-full bg-red-900/50 border-red-500/50 text-white hover:bg-red-800"
               >
                 -
@@ -459,8 +443,8 @@ const EnhancedBlackjackGame = () => {
               </div>
               <Button 
                 variant="outline"
-                onClick={() => setBet(prev => Math.min(balance, prev + 5))}
-                disabled={bet >= balance}
+                onClick={() => setBet(prev => Math.min(Math.min(balance, maxBet), prev + 5))}
+                disabled={bet >= Math.min(balance, maxBet)}
                 className="w-12 h-12 rounded-full bg-green-900/50 border-green-500/50 text-white hover:bg-green-800"
               >
                 +
@@ -534,7 +518,6 @@ const EnhancedBlackjackGame = () => {
         )}
       </motion.div>
       
-      {/* Chips decoration */}
       <div className="absolute bottom-4 left-4 z-0 opacity-40">
         <div className="w-12 h-12 rounded-full bg-red-600 border-4 border-red-400 shadow-lg transform -rotate-12"></div>
       </div>
