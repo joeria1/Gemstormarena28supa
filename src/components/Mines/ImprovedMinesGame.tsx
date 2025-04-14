@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -6,7 +5,7 @@ import { Slider } from '../ui/slider';
 import { Switch } from '../ui/switch';
 import { useToast } from '../ui/use-toast';
 import { useUser } from '../../context/UserContext';
-import { useSounds } from '../ui/sound-context';
+import { useSound } from '../SoundManager';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
@@ -21,7 +20,7 @@ type GridSize = keyof typeof GRID_SIZES;
 
 const ImprovedMinesGame: React.FC = () => {
   const { user, updateBalance } = useUser();
-  const { playSound } = useSounds();
+  const { playSound } = useSound();
   const { toast } = useToast();
 
   // Game settings

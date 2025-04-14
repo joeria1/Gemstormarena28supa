@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Bell, Menu } from 'lucide-react';
-import RocketLogo from './RocketLogo';
+import { RocketLogo } from './RocketLogo';
 import DepositButton from './DepositButton';
 import SoundManager from './SoundManager';
 import { useUser } from '../context/UserContext';
@@ -19,7 +19,7 @@ import {
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, login, logout } = useUser();
+  const { user, updateUser, updateBalance } = useUser();
   const location = useLocation();
 
   const isActive = (path: string) => {
@@ -30,7 +30,32 @@ const Navbar = () => {
   const isLoggedIn = !!user;
 
   const handleLogin = () => {
-    login("user123", "Demo User");
+    // Create a demo user
+    updateUser({
+      id: 'user123',
+      username: 'Demo User',
+      balance: 5000,
+      avatar: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Demo',
+      level: 1,
+      xp: 0,
+      wagered: 0,
+      wins: 0,
+      referrals: 0
+    });
+  };
+
+  const handleLogout = () => {
+    // Reset to default user with 0 balance
+    updateUser({
+      id: '',
+      username: '',
+      balance: 0,
+      level: 1,
+      xp: 0,
+      wagered: 0,
+      wins: 0,
+      referrals: 0
+    });
   };
 
   const toggleMobileMenu = () => {
@@ -119,7 +144,7 @@ const Navbar = () => {
                     <button className="ml-3 flex items-center">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user.avatar || "/placeholder.svg"} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
                       </Avatar>
                     </button>
                   </DropdownMenuTrigger>
@@ -133,7 +158,7 @@ const Navbar = () => {
                       <Link to="/rake-back" className="focus:bg-gray-700 cursor-pointer">Rake Back</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-gray-700" />
-                    <DropdownMenuItem onClick={logout} className="focus:bg-gray-700 cursor-pointer text-red-400">
+                    <DropdownMenuItem onClick={handleLogout} className="focus:bg-gray-700 cursor-pointer text-red-400">
                       Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -250,7 +275,7 @@ const Navbar = () => {
                 </Link>
                 <button
                   onClick={() => {
-                    logout();
+                    handleLogout();
                     toggleMobileMenu();
                   }}
                   className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-400 hover:bg-gray-800"

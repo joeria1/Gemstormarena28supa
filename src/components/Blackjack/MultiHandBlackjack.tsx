@@ -173,8 +173,10 @@ const MultiHandBlackjack: React.FC = () => {
     updateBalance(-totalBet);
     
     const newDeck = [...deck];
+    
+    // Fix: Explicitly specify the hidden property for both cards
     const newDealerHand: PlayingCard[] = [
-      { ...newDeck.pop()! },
+      { ...newDeck.pop()!, hidden: false },
       { ...newDeck.pop()!, hidden: true }
     ];
     
@@ -518,10 +520,10 @@ const MultiHandBlackjack: React.FC = () => {
                 
                 <Card className="p-4">
                   <BettingOptions
-                    bet={betAmount}
-                    setBet={setBetAmount}
-                    min={5}
-                    max={1000}
+                    currentBet={betAmount}
+                    setCurrentBet={setBetAmount}
+                    minBet={5}
+                    maxBet={1000}
                   />
                 </Card>
               </div>

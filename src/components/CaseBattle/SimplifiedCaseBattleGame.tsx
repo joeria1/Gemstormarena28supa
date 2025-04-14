@@ -5,12 +5,28 @@ import { Card } from '../ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { useToast } from '../ui/use-toast';
 import { useUser } from '../../context/UserContext';
-import SpinningEffect from '../GameEffects/SpinningEffect';
-import PulseAnimation from '../GameEffects/PulseAnimation';
 import { Slider } from '../ui/slider';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
+
+// Component for spinning effect
+const SpinningEffect = ({ children }) => {
+  return (
+    <div className="animate-spin">
+      {children}
+    </div>
+  );
+};
+
+// Component for pulse animation
+const PulseAnimation = ({ children }) => {
+  return (
+    <div className="animate-pulse">
+      {children}
+    </div>
+  );
+};
 
 // Types
 interface GameCase {
@@ -161,7 +177,7 @@ const SimplifiedCaseBattleGame: React.FC = () => {
       players: [
         {
           id: user.id,
-          name: user.name,
+          name: user.username,
           avatar: user.avatar || '/placeholder.svg',
           isBot: false,
           ready: true,
@@ -233,7 +249,7 @@ const SimplifiedCaseBattleGame: React.FC = () => {
     const updatedBattle = { ...battle };
     updatedBattle.players.push({
       id: user.id,
-      name: user.name,
+      name: user.username,
       avatar: user.avatar || '/placeholder.svg',
       isBot: false,
       ready: true,
@@ -686,9 +702,9 @@ const SimplifiedCaseBattleGame: React.FC = () => {
                         
                         {activeBattle.status === 'in-progress' ? (
                           <div className="flex justify-center">
-                            <SpinningEffect>
+                            <div className="animate-spin">
                               <div className="w-12 h-12 bg-gray-600 rounded"></div>
-                            </SpinningEffect>
+                            </div>
                           </div>
                         ) : (
                           <div className="flex flex-wrap gap-1">
