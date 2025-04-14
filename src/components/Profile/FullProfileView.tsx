@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useUser } from '@/context/UserContext';
 import { Card } from '@/components/ui/card';
@@ -110,7 +109,7 @@ const FullProfileView: React.FC<FullProfileViewProps> = ({ isOpen, onClose }) =>
                             <DollarSign className="h-5 w-5 text-green-400" />
                           </div>
                           <div className="text-xs text-gray-400">Profit</div>
-                          <div className="font-bold">${user.profit?.toFixed(2) || '0.00'}</div>
+                          <div className="font-bold">$0.00</div>
                         </div>
                         
                         <div className="bg-gray-700/50 p-4 rounded-lg text-center">
