@@ -1,27 +1,24 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CaseBattlesList } from '../components/CaseBattle/CaseBattlesList';
-import RocketLogo from '../components/RocketLogo';
-import { GameCard } from '../components/GameCard';
+import CaseBattlesList from '../components/CaseBattle/CaseBattlesList';
+import { RocketLogo } from '../components/RocketLogo';
+import GameCard from '../components/GameCard';
 import { useToast } from "../hooks/use-toast";
-import { DailyFreeCase } from '../components/Rewards/DailyFreeCase';
-import { Trophy, Dice, ChevronRight, Zap, Users, Gift } from 'lucide-react';
+import DailyFreeCase from '../components/Rewards/DailyFreeCase';
+import { Trophy, Dice1 as Dice, ChevronRight, Zap, Users, Gift } from 'lucide-react';
 
 const EnhancedHome = () => {
   const { toast } = useToast();
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   
   useEffect(() => {
-    // Check if user has visited before
     const hasVisitedBefore = localStorage.getItem('hasVisitedBefore');
     if (!hasVisitedBefore) {
       localStorage.setItem('hasVisitedBefore', 'true');
     } else {
-      // Show popup for returning users
       setShowWelcomePopup(true);
       setTimeout(() => setShowWelcomePopup(false), 5000);
     }
@@ -38,7 +35,6 @@ const EnhancedHome = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white pb-16">
-      {/* Hero Section */}
       <motion.section 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -77,7 +73,6 @@ const EnhancedHome = () => {
         </div>
       </motion.section>
 
-      {/* Daily Free Case */}
       <section className="py-12 px-4 max-w-7xl mx-auto">
         <h2 className="text-3xl font-bold mb-6 text-center">Your Daily Reward</h2>
         <div className="flex justify-center">
@@ -85,7 +80,6 @@ const EnhancedHome = () => {
         </div>
       </section>
 
-      {/* Popular Games */}
       <section className="py-12 px-4 max-w-7xl mx-auto">
         <h2 className="text-3xl font-bold mb-8 text-center">Popular Games</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -119,13 +113,11 @@ const EnhancedHome = () => {
         </div>
       </section>
 
-      {/* Live Case Battles */}
       <section className="py-12 px-4 max-w-7xl mx-auto">
         <h2 className="text-3xl font-bold mb-8 text-center">Live Case Battles</h2>
         <CaseBattlesList />
       </section>
 
-      {/* Welcome Back Popup for returning users */}
       {showWelcomePopup && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}

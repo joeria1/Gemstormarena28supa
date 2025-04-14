@@ -3,18 +3,22 @@ import React from 'react';
 
 interface HorseIconProps {
   className?: string;
+  color?: string;
+  size?: number;
 }
 
-const HorseIcon: React.FC<HorseIconProps> = ({ className }) => {
+const HorseIcon: React.FC<HorseIconProps> = ({ className, color = "currentColor", size }) => {
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
+      stroke={color}
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      width={size}
+      height={size}
       className={className}
     >
       <path d="M21 4v6m-9-6v6m-3 10a6 6 0 0 1-6-6c0-4 3-6 3-6h12s3 2 3 6a6 6 0 0 1-6 6h-6Z"/>
