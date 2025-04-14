@@ -146,7 +146,7 @@ const Tower: React.FC = () => {
         message: `Tile Safe! Next tile safety: ${safeTilePercentage}%`,
         multiplier: 0,
         amount: 0,
-        displayTime: 1000
+        duration: 1000
       });
       
       // Safe tile
