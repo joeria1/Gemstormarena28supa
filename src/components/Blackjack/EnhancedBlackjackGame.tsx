@@ -5,7 +5,7 @@ import { Card } from "../ui/card";
 import { motion } from 'framer-motion';
 import { useToast } from "../../hooks/use-toast";
 import ItemGlowEffect from '../GameEffects/ItemGlowEffect';
-import { Gift, DollarSign, RotateCcw, Sparkles, Shield, ChevronUp } from 'lucide-react';
+import { Gift, DollarSign, RotateCcw, Sparkles, Shield, User, ChevronUp } from 'lucide-react';
 import PulseAnimation from '../GameEffects/PulseAnimation';
 import LightningEffect from '../GameEffects/LightningEffect';
 

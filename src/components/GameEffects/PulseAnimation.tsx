@@ -11,7 +11,7 @@ interface PulseAnimationProps {
   duration?: number;
   delay?: number;
   type?: 'scale' | 'glow' | 'both';
-  repeat?: number | 'infinite';
+  repeat?: number | 'infinity';
 }
 
 const PulseAnimation: React.FC<PulseAnimationProps> = ({ 
@@ -23,7 +23,7 @@ const PulseAnimation: React.FC<PulseAnimationProps> = ({
   duration = 1.5,
   delay = 0,
   type = 'both',
-  repeat = 'infinite'
+  repeat = 'infinity'
 }) => {
   const getIntensityValues = () => {
     switch (intensity) {
@@ -59,10 +59,10 @@ const PulseAnimation: React.FC<PulseAnimationProps> = ({
     ]
   } : {};
 
-  // Animation timing
+  // Animation timing - fixed to use Infinity instead of "infinite" string
   const transition = isActive ? {
     duration: duration,
-    repeat: repeat,
+    repeat: repeat === 'infinity' ? Infinity : repeat,
     repeatType: "reverse" as const,
     delay: delay
   } : {};
