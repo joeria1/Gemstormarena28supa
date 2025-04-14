@@ -1,936 +1,622 @@
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
-import { useToast } from '../ui/use-toast';
-import { useUser } from '../../context/UserContext';
-import { Slider } from '../ui/slider';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Switch } from '../ui/switch';
-
-// Component for spinning effect
-const SpinningEffect = ({ children }) => {
-  return (
-    <div className="animate-spin">
-      {children}
-    </div>
-  );
-};
-
-// Component for pulse animation
-const PulseAnimation = ({ children }) => {
-  return (
-    <div className="animate-pulse">
-      {children}
-    </div>
-  );
-};
-
-// Types
-interface GameCase {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  items: CaseItem[];
-}
-
-interface CaseItem {
-  id: string;
-  name: string;
-  rarity: string;
-  image: string;
-  value: number;
-}
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+import { ArrowLeft, Bot, Gem, Users } from 'lucide-react';
+import { useUser } from '@/context/UserContext';
+import { Button } from '@/components/ui/button';
+import CaseSlider from '@/components/CaseSlider/CaseSlider';
+import { SliderItem } from '@/types/slider';
+import SpinningEffect from '../GameEffects/SpinningEffect';
 
 interface Player {
   id: string;
   name: string;
   avatar: string;
-  isBot: boolean;
-  ready: boolean;
-  totalValue: number;
   items: CaseItem[];
+  totalValue: number;
+  isSpinning?: boolean;
+  isBot?: boolean;
+  lastWonItem?: SliderItem;
 }
 
-interface BattleConfig {
+interface CaseItem {
   id: string;
-  totalPlayers: number;
-  creator: string;
-  cases: GameCase[];
-  players: Player[];
-  status: 'waiting' | 'in-progress' | 'completed';
-  winningPlayerId: string | null;
+  name: string;
+  image: string;
+  value: number;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 }
 
-// Mock data for cases
-const availableCases: GameCase[] = [
-  {
-    id: '1',
-    name: 'Starter Case',
-    price: 10,
-    image: '/placeholder.svg',
-    items: [
-      { id: 'item1', name: 'Common Item', rarity: 'common', image: '/placeholder.svg', value: 5 },
-      { id: 'item2', name: 'Uncommon Item', rarity: 'uncommon', image: '/placeholder.svg', value: 15 },
-      { id: 'item3', name: 'Rare Item', rarity: 'rare', image: '/placeholder.svg', value: 30 }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Premium Case',
-    price: 25,
-    image: '/placeholder.svg',
-    items: [
-      { id: 'item4', name: 'Rare Item', rarity: 'rare', image: '/placeholder.svg', value: 20 },
-      { id: 'item5', name: 'Epic Item', rarity: 'epic', image: '/placeholder.svg', value: 50 },
-      { id: 'item6', name: 'Legendary Item', rarity: 'legendary', image: '/placeholder.svg', value: 100 }
-    ]
-  },
-  {
-    id: '3',
-    name: 'Elite Case',
-    price: 50,
-    image: '/placeholder.svg',
-    items: [
-      { id: 'item7', name: 'Epic Item', rarity: 'epic', image: '/placeholder.svg', value: 40 },
-      { id: 'item8', name: 'Legendary Item', rarity: 'legendary', image: '/placeholder.svg', value: 80 },
-      { id: 'item9', name: 'Mythic Item', rarity: 'mythic', image: '/placeholder.svg', value: 200 }
-    ]
-  },
-  {
-    id: '4',
-    name: 'Ultimate Case',
-    price: 100,
-    image: '/placeholder.svg',
-    items: [
-      { id: 'item10', name: 'Legendary Item', rarity: 'legendary', image: '/placeholder.svg', value: 75 },
-      { id: 'item11', name: 'Mythic Item', rarity: 'mythic', image: '/placeholder.svg', value: 150 },
-      { id: 'item12', name: 'Divine Item', rarity: 'divine', image: '/placeholder.svg', value: 300 }
-    ]
-  }
+interface CaseBattleGameProps {
+  battleId: string;
+  onClose: () => void;
+  cursedMode?: boolean;
+}
+
+const rarityColors = {
+  common: 'border-gray-400',
+  uncommon: 'border-green-400',
+  rare: 'border-blue-400',
+  epic: 'border-purple-400',
+  legendary: 'border-yellow-400',
+};
+
+const rarityGradients = {
+  common: 'from-gray-500 to-gray-400',
+  uncommon: 'from-green-600 to-green-500',
+  rare: 'from-blue-700 to-blue-600',
+  epic: 'from-purple-700 to-purple-600',
+  legendary: 'from-amber-600 to-amber-500',
+};
+
+const mockItems: CaseItem[] = [
+  { id: '1', name: 'Common Item', image: '/placeholder.svg', value: 25, rarity: 'common' },
+  { id: '2', name: 'Uncommon Item', image: '/placeholder.svg', value: 75, rarity: 'uncommon' },
+  { id: '3', name: 'Rare Item', image: '/placeholder.svg', value: 150, rarity: 'rare' },
+  { id: '4', name: 'Epic Item', image: '/placeholder.svg', value: 350, rarity: 'epic' },
+  { id: '5', name: 'Legendary Item', image: '/placeholder.svg', value: 1000, rarity: 'legendary' },
 ];
 
-// Bot names for bot players
-const botNames = ['CryptoBot', 'RocketBot', 'LuckyBot', 'MoonBot', 'DiamondBot'];
+const caseItems: SliderItem[] = [
+  { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50 },
+  { id: '2', name: 'Forest Shield', image: '/placeholder.svg', rarity: 'uncommon', price: 150 },
+  { id: '3', name: 'Ocean Blade', image: '/placeholder.svg', rarity: 'rare', price: 500 },
+  { id: '4', name: 'Thunder Axe', image: '/placeholder.svg', rarity: 'epic', price: 1000 },
+  { id: '5', name: 'Dragon Slayer', image: '/placeholder.svg', rarity: 'legendary', price: 2500 },
+  { id: '6', name: 'Void Reaver', image: '/placeholder.svg', rarity: 'mythical', price: 5000 },
+];
 
 const SimplifiedCaseBattleGame: React.FC = () => {
-  const { toast } = useToast();
   const { user, updateBalance } = useUser();
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [emptySlots, setEmptySlots] = useState<number>(2);
+  const [battleStarted, setBattleStarted] = useState(false);
+  const [spinning, setSpinning] = useState(false);
+  const [winner, setWinner] = useState<Player | null>(null);
+  const [countdown, setCountdown] = useState(0);
+  const [totalValue, setTotalValue] = useState(0);
+  const [currentRound, setCurrentRound] = useState(0);
+  const [maxRounds] = useState(3);
+  const [caseOpened, setCaseOpened] = useState(false);
+  const [showCaseOpening, setShowCaseOpening] = useState(false);
+  const [activePlayer, setActivePlayer] = useState<string | null>(null);
+  const [isPersonalCaseSpinning, setIsPersonalCaseSpinning] = useState(false);
+  const [cursedMode, setCursedMode] = useState(false);
+  const battleId = "BT" + Math.floor(Math.random() * 10000);
   
-  // State for battle creation
-  const [selectedCases, setSelectedCases] = useState<GameCase[]>([]);
-  const [totalPlayers, setTotalPlayers] = useState<number>(2);
-  const [battlesHistory, setBattlesHistory] = useState<BattleConfig[]>([]);
-  const [activeBattle, setActiveBattle] = useState<BattleConfig | null>(null);
-  const [isCreatingBattle, setIsCreatingBattle] = useState<boolean>(false);
-  const [isJoiningBattle, setIsJoiningBattle] = useState<boolean>(false);
-  const [casesToShow, setCasesToShow] = useState<GameCase[]>(availableCases);
-
-  // Slider for case selection (like case slider)
-  const [sliderIndex, setSliderIndex] = useState<number>(0);
-  const [casesPerPage, setCasesPerPage] = useState<number>(2);
-  
-  // Create battle
-  const createBattle = () => {
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "You must be logged in to create a battle.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (selectedCases.length === 0) {
-      toast({
-        title: "No Cases Selected",
-        description: "You must select at least one case for the battle.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Calculate total cost
-    const totalCost = selectedCases.reduce((sum, caseItem) => sum + caseItem.price, 0);
-    
-    if (user.balance < totalCost) {
-      toast({
-        title: "Insufficient Balance",
-        description: `You need $${totalCost.toFixed(2)} to create this battle.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Deduct balance
-    updateBalance(-totalCost);
-    
-    // Create new battle
-    const newBattle: BattleConfig = {
-      id: Math.random().toString(36).substring(2, 9),
-      totalPlayers,
-      creator: user.id,
-      cases: selectedCases,
-      players: [
+  useEffect(() => {
+    if (user) {
+      const mockPlayers: Player[] = [
         {
-          id: user.id,
+          id: '1',
           name: user.username,
           avatar: user.avatar || '/placeholder.svg',
-          isBot: false,
-          ready: true,
+          items: [],
           totalValue: 0,
-          items: []
+          isSpinning: false
         }
-      ],
-      status: 'waiting',
-      winningPlayerId: null
-    };
-    
-    // Add to battles history
-    setBattlesHistory([...battlesHistory, newBattle]);
-    setActiveBattle(newBattle);
-    setIsCreatingBattle(false);
-    setSelectedCases([]);
-    
-    toast({
-      title: "Battle Created",
-      description: "Your case battle has been created! Waiting for players to join.",
-    });
-  };
-  
-  // Join battle
-  const joinBattle = (battle: BattleConfig) => {
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "You must be logged in to join a battle.",
-        variant: "destructive",
-      });
-      return;
+      ];
+      
+      setPlayers(mockPlayers);
+      setEmptySlots(2 - mockPlayers.length);
     }
     
-    if (battle.players.some(p => p.id === user.id)) {
-      toast({
-        title: "Already Joined",
-        description: "You are already in this battle.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const caseValue = 100;
+    setTotalValue(caseValue * 2);
+  }, [user]);
+
+  const handleAddBot = () => {
+    if (players.length >= 2) return;
     
-    if (battle.players.length >= battle.totalPlayers) {
-      toast({
-        title: "Battle Full",
-        description: "This battle is already full.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Calculate total cost
-    const totalCost = battle.cases.reduce((sum, caseItem) => sum + caseItem.price, 0);
-    
-    if (user.balance < totalCost) {
-      toast({
-        title: "Insufficient Balance",
-        description: `You need $${totalCost.toFixed(2)} to join this battle.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Deduct balance
-    updateBalance(-totalCost);
-    
-    // Add player to battle
-    const updatedBattle = { ...battle };
-    updatedBattle.players.push({
-      id: user.id,
-      name: user.username,
-      avatar: user.avatar || '/placeholder.svg',
-      isBot: false,
-      ready: true,
-      totalValue: 0,
-      items: []
-    });
-    
-    // Update battle
-    const updatedBattles = battlesHistory.map(b => 
-      b.id === battle.id ? updatedBattle : b
-    );
-    
-    setBattlesHistory(updatedBattles);
-    setActiveBattle(updatedBattle);
-    
-    // Check if battle is ready to start
-    if (updatedBattle.players.length === updatedBattle.totalPlayers) {
-      startBattle(updatedBattle);
-    }
-    
-    toast({
-      title: "Battle Joined",
-      description: "You have joined the battle!",
-    });
-  };
-  
-  // Add bot to the battle
-  const addBot = (battle: BattleConfig) => {
-    if (!battle || battle.status !== 'waiting') return;
-    
-    if (battle.players.length >= battle.totalPlayers) {
-      toast({
-        title: "Battle Full",
-        description: "This battle is already full.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Create a bot player
+    const botNames = ['BotMaster', 'AIPlayer', 'RoboGamer'];
     const botName = botNames[Math.floor(Math.random() * botNames.length)];
-    const bot: Player = {
-      id: `bot-${Math.random().toString(36).substring(2, 9)}`,
+    
+    const newBot: Player = {
+      id: Date.now().toString(),
       name: botName,
-      avatar: '/placeholder.svg',
-      isBot: true,
-      ready: true,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${botName}`,
+      items: [],
       totalValue: 0,
-      items: []
+      isSpinning: false,
+      isBot: true
     };
     
-    // Add bot to battle
-    const updatedBattle = { ...battle };
-    updatedBattle.players.push(bot);
+    setPlayers(prev => [...prev, newBot]);
+    setEmptySlots(prev => prev - 1);
     
-    // Update battle
-    const updatedBattles = battlesHistory.map(b => 
-      b.id === battle.id ? updatedBattle : b
-    );
+    toast.success(`Bot ${botName} added to the battle!`);
     
-    setBattlesHistory(updatedBattles);
-    setActiveBattle(updatedBattle);
+    if (players.length === 1) {
+      toast.success('Battle is starting soon!');
+      setCountdown(5);
+      
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            startBattle();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+  };
+
+  const startBattle = () => {
+    setBattleStarted(true);
+    setCurrentRound(1);
+    startRound();
+  };
+
+  const startRound = () => {
+    setSpinning(true);
+    setCaseOpened(false);
     
-    // Check if battle is ready to start
-    if (updatedBattle.players.length === updatedBattle.totalPlayers) {
-      startBattle(updatedBattle);
+    startPlayerCases();
+  };
+
+  const startPlayerCases = () => {
+    if (players.length === 0) return;
+    
+    const runPlayerSequence = (index: number) => {
+      if (index >= players.length) {
+        finishRound();
+        return;
+      }
+      
+      const currentPlayer = players[index];
+      setActivePlayer(currentPlayer.id);
+      
+      setPlayers(prev => prev.map(player => 
+        player.id === currentPlayer.id 
+          ? { ...player, isSpinning: true } 
+          : player
+      ));
+      
+      setTimeout(() => {
+        openCase(currentPlayer.id);
+        
+        setTimeout(() => {
+          runPlayerSequence(index + 1);
+        }, 1000);
+      }, 5000);
+    };
+    
+    runPlayerSequence(0);
+  };
+
+  const openCase = (playerId: string) => {
+    const randomIndex = Math.floor(Math.random() * mockItems.length);
+    const newItem = { ...mockItems[randomIndex], id: `${playerId}-item-${currentRound}` };
+    
+    const sliderItem: SliderItem = {
+      id: newItem.id,
+      name: newItem.name,
+      image: newItem.image,
+      rarity: newItem.rarity,
+      price: newItem.value,
+      playerId: playerId
+    };
+    
+    setPlayers(prev => prev.map(player => {
+      if (player.id === playerId) {
+        const updatedItems = [...player.items, newItem];
+        const newTotalValue = updatedItems.reduce((sum, item) => sum + item.value, 0);
+        
+        return {
+          ...player,
+          items: updatedItems,
+          totalValue: newTotalValue,
+          isSpinning: false,
+          lastWonItem: sliderItem
+        };
+      }
+      return player;
+    }));
+    
+    const player = players.find(p => p.id === playerId);
+    if (player) {
+      if (newItem.rarity === 'legendary') {
+        toast.success(`${player.name} got an INCREDIBLE item!`, {
+          description: `${newItem.name} worth ${newItem.value} gems!`
+        });
+      } else if (newItem.rarity === 'epic') {
+        toast.success(`${player.name} got a great item!`, {
+          description: `${newItem.name} worth ${newItem.value} gems!`
+        });
+      } else {
+        toast(`${player.name} got: ${newItem.name}`, {
+          description: `Worth ${newItem.value} gems!`
+        });
+      }
+    }
+  };
+
+  const finishRound = () => {
+    setActivePlayer(null);
+    setSpinning(false);
+    setCaseOpened(true);
+    
+    if (currentRound >= maxRounds) {
+      endBattle();
+    } else {
+      setTimeout(() => {
+        setCurrentRound(prev => prev + 1);
+        startRound();
+      }, 2000);
+    }
+  };
+
+  const endBattle = () => {
+    let sortedPlayers = [...players];
+    
+    if (cursedMode) {
+      sortedPlayers = sortedPlayers.sort((a, b) => a.totalValue - b.totalValue);
+      toast.info("CURSED MODE: Lowest value wins!");
+    } else {
+      sortedPlayers = sortedPlayers.sort((a, b) => b.totalValue - a.totalValue);
     }
     
-    toast({
-      title: "Bot Added",
-      description: `${botName} has joined the battle!`,
-    });
+    const battleWinner = sortedPlayers[0];
+    setWinner(battleWinner);
+    
+    if (battleWinner.id === '1') {
+      const winAmount = totalValue;
+      updateBalance(winAmount);
+      toast.success("You won the case battle!", {
+        description: `You've been awarded ${winAmount} gems!`
+      });
+    } else {
+      toast.error("You lost the case battle!", {
+        description: `${battleWinner.name} won with ${battleWinner.totalValue} gems value!`
+      });
+    }
   };
-  
-  // Start the battle
-  const startBattle = (battle: BattleConfig) => {
-    // Update battle status
-    const updatedBattle = { ...battle, status: 'in-progress' as const };
+
+  const handleOpenPersonalCase = () => {
+    if (isPersonalCaseSpinning) return;
     
-    // Update battles
-    const updatedBattles = battlesHistory.map(b => 
-      b.id === battle.id ? updatedBattle : b
-    );
+    if (!user) {
+      toast.error('Please log in to open cases');
+      return;
+    }
     
-    setBattlesHistory(updatedBattles);
-    setActiveBattle(updatedBattle);
+    const casePrice = 100;
     
-    // Simulate opening cases for each player
+    if (user.balance < casePrice) {
+      toast.error('Insufficient balance to open this case');
+      return;
+    }
+    
+    updateBalance(-casePrice);
+    setIsPersonalCaseSpinning(true);
+    setShowCaseOpening(true);
+  };
+
+  const handlePersonalSpinComplete = (item: SliderItem) => {
+    if (!user) return;
+    
+    updateBalance(item.price);
+    
+    if (item.rarity === 'legendary' || item.rarity === 'mythical') {
+      toast.success(`Incredible! You won ${item.name}!`, {
+        description: `Worth ${item.price} gems!`
+      });
+    } else if (item.rarity === 'epic') {
+      toast.success(`Great pull! You won ${item.name}!`, {
+        description: `Worth ${item.price} gems!`
+      });
+    } else {
+      toast(`You won: ${item.name}!`, {
+        description: `Worth ${item.price} gems!`
+      });
+    }
+    
     setTimeout(() => {
-      simulateBattleResults(updatedBattle);
-    }, 3000);
-  };
-  
-  // Simulate battle results
-  const simulateBattleResults = (battle: BattleConfig) => {
-    const updatedBattle = { ...battle };
-    
-    // For each player, simulate opening each case
-    updatedBattle.players.forEach(player => {
-      let playerItems: CaseItem[] = [];
-      let totalValue = 0;
-      
-      // Open each case
-      updatedBattle.cases.forEach(caseItem => {
-        // Get a random item from the case
-        const randomIndex = Math.floor(Math.random() * caseItem.items.length);
-        const wonItem = { ...caseItem.items[randomIndex] };
-        
-        // Add to player's items
-        playerItems.push(wonItem);
-        totalValue += wonItem.value;
-      });
-      
-      // Update player's items and total value
-      player.items = playerItems;
-      player.totalValue = totalValue;
-    });
-    
-    // Determine the winner (player with highest total value)
-    const winner = [...updatedBattle.players].sort((a, b) => b.totalValue - a.totalValue)[0];
-    updatedBattle.winningPlayerId = winner.id;
-    updatedBattle.status = 'completed';
-    
-    // Update battles
-    const updatedBattles = battlesHistory.map(b => 
-      b.id === battle.id ? updatedBattle : b
-    );
-    
-    setBattlesHistory(updatedBattles);
-    setActiveBattle(updatedBattle);
-    
-    // Award winnings to winner if it's the user
-    if (winner.id === user?.id) {
-      // Calculate total item value
-      const totalPrizeValue = updatedBattle.players.reduce(
-        (sum, player) => sum + player.totalValue, 
-        0
-      );
-      
-      updateBalance(totalPrizeValue);
-      
-      toast({
-        title: "You Won!",
-        description: `Congratulations! You won $${totalPrizeValue.toFixed(2)} from the battle!`,
-      });
-    } else {
-      toast({
-        title: "Battle Completed",
-        description: `${winner.name} won the battle.`,
-      });
-    }
-  };
-  
-  // Case selection methods
-  const toggleCaseSelection = (caseItem: GameCase) => {
-    if (selectedCases.some(c => c.id === caseItem.id)) {
-      // Remove case if already selected
-      setSelectedCases(selectedCases.filter(c => c.id !== caseItem.id));
-    } else {
-      // Add case if not selected
-      setSelectedCases([...selectedCases, caseItem]);
-    }
-  };
-  
-  // Slider navigation
-  const nextSlide = () => {
-    if (sliderIndex < availableCases.length - casesPerPage) {
-      setSliderIndex(sliderIndex + 1);
-    }
-  };
-  
-  const prevSlide = () => {
-    if (sliderIndex > 0) {
-      setSliderIndex(sliderIndex - 1);
-    }
-  };
-  
-  // Update visible cases when slider changes
-  useEffect(() => {
-    setCasesToShow(availableCases.slice(sliderIndex, sliderIndex + casesPerPage));
-  }, [sliderIndex, casesPerPage]);
-
-  // Render case selection
-  const renderCaseSelection = () => {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold text-white">Select Cases for Battle</h2>
-        
-        <div className="flex justify-between items-center mb-2">
-          <Button 
-            onClick={prevSlide} 
-            disabled={sliderIndex === 0}
-            size="sm"
-            variant="outline"
-          >
-            Previous
-          </Button>
-          
-          <div className="text-sm text-gray-400">
-            Cases {sliderIndex + 1} - {Math.min(sliderIndex + casesPerPage, availableCases.length)} of {availableCases.length}
-          </div>
-          
-          <Button 
-            onClick={nextSlide} 
-            disabled={sliderIndex >= availableCases.length - casesPerPage}
-            size="sm"
-            variant="outline"
-          >
-            Next
-          </Button>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {casesToShow.map(caseItem => (
-            <div
-              key={caseItem.id}
-              className={`
-                relative cursor-pointer overflow-hidden rounded-lg
-                ${selectedCases.some(c => c.id === caseItem.id) ? 'ring-2 ring-blue-500' : ''}
-              `}
-              onClick={() => toggleCaseSelection(caseItem)}
-            >
-              <Card className="bg-gray-800 border-gray-700">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-bold text-white">{caseItem.name}</h3>
-                    <div className="text-green-400 font-bold">${caseItem.price.toFixed(2)}</div>
-                  </div>
-                  
-                  <div className="flex justify-center py-2">
-                    <div className="w-24 h-24 bg-gray-700 rounded-md flex items-center justify-center">
-                      <img 
-                        src={caseItem.image} 
-                        alt={caseItem.name}
-                        className="w-16 h-16 object-contain"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="mt-2 space-y-1">
-                    <div className="text-sm text-gray-400">Possible Rewards:</div>
-                    <div className="flex justify-between space-x-2">
-                      {caseItem.items.slice(0, 3).map(item => (
-                        <div key={item.id} className="flex-1 bg-gray-700 p-1 rounded text-center">
-                          <div className="text-xs" style={{
-                            color: 
-                              item.rarity === 'common' ? '#aaa' :
-                              item.rarity === 'uncommon' ? '#7cb342' :
-                              item.rarity === 'rare' ? '#29b6f6' :
-                              item.rarity === 'epic' ? '#9c27b0' :
-                              item.rarity === 'legendary' ? '#ff9800' :
-                              item.rarity === 'mythic' ? '#f44336' : 
-                              '#e040fb'
-                          }}>
-                            ${item.value}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                
-                {selectedCases.some(c => c.id === caseItem.id) && (
-                  <div className="absolute top-2 right-2">
-                    <div className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center">
-                      ✓
-                    </div>
-                  </div>
-                )}
-              </Card>
-            </div>
-          ))}
-        </div>
-        
-        <div className="space-y-4 mt-6">
-          <div className="space-y-2">
-            <Label className="text-white">Number of Players</Label>
-            <div className="flex space-x-2">
-              {[2, 3, 4].map(num => (
-                <Button
-                  key={num}
-                  variant={totalPlayers === num ? 'default' : 'outline'}
-                  onClick={() => setTotalPlayers(num)}
-                  className={`flex-1 ${totalPlayers === num ? 'bg-blue-600' : ''}`}
-                >
-                  {num} Players
-                </Button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="bg-gray-800 p-4 rounded-lg">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-white">Selected Cases:</span>
-              <span className="text-green-400 font-bold">
-                Total: ${selectedCases.reduce((sum, c) => sum + c.price, 0).toFixed(2)}
-              </span>
-            </div>
-            
-            {selectedCases.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {selectedCases.map(c => (
-                  <div key={c.id} className="bg-gray-700 px-2 py-1 rounded text-sm flex items-center">
-                    {c.name}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedCases(selectedCases.filter(sc => sc.id !== c.id));
-                      }}
-                      className="ml-2 text-gray-400 hover:text-white"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-gray-500 text-sm italic">No cases selected</div>
-            )}
-          </div>
-          
-          <div className="flex justify-end">
-            <Button
-              onClick={createBattle}
-              disabled={selectedCases.length === 0 || !user}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Create Battle
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
-  // Render active battle
-  const renderActiveBattle = () => {
-    if (!activeBattle) return null;
-    
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-white">
-            {activeBattle.status === 'waiting' ? 'Waiting for Players' : 
-             activeBattle.status === 'in-progress' ? 'Battle in Progress' : 
-             'Battle Results'}
-          </h2>
-          
-          {activeBattle.status === 'completed' && (
-            <Button
-              onClick={() => setActiveBattle(null)}
-              variant="outline"
-            >
-              Back to Battles
-            </Button>
-          )}
-        </div>
-        
-        <div className="bg-gray-800 rounded-lg overflow-hidden">
-          <div className="p-4 border-b border-gray-700">
-            <div className="flex justify-between items-center">
-              <div>
-                <span className="text-gray-400 text-sm">Battle ID:</span>
-                <span className="ml-1 text-white">{activeBattle.id}</span>
-              </div>
-              <div>
-                <span className="text-gray-400 text-sm">Status:</span>
-                <span className={`ml-1 ${
-                  activeBattle.status === 'waiting' ? 'text-yellow-400' :
-                  activeBattle.status === 'in-progress' ? 'text-blue-400' :
-                  'text-green-400'
-                }`}>
-                  {activeBattle.status.charAt(0).toUpperCase() + activeBattle.status.slice(1)}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4">
-            <h3 className="text-white font-bold mb-2">Cases:</h3>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {activeBattle.cases.map(caseItem => (
-                <div key={caseItem.id} className="bg-gray-700 p-2 rounded flex items-center">
-                  <div className="w-8 h-8 bg-gray-600 rounded mr-2 flex items-center justify-center">
-                    <img 
-                      src={caseItem.image} 
-                      alt={caseItem.name}
-                      className="w-6 h-6 object-contain"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-white text-sm">{caseItem.name}</div>
-                    <div className="text-green-400 text-xs">${caseItem.price.toFixed(2)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <h3 className="text-white font-bold mb-2">Players: {activeBattle.players.length}/{activeBattle.totalPlayers}</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: activeBattle.totalPlayers }).map((_, index) => {
-                const player = activeBattle.players[index];
-                
-                if (!player) {
-                  // Render empty slot
-                  return (
-                    <div key={`empty-${index}`} className="bg-gray-700 rounded-lg p-4 border border-dashed border-gray-600 flex items-center justify-center">
-                      <span className="text-gray-500">Waiting for player...</span>
-                    </div>
-                  );
-                }
-                
-                const isWinner = activeBattle.status === 'completed' && activeBattle.winningPlayerId === player.id;
-                
-                return (
-                  <div 
-                    key={player.id} 
-                    className={`
-                      bg-gray-700 rounded-lg p-4 relative overflow-hidden
-                      ${isWinner ? 'ring-2 ring-yellow-500' : ''}
-                    `}
-                  >
-                    {isWinner && (
-                      <div className="absolute top-0 right-0 bg-yellow-500 text-black px-2 py-1 text-xs font-bold">
-                        WINNER
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center mb-3">
-                      <Avatar className="h-8 w-8 mr-2">
-                        <AvatarImage src={player.avatar} />
-                        <AvatarFallback>{player.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="text-white">{player.name}</div>
-                        <div className="text-gray-400 text-xs">{player.isBot ? 'Bot' : 'Player'}</div>
-                      </div>
-                      
-                      {activeBattle.status === 'completed' && (
-                        <div className="ml-auto text-green-400 font-bold">
-                          ${player.totalValue.toFixed(2)}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {activeBattle.status !== 'waiting' && (
-                      <div className="space-y-2">
-                        <div className="text-xs text-gray-400">Items:</div>
-                        
-                        {activeBattle.status === 'in-progress' ? (
-                          <div className="flex justify-center">
-                            <div className="animate-spin">
-                              <div className="w-12 h-12 bg-gray-600 rounded"></div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {player.items.map((item, itemIndex) => (
-                              <div 
-                                key={`${player.id}-item-${itemIndex}`} 
-                                className={`
-                                  p-1 rounded-sm text-xs w-14
-                                  ${item.rarity === 'common' ? 'bg-gray-600 text-white' :
-                                    item.rarity === 'uncommon' ? 'bg-green-900 text-green-300' :
-                                    item.rarity === 'rare' ? 'bg-blue-900 text-blue-300' :
-                                    item.rarity === 'epic' ? 'bg-purple-900 text-purple-300' :
-                                    item.rarity === 'legendary' ? 'bg-yellow-900 text-yellow-300' :
-                                    item.rarity === 'mythic' ? 'bg-red-900 text-red-300' :
-                                    'bg-pink-900 text-pink-300'}
-                                `}
-                              >
-                                <div className="text-center">${item.value}</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            
-            {activeBattle.status === 'waiting' && activeBattle.creator === user?.id && (
-              <div className="mt-4">
-                <Button
-                  onClick={() => addBot(activeBattle)}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                >
-                  Add Bot
-                </Button>
-              </div>
-            )}
-            
-            {activeBattle.status === 'waiting' && 
-             !activeBattle.players.some(p => p.id === user?.id) && 
-             activeBattle.players.length < activeBattle.totalPlayers && (
-              <div className="mt-4">
-                <Button
-                  onClick={() => joinBattle(activeBattle)}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                >
-                  Join Battle (${activeBattle.cases.reduce((sum, c) => sum + c.price, 0).toFixed(2)})
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
-  // Render battles list
-  const renderBattlesList = () => {
-    const availableBattles = battlesHistory.filter(battle => 
-      battle.status === 'waiting' && 
-      battle.players.length < battle.totalPlayers &&
-      !battle.players.some(p => p.id === user?.id)
-    );
-    
-    const userBattles = battlesHistory.filter(battle => 
-      battle.players.some(p => p.id === user?.id)
-    );
-    
-    return (
-      <div className="space-y-6">
-        {availableBattles.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white">Available Battles</h2>
-            
-            <div className="grid grid-cols-1 gap-4">
-              {availableBattles.map(battle => (
-                <Card key={battle.id} className="bg-gray-800 border-gray-700">
-                  <div className="p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <div>
-                        <h3 className="text-white font-bold">
-                          {battle.players[0].name}'s Battle
-                        </h3>
-                        <div className="text-gray-400 text-xs">
-                          Players: {battle.players.length}/{battle.totalPlayers}
-                        </div>
-                      </div>
-                      <div className="text-green-400 font-bold">
-                        ${battle.cases.reduce((sum, c) => sum + c.price, 0).toFixed(2)}
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2 mb-3">
-                      {battle.cases.map(caseItem => (
-                        <div key={caseItem.id} className="bg-gray-700 rounded p-1 flex items-center">
-                          <div className="w-6 h-6 bg-gray-600 rounded-sm mr-1"></div>
-                          <span className="text-white text-xs">{caseItem.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <Button
-                      onClick={() => joinBattle(battle)}
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                    >
-                      Join Battle
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {userBattles.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white">Your Battles</h2>
-            
-            <div className="grid grid-cols-1 gap-4">
-              {userBattles.map(battle => (
-                <Card key={battle.id} className="bg-gray-800 border-gray-700">
-                  <div className="p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <div>
-                        <h3 className="text-white font-bold">
-                          {battle.players[0].name}'s Battle
-                        </h3>
-                        <div className="text-gray-400 text-xs">
-                          Status: {battle.status.charAt(0).toUpperCase() + battle.status.slice(1)}
-                        </div>
-                      </div>
-                      
-                      {battle.status === 'completed' && battle.winningPlayerId === user?.id && (
-                        <div className="bg-yellow-500 text-black px-2 py-1 rounded text-xs font-bold">
-                          WON
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2 mb-3">
-                      {battle.cases.map(caseItem => (
-                        <div key={caseItem.id} className="bg-gray-700 rounded p-1 flex items-center">
-                          <div className="w-6 h-6 bg-gray-600 rounded-sm mr-1"></div>
-                          <span className="text-white text-xs">{caseItem.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="flex gap-1 mb-3">
-                      {battle.players.map(player => (
-                        <div key={player.id} className="flex-1 bg-gray-700 p-2 rounded text-center">
-                          <Avatar className="h-6 w-6 mx-auto mb-1">
-                            <AvatarImage src={player.avatar} />
-                            <AvatarFallback>{player.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className="text-white text-xs truncate">{player.name}</div>
-                          
-                          {battle.status === 'completed' && (
-                            <div className="text-green-400 text-xs font-bold">
-                              ${player.totalValue.toFixed(2)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      
-                      {Array(battle.totalPlayers - battle.players.length).fill(0).map((_, idx) => (
-                        <div key={`empty-${idx}`} className="flex-1 bg-gray-700 p-2 rounded text-center border border-dashed border-gray-600">
-                          <div className="text-gray-500 text-xs">Empty</div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <Button
-                      onClick={() => setActiveBattle(battle)}
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                    >
-                      View Details
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
+      setIsPersonalCaseSpinning(false);
+    }, 1000);
   };
 
-  // Main component render
+  const onClose = () => {
+    // Reset the state
+    setPlayers([]);
+    setBattleStarted(false);
+    setWinner(null);
+    setCurrentRound(0);
+    setCaseOpened(false);
+    setSpinning(false);
+    
+    if (user) {
+      const mockPlayers: Player[] = [
+        {
+          id: '1',
+          name: user.username,
+          avatar: user.avatar || '/placeholder.svg',
+          items: [],
+          totalValue: 0,
+          isSpinning: false
+        }
+      ];
+      
+      setPlayers(mockPlayers);
+      setEmptySlots(2 - mockPlayers.length);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Top action buttons */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-white">Case Battles</h1>
-        
-        <div className="space-x-2">
-          {isCreatingBattle ? (
-            <Button 
-              onClick={() => setIsCreatingBattle(false)} 
-              variant="outline"
-            >
-              Cancel
-            </Button>
-          ) : (
-            <Button 
-              onClick={() => {
-                setIsCreatingBattle(true);
-                setActiveBattle(null);
-              }}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              Create Battle
-            </Button>
-          )}
+    <div className="bg-gray-900 min-h-screen w-full p-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <button 
+            onClick={onClose}
+            className="flex items-center text-gray-300 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="mr-2 h-5 w-5" />
+            Reset Battle
+          </button>
+          
+          <div className="flex items-center text-gray-300">
+            <span className="mr-2">Battle ID: {battleId}</span>
+            <span className="px-3 py-1 bg-gray-800 rounded-md text-sm">1v1</span>
+            {cursedMode && (
+              <span className="ml-2 px-3 py-1 bg-red-900 text-red-200 rounded-md text-sm">
+                CURSED MODE
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex items-center">
+              <span className="text-gray-300 mr-2">Total Value:</span>
+              <span className="text-yellow-400 font-bold">{totalValue} gems</span>
+            </div>
+            
+            {user && (
+              <div className="flex items-center bg-gray-800 px-3 py-1 rounded-md">
+                <Gem className="h-4 w-4 text-yellow-400 mr-1" />
+                <span className="text-white font-medium">{user.balance}</span>
+              </div>
+            )}
+          </div>
         </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <h2 className="text-xl font-bold text-white mb-4">Open Case</h2>
+            
+            {showCaseOpening ? (
+              <>
+                <CaseSlider 
+                  items={caseItems} 
+                  onComplete={handlePersonalSpinComplete}
+                  spinDuration={5000}
+                  isSpinning={isPersonalCaseSpinning}
+                  setIsSpinning={setIsPersonalCaseSpinning}
+                  caseName="Standard Case"
+                />
+                
+                <div className="mt-4 flex justify-between">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setShowCaseOpening(false)}
+                  >
+                    Back to Battle
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleOpenPersonalCase}
+                    disabled={isPersonalCaseSpinning || (user && user.balance < 100)}
+                  >
+                    {isPersonalCaseSpinning ? "Opening..." : "Open Case (100 gems)"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-60">
+                <div className="text-gray-400 mb-4">Click the button below to open a case</div>
+                <Button 
+                  onClick={handleOpenPersonalCase}
+                  className="bg-green-600 hover:bg-green-700"
+                  disabled={user && user.balance < 100}
+                >
+                  Open Standard Case (100 gems)
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <div className="mb-4 text-center">
+              <div className="text-xl font-bold text-white">
+                {battleStarted ? `Round ${currentRound} of ${maxRounds}` : '1v1 Battle'}
+              </div>
+              {spinning && (
+                <div className="text-blue-400 animate-pulse mt-2">
+                  {activePlayer ? 
+                    `${players.find(p => p.id === activePlayer)?.name || 'Player'} is opening a case...` : 
+                    'Opening cases...'}
+                </div>
+              )}
+              {!battleStarted && countdown > 0 && (
+                <div className="text-4xl font-bold text-yellow-400 animate-pulse mt-2">
+                  Starting in {countdown}...
+                </div>
+              )}
+            </div>
+            
+            {activePlayer && spinning && (
+              <div className="mb-6">
+                <div className="text-center mb-2 text-blue-300 font-bold">
+                  {players.find(p => p.id === activePlayer)?.name}'s Case
+                </div>
+                <CaseSlider 
+                  items={caseItems.map(item => ({...item, playerId: activePlayer}))}
+                  onComplete={(item) => {/* Animation only, actual logic handled in openCase */}}
+                  spinDuration={5000}
+                  isSpinning={true}
+                  autoSpin={true}
+                  playerName={players.find(p => p.id === activePlayer)?.name}
+                  highlightPlayer={activePlayer === '1'}
+                  caseName="Standard Case"
+                />
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {players.map((player, index) => (
+                <div key={player.id} className="relative">
+                  <div className={`bg-gray-900 border ${player.id === activePlayer ? 'border-blue-500' : 'border-gray-700'} rounded-lg overflow-hidden`}>
+                    <div className="flex items-center justify-between p-3 border-b border-gray-700">
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={player.avatar} 
+                          alt={player.name} 
+                          className="w-8 h-8 rounded-full"
+                        />
+                        <div className="text-white font-bold flex items-center">
+                          {player.name}
+                          {player.isBot && <Bot className="ml-1 h-3 w-3 text-blue-400" />}
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        <Gem className="h-4 w-4 text-yellow-400 mr-1" />
+                        <div className="text-yellow-400">{player.totalValue}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-2 min-h-[160px]">
+                      {player.isSpinning ? (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-blue-400 animate-pulse">Opening case...</div>
+                        </div>
+                      ) : battleStarted ? (
+                        <div className="grid grid-cols-3 gap-1 h-full">
+                          {player.items.map((item, itemIndex) => (
+                            <motion.div 
+                              key={item.id} 
+                              className={`border-2 ${rarityColors[item.rarity]} rounded p-1 flex flex-col items-center justify-center bg-gradient-to-b ${rarityGradients[item.rarity]}`}
+                              initial={caseOpened ? { scale: 0 } : { scale: 1 }}
+                              animate={caseOpened ? { scale: 1 } : { scale: 1 }}
+                              transition={{ delay: itemIndex * 0.2 }}
+                            >
+                              <img src={item.image} alt={item.name} className="w-full h-8 object-contain mb-1" />
+                              <p className="text-xs text-white truncate w-full text-center">{item.name}</p>
+                              <p className="text-xs text-yellow-400">{item.value}</p>
+                            </motion.div>
+                          ))}
+                          
+                          {Array(maxRounds - player.items.length).fill(0).map((_, emptyIndex) => (
+                            <div 
+                              key={`empty-${player.id}-${emptyIndex}`} 
+                              className="border-2 border-gray-700 rounded p-1 flex items-center justify-center h-full"
+                            >
+                              <span className="text-gray-600 text-xs">Round {currentRound + emptyIndex + 1}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-blue-300">Waiting to open cases...</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {index === 0 && players.length > 1 && (
+                    <div className="absolute -right-7 top-1/2 transform -translate-y-1/2 z-10 bg-blue-800 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
+                      VS
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {Array(emptySlots).fill(0).map((_, index) => (
+                <div key={`empty-${index}`} className="relative">
+                  <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+                    <div className="flex items-center gap-2 p-3 border-b border-gray-700">
+                      <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center">
+                        <Bot className="h-4 w-4 text-gray-600" />
+                      </div>
+                      <div className="text-white">0</div>
+                    </div>
+                    
+                    <div className="min-h-[160px] flex items-center justify-center">
+                      <button 
+                        onClick={handleAddBot} 
+                        disabled={battleStarted}
+                        className={`${battleStarted ? 'bg-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white py-2 px-4 rounded-md flex items-center`}
+                      >
+                        <Bot className="mr-2 h-4 w-4" />
+                        {battleStarted ? 'Battle in Progress' : 'Add Bot'}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {index === 0 && players.length === 1 && (
+                    <div className="absolute -left-7 top-1/2 transform -translate-y-1/2 z-10 bg-blue-800 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
+                      VS
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {emptySlots === 0 && !battleStarted && countdown === 0 && (
+              <div className="text-center mt-4">
+                <Button 
+                  onClick={startBattle}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Start Battle
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {winner && (
+          <div className="mt-6 bg-gradient-to-r from-blue-900 to-purple-900 border border-blue-700 rounded-lg p-6 text-center">
+            <h3 className="text-3xl font-bold text-white mb-2">
+              {winner.id === '1' ? 'You Won!' : `${winner.name} Won!`}
+            </h3>
+            <div className="flex justify-center items-center mb-4">
+              <img 
+                src={winner.avatar} 
+                alt={winner.name} 
+                className="w-16 h-16 rounded-full border-4 border-yellow-400"
+              />
+            </div>
+            <p className="text-yellow-400 font-bold text-xl mb-2">Total Value: {winner.totalValue} gems</p>
+            
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-2 max-w-md mx-auto mt-4 mb-6">
+              {winner.items.map((item) => (
+                <div 
+                  key={item.id} 
+                  className={`border-2 ${rarityColors[item.rarity]} rounded p-2 flex flex-col items-center justify-center bg-gradient-to-b ${rarityGradients[item.rarity]}`}
+                >
+                  <img src={item.image} alt={item.name} className="w-full h-10 object-contain mb-1" />
+                  <p className="text-xs text-white truncate w-full text-center">{item.name}</p>
+                  <p className="text-xs text-yellow-400">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            
+            <button 
+              onClick={onClose}
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md transition-colors"
+            >
+              Reset Battle
+            </button>
+          </div>
+        )}
       </div>
       
-      {/* Main content area */}
-      {isCreatingBattle ? (
-        renderCaseSelection()
-      ) : activeBattle ? (
-        renderActiveBattle()
-      ) : (
-        renderBattlesList()
+      {winner && winner.id === '1' && (
+        <SpinningEffect isSpinning={true}>
+          <div className="h-full w-full absolute inset-0 pointer-events-none z-50"></div>
+        </SpinningEffect>
       )}
     </div>
   );

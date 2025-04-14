@@ -1,195 +1,185 @@
 
 import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Slider } from '../ui/slider';
-import { useToast } from '../ui/use-toast';
-import { X, Plus, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { Gem, Plus, Minus, Trash, Trophy } from 'lucide-react';
+import { useUser } from '@/context/UserContext';
 
 interface Case {
   id: string;
   name: string;
-  image: string;
   price: number;
+  image: string;
+  rarity: string;
 }
+
+const availableCases: Case[] = [
+  { id: '1', name: 'Starter Case', price: 50, image: '/placeholder.svg', rarity: 'common' },
+  { id: '2', name: 'Uncommon Case', price: 100, image: '/placeholder.svg', rarity: 'uncommon' },
+  { id: '3', name: 'Rare Case', price: 250, image: '/placeholder.svg', rarity: 'rare' },
+  { id: '4', name: 'Epic Case', price: 500, image: '/placeholder.svg', rarity: 'epic' },
+  { id: '5', name: 'Legendary Case', price: 1000, image: '/placeholder.svg', rarity: 'legendary' }
+];
 
 interface ImprovedCaseBattleCreatorProps {
-  onCreateBattle: (battleData: any) => void;
-  onCancel: () => void;
-  userBalance: number;
+  onCreateBattle: (battleSettings: any) => void;
 }
 
-const ImprovedCaseBattleCreator: React.FC<ImprovedCaseBattleCreatorProps> = ({ 
-  onCreateBattle, 
-  onCancel, 
-  userBalance
-}) => {
-  const { toast } = useToast();
-  const [mode, setMode] = useState<'1v1' | '2v2' | '1v1v1' | '1v1v1v1'>('1v1');
+const ImprovedCaseBattleCreator: React.FC<ImprovedCaseBattleCreatorProps> = ({ onCreateBattle }) => {
+  const { user } = useUser();
   const [selectedCases, setSelectedCases] = useState<Case[]>([]);
-  const [rounds, setRounds] = useState<number>(3);
+  const [playersCount, setPlayersCount] = useState(2);
+  const [isPrivate, setIsPrivate] = useState(false);
   
-  // Mock cases data
-  const availableCases: Case[] = [
-    { id: 'case1', name: 'Standard Case', image: '/placeholder.svg', price: 100 },
-    { id: 'case2', name: 'Premium Case', image: '/placeholder.svg', price: 500 },
-    { id: 'case3', name: 'Battle Case', image: '/placeholder.svg', price: 250 },
-    { id: 'case4', name: 'Legends Case', image: '/placeholder.svg', price: 1000 },
-  ];
+  const totalCost = selectedCases.reduce((sum, c) => sum + c.price, 0);
   
-  const addCase = (selectedCase: Case) => {
+  const handleAddCase = (caseItem: Case) => {
     if (selectedCases.length >= 5) {
-      toast({
-        title: "Maximum cases reached",
-        description: "You can add a maximum of 5 cases to a battle.",
-        variant: "destructive"
-      });
+      toast.error("Maximum 5 cases per battle");
       return;
     }
     
-    setSelectedCases([...selectedCases, selectedCase]);
+    setSelectedCases(prev => [...prev, caseItem]);
   };
   
-  const removeCase = (index: number) => {
-    const updatedCases = [...selectedCases];
-    updatedCases.splice(index, 1);
-    setSelectedCases(updatedCases);
+  const handleRemoveCase = (index: number) => {
+    setSelectedCases(prev => prev.filter((_, i) => i !== index));
   };
-  
-  const totalCost = selectedCases.reduce((total, c) => total + c.price, 0);
   
   const handleCreateBattle = () => {
     if (selectedCases.length === 0) {
-      toast({
-        title: "No cases selected",
-        description: "Please select at least one case for the battle.",
-        variant: "destructive"
-      });
+      toast.error("Please select at least one case");
       return;
     }
     
-    if (userBalance < totalCost) {
-      toast({
-        title: "Insufficient balance",
-        description: `You need $${totalCost.toFixed(2)} to create this battle.`,
-        variant: "destructive"
-      });
+    if (!user) {
+      toast.error("Please log in to create a battle");
       return;
     }
     
-    onCreateBattle({
-      mode,
+    if (user.balance < totalCost) {
+      toast.error("Insufficient balance to create this battle");
+      return;
+    }
+    
+    const battleSettings = {
       cases: selectedCases,
+      players: playersCount,
+      private: isPrivate,
       totalCost
-    });
+    };
+    
+    onCreateBattle(battleSettings);
+    toast.success("Battle created successfully!");
   };
   
   return (
-    <Card className="p-6 bg-gray-900 border border-gray-800">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Create a Case Battle</h2>
-        <Button variant="ghost" onClick={onCancel} className="text-gray-400 hover:text-white">
-          <X size={20} />
-        </Button>
+    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+      <h2 className="text-2xl font-bold text-white mb-4">Create a Case Battle</h2>
+      
+      <div className="mb-6">
+        <h3 className="text-lg font-medium text-gray-300 mb-2">Select Cases</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          {availableCases.map(caseItem => (
+            <button
+              key={caseItem.id}
+              onClick={() => handleAddCase(caseItem)}
+              className="bg-gray-900 border border-gray-700 rounded-lg p-2 hover:bg-gray-700 transition-colors"
+            >
+              <div className="text-center">
+                <img src={caseItem.image} alt={caseItem.name} className="w-full h-20 object-contain mb-2" />
+                <div className="text-white text-sm font-medium">{caseItem.name}</div>
+                <div className="flex justify-center items-center mt-1">
+                  <Gem className="h-3 w-3 text-yellow-400 mr-1" />
+                  <span className="text-yellow-400 text-sm">{caseItem.price}</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
       
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Battle Mode</h3>
-        <Tabs defaultValue="1v1" onValueChange={(value) => setMode(value as any)} className="w-full">
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="1v1">1v1</TabsTrigger>
-            <TabsTrigger value="2v2">2v2</TabsTrigger>
-            <TabsTrigger value="1v1v1">1v1v1</TabsTrigger>
-            <TabsTrigger value="1v1v1v1">1v1v1v1</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-3">Select Cases</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {availableCases.map((c) => (
-              <Card 
-                key={c.id} 
-                className="p-3 bg-gray-800 border border-gray-700 hover:border-blue-600 cursor-pointer transition-all"
-                onClick={() => addCase(c)}
-              >
-                <div className="flex flex-col items-center">
-                  <img src={c.image} alt={c.name} className="w-16 h-16 mb-2" />
-                  <div className="text-sm font-medium text-center">{c.name}</div>
-                  <div className="text-xs text-yellow-400">${c.price.toFixed(2)}</div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+        <h3 className="text-lg font-medium text-gray-300 mb-2">Your Battle</h3>
         
-        <div>
-          <h3 className="text-lg font-semibold mb-3">Battle Cases</h3>
-          {selectedCases.length === 0 ? (
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center h-[200px] flex items-center justify-center">
-              <div className="text-gray-400">
-                <Plus size={32} className="mx-auto mb-2" />
-                <p>Select cases from the left panel</p>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-              {selectedCases.map((selectedCase, index) => (
-                <div key={index} className="flex items-center justify-between mb-2 last:mb-0 p-2 bg-gray-700 rounded">
-                  <div className="flex items-center">
-                    <img src={selectedCase.image} alt={selectedCase.name} className="w-10 h-10 mr-2" />
-                    <div>
-                      <div className="text-sm font-medium">{selectedCase.name}</div>
-                      <div className="text-xs text-yellow-400">${selectedCase.price.toFixed(2)}</div>
+        {selectedCases.length > 0 ? (
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+            <div className="grid grid-cols-5 gap-2 mb-4">
+              {selectedCases.map((caseItem, index) => (
+                <div key={index} className="relative">
+                  <button
+                    onClick={() => handleRemoveCase(index)}
+                    className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1 z-10"
+                  >
+                    <Trash className="h-3 w-3 text-white" />
+                  </button>
+                  <div className="bg-gray-800 border border-gray-700 rounded p-2">
+                    <img src={caseItem.image} alt={caseItem.name} className="w-full h-12 object-contain mb-1" />
+                    <div className="text-xs text-center text-white">{caseItem.name}</div>
+                    <div className="flex justify-center items-center mt-1">
+                      <Gem className="h-3 w-3 text-yellow-400 mr-1" />
+                      <span className="text-yellow-400 text-xs">{caseItem.price}</span>
                     </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => removeCase(index)} 
-                    className="text-gray-400 hover:text-white"
-                  >
-                    <X size={16} />
-                  </Button>
                 </div>
               ))}
               
-              <div className="mt-4 pt-3 border-t border-gray-700">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Your Cost:</span>
-                  <span className="font-medium text-yellow-400">${totalCost.toFixed(2)}</span>
+              {Array(5 - selectedCases.length).fill(0).map((_, index) => (
+                <div key={`empty-${index}`} className="border border-dashed border-gray-700 rounded p-2 flex items-center justify-center h-24">
+                  <Plus className="h-4 w-4 text-gray-600" />
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>Total Battle Value:</span>
-                  <span className="font-medium text-yellow-400">
-                    ${mode === '1v1' ? (totalCost * 2).toFixed(2) : 
-                       mode === '2v2' ? (totalCost * 4).toFixed(2) : 
-                       mode === '1v1v1' ? (totalCost * 3).toFixed(2) : 
-                       (totalCost * 4).toFixed(2)}
-                  </span>
+              ))}
+            </div>
+            
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <span className="text-gray-300 mr-2">Players:</span>
+                <div className="inline-flex items-center bg-gray-800 rounded-md">
+                  <button
+                    onClick={() => setPlayersCount(prev => Math.max(2, prev - 1))}
+                    className="px-2 py-1 text-gray-400 hover:text-white"
+                    disabled={playersCount <= 2}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="px-3 text-white">{playersCount}</span>
+                  <button
+                    onClick={() => setPlayersCount(prev => Math.min(4, prev + 1))}
+                    className="px-2 py-1 text-gray-400 hover:text-white"
+                    disabled={playersCount >= 4}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
+              
+              <div className="flex items-center">
+                <span className="text-gray-300 mr-2">Total Cost:</span>
+                <span className="flex items-center text-yellow-400 font-bold">
+                  <Gem className="h-4 w-4 mr-1 text-yellow-400" />
+                  {totalCost}
+                </span>
+              </div>
             </div>
-          )}
-        </div>
+            
+            <Button 
+              onClick={handleCreateBattle}
+              className="w-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center"
+              disabled={!user || user.balance < totalCost}
+            >
+              <Trophy className="h-4 w-4 mr-2" />
+              Create Battle
+            </Button>
+          </div>
+        ) : (
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 text-center">
+            <div className="text-gray-400 mb-2">Select cases to create your battle</div>
+            <div className="text-sm text-gray-500">Cases will appear here</div>
+          </div>
+        )}
       </div>
-      
-      <div className="mt-6 flex justify-end space-x-3">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button 
-          onClick={handleCreateBattle} 
-          className="bg-green-600 hover:bg-green-700"
-          disabled={selectedCases.length === 0 || userBalance < totalCost}
-        >
-          Create Battle <ArrowRight size={16} className="ml-2" />
-        </Button>
-      </div>
-    </Card>
+    </div>
   );
 };
 

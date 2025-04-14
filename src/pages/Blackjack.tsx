@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import MultiHandBlackjack from '../components/Blackjack/MultiHandBlackjack';
+import EnhancedBlackjackGame from '../components/Blackjack/EnhancedBlackjackGame';
 
 const Blackjack = () => {
   return (
@@ -15,7 +15,7 @@ const Blackjack = () => {
         <p className="text-gray-400 mt-2">Play up to 3 hands simultaneously and beat the dealer to win!</p>
       </div>
       
-      <MultiHandBlackjack />
+      <EnhancedBlackjackGame minBet={10} maxBet={1000} />
     </div>
   );
 };
