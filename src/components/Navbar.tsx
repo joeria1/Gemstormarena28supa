@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { RocketLogo } from './RocketLogo';
 import DepositButton from './DepositButton';
 
 const Navbar = () => {
@@ -14,7 +16,8 @@ const Navbar = () => {
     <nav className="bg-gray-800 text-white p-4">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center">
-          <Link to="/" className="text-2xl font-bold mr-6">
+          <Link to="/" className="text-2xl font-bold mr-6 flex items-center">
+            <RocketLogo className="mr-2" />
             DUMP.FUN
           </Link>
           <div className="hidden md:flex space-x-4">

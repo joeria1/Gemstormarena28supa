@@ -31,6 +31,8 @@ const HorseRacing = () => {
   const [isAutoRacing, setIsAutoRacing] = useState<boolean>(true);
   const [hasBet, setHasBet] = useState<boolean>(false);
   const [showLightning, setShowLightning] = useState<boolean>(false);
+  const [raceRestart, setRaceRestart] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(0);
 
   // Initialize horse positions
   useEffect(() => {
@@ -41,8 +43,8 @@ const HorseRacing = () => {
       setTimeToNextRace(prev => {
         if (prev <= 1) {
           // Start a new race when the countdown reaches 0
-          if (!isRacing) {
-            startAutoRace();
+          if (!isRacing && !raceRestart) {
+            prepareForRace();
           }
           return 10; // Reset to 10 seconds after race starts
         }
@@ -58,7 +60,30 @@ const HorseRacing = () => {
     setPositions(horses.map(horse => ({ id: horse.id, position: 0 })));
     setWinner(null);
     setHasBet(false);
-  }
+  };
+
+  // Function to prepare for a race by resetting positions
+  const prepareForRace = () => {
+    // Reset positions first
+    resetPositions();
+    setRaceRestart(true);
+    setRaceCompleted(false);
+    
+    // Start countdown from 3
+    setCountdown(3);
+    
+    // Count down from 3 to 1 before starting race
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          startAutoRace();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const handleBet = (amount: number) => {
     setBetAmount(amount);
@@ -93,9 +118,7 @@ const HorseRacing = () => {
   const startAutoRace = () => {
     if (isRacing) return;
     
-    // Reset for a new race - ensure all horses start from position 0
-    resetPositions();
-    setRaceCompleted(false);
+    setRaceRestart(false);
     setIsRacing(true);
     
     // Show lightning effect at race start
@@ -136,6 +159,13 @@ const HorseRacing = () => {
               toast.error("Better luck next time!");
             }
           }
+          
+          // Wait 5 seconds before preparing for the next race
+          setTimeout(() => {
+            if (isAutoRacing) {
+              prepareForRace();
+            }
+          }, 5000);
         }
         
         return newPositions;
@@ -161,10 +191,13 @@ const HorseRacing = () => {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-white">Race Track</h2>
             
-            <PulseAnimation isActive={isRacing} className="flex items-center bg-blue-900 rounded-lg px-3 py-1">
+            <PulseAnimation isActive={isRacing || countdown > 0} className="flex items-center bg-blue-900 rounded-lg px-3 py-1">
               <Clock className="h-4 w-4 text-blue-300 mr-2" />
               <span className="text-white">
-                {isRacing ? "Race in progress" : `Next race in ${timeToNextRace}s`}
+                {isRacing ? "Race in progress" : 
+                 countdown > 0 ? `Race starts in ${countdown}...` : 
+                 raceCompleted ? "Race finished" : 
+                 `Next race in ${timeToNextRace}s`}
               </span>
             </PulseAnimation>
           </div>
