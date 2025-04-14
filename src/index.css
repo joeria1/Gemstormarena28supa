@@ -1,3 +1,4 @@
+
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
@@ -92,6 +93,22 @@
     @apply absolute -z-10 opacity-50 blur-md;
     background: linear-gradient(to top, rgba(79, 70, 229, 0.1) 0%, transparent 100%);
     animation: pulse 2s infinite;
+  }
+  
+  /* Animated rocket flames */
+  .rocket-flames {
+    animation: flameAnimation 0.8s infinite alternate;
+  }
+  
+  @keyframes flameAnimation {
+    0% {
+      transform: translateY(0) translateX(-50%) scaleY(0.9) scaleX(0.95);
+      opacity: 0.7;
+    }
+    100% {
+      transform: translateY(5px) translateX(-50%) scaleY(1.1) scaleX(1.05);
+      opacity: 0.9;
+    }
   }
   
   @keyframes pulse {

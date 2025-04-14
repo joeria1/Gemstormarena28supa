@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SOUNDS, playSound } from '../utils/soundEffects';
 import PulseAnimation from '../components/GameEffects/PulseAnimation';
 import LightningEffect from '../components/GameEffects/LightningEffect';
+import { useUser } from '../context/UserContext';
 
 enum DifficultyLevel {
   EASY = 'easy',
@@ -40,6 +41,7 @@ const Tower: React.FC = () => {
   const [lastBombHit, setLastBombHit] = useState<{ level: number, tileIndex: number } | null>(null);
   const [showLightning, setShowLightning] = useState<boolean>(false);
   const { playSound } = useSound();
+  const { user, updateBalance, addBet, addXp } = useUser();
 
   const diffSettings = difficultySettings[difficulty];
   const totalTiles = diffSettings.bombs + diffSettings.safe;
@@ -73,6 +75,21 @@ const Tower: React.FC = () => {
   
   const startGame = () => {
     if (bet <= 0) return;
+    if (user.balance < bet) {
+      showGameResult({
+        success: false,
+        message: "Insufficient balance",
+        amount: bet
+      });
+      return;
+    }
+    
+    // Deduct bet amount from balance
+    updateBalance(-bet);
+    
+    // Add to wagered amount and increase XP (1 XP per dollar bet)
+    addBet(bet);
+    addXp(Math.floor(bet / 2));
     
     setGameActive(true);
     setCurrentLevel(0);
@@ -100,6 +117,9 @@ const Tower: React.FC = () => {
     
     setTower(updatedTower);
     
+    // Calculate tile safety percentage for next level
+    const safeTilePercentage = calculateSafetyPercentage();
+    
     // Check if tile has mine
     if (currentTowerLevel.bombs.includes(col)) {
       // Game over - hit a bomb
@@ -120,6 +140,15 @@ const Tower: React.FC = () => {
         setGameActive(false);
       }, 1000);
     } else {
+      // Show tile safety message
+      showGameResult({
+        success: true,
+        message: `Tile Safe! Next tile safety: ${safeTilePercentage}%`,
+        multiplier: 0,
+        amount: 0,
+        duration: 1000
+      });
+      
       // Safe tile
       playSound(SOUNDS.TOWER_CORRECT);
       
@@ -129,12 +158,15 @@ const Tower: React.FC = () => {
         if (currentLevel + 1 >= maxLevel) {
           // Game won
           const finalMultiplier = calculateMultiplier(currentLevel + 1);
+          const winAmount = bet * finalMultiplier;
+          updateBalance(winAmount); // Add winnings to balance
+          
           playSound(SOUNDS.CASH_OUT);
           showGameResult({
             success: true,
             message: "Tower conquered!",
             multiplier: finalMultiplier,
-            amount: bet * finalMultiplier
+            amount: winAmount
           });
           setGameActive(false);
         } else {
@@ -154,12 +186,15 @@ const Tower: React.FC = () => {
           if (currentLevel + 1 >= maxLevel) {
             // Game won
             const finalMultiplier = calculateMultiplier(currentLevel + 1);
+            const winAmount = bet * finalMultiplier;
+            updateBalance(winAmount); // Add winnings to balance
+            
             playSound(SOUNDS.CASH_OUT);
             showGameResult({
               success: true,
               message: "Tower conquered!",
               multiplier: finalMultiplier,
-              amount: bet * finalMultiplier
+              amount: winAmount
             });
             setGameActive(false);
           } else {
@@ -173,6 +208,14 @@ const Tower: React.FC = () => {
     }
   };
 
+  const calculateSafetyPercentage = (): number => {
+    if (currentLevel + 1 >= maxLevel) return 100; // Last level, no more tiles
+    
+    const nextSettings = difficultySettings[difficulty];
+    const safePercentage = (nextSettings.safe / (nextSettings.safe + nextSettings.bombs)) * 100;
+    return Math.round(safePercentage);
+  };
+
   const calculateMultiplier = (level: number): number => {
     const baseMultiplier = difficulty === DifficultyLevel.EASY ? 1.3 : 
                            difficulty === DifficultyLevel.MEDIUM ? 1.8 : 2.2;
@@ -183,6 +226,8 @@ const Tower: React.FC = () => {
     if (!gameActive || currentLevel === 0) return;
     
     const winAmount = bet * multiplier;
+    updateBalance(winAmount); // Add winnings to balance
+    
     playSound(SOUNDS.CASH_OUT);
     showGameResult({
       success: true,
@@ -237,27 +282,25 @@ const Tower: React.FC = () => {
                   whileHover={!isDisabled && !isClicked ? { scale: 1.1 } : {}}
                   whileTap={!isDisabled && !isClicked ? { scale: 0.95 } : {}}
                 >
-                  <PulseAnimation isActive={isLastBombHit} color="255, 99, 71" intensity="high">
-                    <Button 
-                      disabled={isDisabled || isClicked}
-                      onClick={() => handleTileClick(levelIndex, tileIndex)}
-                      variant={isPastLevel ? "default" : "outline"}
-                      className={`w-12 h-12 ${
-                        isLastBombHit ? 'bg-red-500 hover:bg-red-600 border-white border-2' :
-                        isPastLevel && isBomb ? 'bg-red-500 hover:bg-red-600' :
-                        isPastLevel && isSafe ? 'bg-green-500 hover:bg-green-600' :
-                        isClicked && isBomb ? 'bg-red-500 hover:bg-red-600' :
-                        isClicked && isSafe ? 'bg-green-500 hover:bg-green-600' :
-                        isCurrentLevel ? 'bg-muted/80 hover:bg-muted border-2 border-gray-600 shadow-md' :
-                        'bg-muted/50 hover:bg-muted/70'
-                      }`}
-                    >
-                      {(isPastLevel || isLastBombHit) && isBomb && '💣'}
-                      {isPastLevel && isSafe && '✓'}
-                      {isCurrentLevel && isClicked && isBomb && '💣'}
-                      {isCurrentLevel && isClicked && isSafe && '✓'}
-                    </Button>
-                  </PulseAnimation>
+                  <Button 
+                    disabled={isDisabled || isClicked}
+                    onClick={() => handleTileClick(levelIndex, tileIndex)}
+                    variant={isPastLevel ? "default" : "outline"}
+                    className={`w-12 h-12 ${
+                      isLastBombHit ? 'bg-red-500 hover:bg-red-600' :
+                      isPastLevel && isBomb ? 'bg-red-500 hover:bg-red-600' :
+                      isPastLevel && isSafe ? 'bg-green-500 hover:bg-green-600' :
+                      isClicked && isBomb ? 'bg-red-500 hover:bg-red-600' :
+                      isClicked && isSafe ? 'bg-green-500 hover:bg-green-600' :
+                      isCurrentLevel ? 'bg-muted/80 hover:bg-muted border-2 border-gray-600 shadow-md' :
+                      'bg-muted/50 hover:bg-muted/70'
+                    }`}
+                  >
+                    {(isPastLevel || isLastBombHit) && isBomb && '💣'}
+                    {isPastLevel && isSafe && '✓'}
+                    {isCurrentLevel && isClicked && isBomb && '💣'}
+                    {isCurrentLevel && isClicked && isSafe && '✓'}
+                  </Button>
                 </motion.div>
               );
             })}
@@ -322,7 +365,7 @@ const Tower: React.FC = () => {
                 <Button 
                   className="flex-1 bg-primary hover:bg-primary/90 text-white"
                   onClick={startGame}
-                  disabled={gameActive || bet <= 0}
+                  disabled={gameActive || bet <= 0 || user.balance < bet}
                 >
                   Start
                 </Button>
@@ -379,7 +422,7 @@ const Tower: React.FC = () => {
                     <p className="text-muted-foreground mb-4">
                       Climb the tower by selecting safe tiles. Avoid bombs! The higher you climb, the bigger your reward.
                     </p>
-                    <Button onClick={startGame} disabled={bet <= 0} className="bg-primary hover:bg-primary/90 text-white">
+                    <Button onClick={startGame} disabled={bet <= 0 || user.balance < bet} className="bg-primary hover:bg-primary/90 text-white">
                       Start Game
                     </Button>
                   </div>
