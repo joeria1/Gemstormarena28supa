@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import PlinkoBoard from './PlinkoBoard';
 import PlinkoControls from './PlinkoControls';
 import PlinkoResults from './PlinkoResults';
-import gameSounds from '../../utils/gameSounds';
+import { useSound } from '../ui/sound-context';
 
 interface BallResult {
   id: number;
@@ -20,6 +20,7 @@ const PlinkoGame: React.FC = () => {
   const [activeBalls, setActiveBalls] = useState<{id: number, path: number[]}[]>([]);
   const nextBallId = useRef(1);
   const animationInProgress = useRef(false);
+  const { playSound, isMuted } = useSound();
 
   const riskMultipliers = {
     low: [1.2, 1.4, 1.6, 1.8, 2.1, 2.4, 2.9, 3.5, 4.9, 8.9],
@@ -43,7 +44,7 @@ const PlinkoGame: React.FC = () => {
     for (let i = 0; i < rows; i++) {
       // Play peg hit sound
       setTimeout(() => {
-        gameSounds.plinkoPeg.play();
+        playSound('/sounds/plinko-peg.mp3', 0.3);
       }, i * 300);
       
       // Randomly decide to go left or right
@@ -79,7 +80,7 @@ const PlinkoGame: React.FC = () => {
       setBalance(prev => prev + winAmount);
       
       // Play win sound
-      gameSounds.plinkoWin.play();
+      playSound('/sounds/plinko-win.mp3', 0.5);
       
       // Remove ball from active balls
       setActiveBalls(prev => prev.filter(ball => ball.id !== ballId));

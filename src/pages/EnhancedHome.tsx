@@ -8,7 +8,7 @@ import { RocketLogo } from '../components/RocketLogo';
 import GameCard from '../components/GameCard';
 import { useToast } from "../components/ui/use-toast";
 import DailyFreeCase from '../components/Rewards/DailyFreeCase';
-import { Trophy, Dice1 as Dice, ChevronRight, Zap, Users, Gift } from 'lucide-react';
+import { Trophy, Dice1 as Dice, ChevronRight, Zap, Users, Gift, CircleDot } from 'lucide-react';
 import HomepagePopup from '../components/HomePage/HomepagePopup';
 
 const EnhancedHome = () => {
@@ -111,6 +111,7 @@ const EnhancedHome = () => {
     { title: "Mines", icon: <Zap size={24} />, path: "/mines", description: "Avoid the mines, collect the gems" },
     { title: "Tower", icon: <ChevronRight size={24} />, path: "/tower", description: "Climb to win big prizes" },
     { title: "Horse Racing", icon: <Users size={24} />, path: "/horse-racing", description: "Bet on your favorite horse" },
+    { title: "Plinko", icon: <CircleDot size={24} />, path: "/plinko", description: "Watch balls bounce for big wins" },
   ];
 
   const handleJoinBattle = (battleId: string) => {

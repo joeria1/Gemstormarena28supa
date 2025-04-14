@@ -1,19 +1,22 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { playSound as playSoundUtil } from '../../utils/sounds';
+import gameSounds from '../../utils/gameSounds';
 
 interface SoundContextType {
   isMuted: boolean;
   toggleMute: () => void;
   playSound: (url: string, volume?: number) => void;
   setVolume: (volume: number) => void;
+  volume: number;
 }
 
 const SoundContext = createContext<SoundContextType>({
   isMuted: false,
   toggleMute: () => {},
   playSound: () => {},
-  setVolume: () => {}
+  setVolume: () => {},
+  volume: 0.5
 });
 
 export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -31,11 +34,62 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   useEffect(() => {
     localStorage.setItem('isMuted', JSON.stringify(isMuted));
+    
+    // Update all game sounds mute state
+    Object.values(gameSounds).forEach(audio => {
+      audio.muted = isMuted;
+    });
   }, [isMuted]);
 
   useEffect(() => {
     localStorage.setItem('soundVolume', JSON.stringify(volume));
+    
+    // Update all game sounds volume
+    Object.values(gameSounds).forEach(audio => {
+      audio.volume = volume;
+    });
   }, [volume]);
+
+  // Initialize all sound files when component mounts
+  useEffect(() => {
+    // Preload and set initial volume for all game sounds
+    Object.values(gameSounds).forEach(audio => {
+      audio.load();
+      audio.volume = volume;
+      audio.muted = isMuted;
+    });
+    
+    // Create a dummy user interaction to enable audio
+    const enableAudio = () => {
+      // Create a silent audio context
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      
+      // Try to play a silent sound
+      const silentSound = new Audio();
+      silentSound.play().catch(() => {
+        // Ignore errors - this is just to enable audio
+      });
+      
+      // Remove the event listeners after first interaction
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('touchstart', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
+    };
+    
+    // Add event listeners to enable audio on user interaction
+    document.addEventListener('click', enableAudio);
+    document.addEventListener('touchstart', enableAudio);
+    document.addEventListener('keydown', enableAudio);
+    
+    return () => {
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('touchstart', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
+    };
+  }, []);
 
   const toggleMute = () => {
     setIsMuted(prev => !prev);
@@ -59,6 +113,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Reset audio and play
     audio.currentTime = 0;
     audio.volume = effectiveVolume;
+    audio.muted = isMuted;
     
     // Play the sound
     audio.play().catch(error => {
@@ -75,7 +130,8 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isMuted, 
       toggleMute, 
       playSound,
-      setVolume: updateVolume
+      setVolume: updateVolume,
+      volume
     }}>
       {children}
     </SoundContext.Provider>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -19,11 +20,13 @@ import {
 import { Button } from './ui/button';
 import DepositButton from './DepositButton';
 import { RocketLogo } from './RocketLogo';
+import { useSound } from './ui/sound-context';
 
 const NavbarUpdated: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
   const location = useLocation();
+  const { isMuted, toggleMute } = useSound();
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
