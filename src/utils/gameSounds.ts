@@ -1,6 +1,6 @@
 
 // Game sounds for various interactions
-const gameSounds = {
+const gameSoundPaths = {
   // Mines game
   mineClick: '/sounds/mine-click.mp3',
   mineExplosion: '/sounds/mine-explosion.mp3',
@@ -42,8 +42,8 @@ const gameSounds = {
 const audioElements: Map<string, HTMLAudioElement> = new Map();
 
 // Helper function to play a sound by name
-export const playGameSound = (soundName: keyof typeof gameSounds, volume = 0.5) => {
-  const soundPath = gameSounds[soundName];
+export const playGameSound = (soundName: keyof typeof gameSoundPaths, volume = 0.5) => {
+  const soundPath = gameSoundPaths[soundName];
   if (!soundPath) return;
   
   try {
@@ -74,7 +74,7 @@ export const playGameSound = (soundName: keyof typeof gameSounds, volume = 0.5) 
 
 // Function to preload all sounds
 export const preloadGameSounds = () => {
-  Object.entries(gameSounds).forEach(([name, path]) => {
+  Object.entries(gameSoundPaths).forEach(([name, path]) => {
     try {
       const audio = new Audio(path);
       audio.load(); // Start loading the audio file
@@ -85,7 +85,18 @@ export const preloadGameSounds = () => {
   });
 };
 
+// Pause a specific sound
+export const pauseGameSound = (soundName: keyof typeof gameSoundPaths) => {
+  const soundPath = gameSoundPaths[soundName];
+  if (!soundPath) return;
+  
+  const audio = audioElements.get(soundPath);
+  if (audio) {
+    audio.pause();
+  }
+};
+
 // Initialize sounds on load
 preloadGameSounds();
 
-export default gameSounds;
+export default gameSoundPaths;

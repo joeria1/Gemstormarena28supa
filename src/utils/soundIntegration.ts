@@ -1,31 +1,18 @@
 
-import gameSounds from './gameSounds';
+import { playGameSound, pauseGameSound } from './gameSounds';
 
 // This function will integrate sound effects with existing elements
 // without modifying their original code
 export const initializeSoundEffects = () => {
-  // Function to safely play audio
-  const playSound = (audio: HTMLAudioElement) => {
-    if (audio.readyState >= 2) { // HAVE_CURRENT_DATA or higher
-      const playPromise = audio.play();
-      
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.log("Audio play error:", error);
-        });
-      }
-    }
-  };
-
   // Add event listeners for Mines game
   const addMinesListeners = () => {
     document.querySelectorAll('.mine-cell').forEach(cell => {
       cell.addEventListener('click', () => {
         const isMine = cell.classList.contains('is-mine');
         if (isMine) {
-          playSound(gameSounds.mineExplosion);
+          playGameSound('mineExplosion');
         } else {
-          playSound(gameSounds.mineClick);
+          playGameSound('mineClick');
         }
       });
     });
@@ -35,14 +22,14 @@ export const initializeSoundEffects = () => {
   const addBlackjackListeners = () => {
     document.querySelectorAll('.deal-button').forEach(button => {
       button.addEventListener('click', () => {
-        playSound(gameSounds.cardShuffle);
-        setTimeout(() => playSound(gameSounds.cardDeal), 500);
+        playGameSound('cardShuffle');
+        setTimeout(() => playGameSound('cardDeal'), 500);
       });
     });
 
     document.querySelectorAll('.hit-button').forEach(button => {
       button.addEventListener('click', () => {
-        playSound(gameSounds.cardHit);
+        playGameSound('cardHit');
       });
     });
   };
@@ -51,11 +38,11 @@ export const initializeSoundEffects = () => {
   const addCasesListeners = () => {
     document.querySelectorAll('.case-item').forEach(item => {
       item.addEventListener('mouseenter', () => {
-        playSound(gameSounds.caseHover);
+        playGameSound('caseHover');
       });
       
       item.addEventListener('click', () => {
-        playSound(gameSounds.caseSelect);
+        playGameSound('caseSelect');
       });
     });
   };
@@ -64,7 +51,7 @@ export const initializeSoundEffects = () => {
   const addHorseRacingListeners = () => {
     document.querySelectorAll('.start-race-button').forEach(button => {
       button.addEventListener('click', () => {
-        playSound(gameSounds.raceStart);
+        playGameSound('raceStart');
       });
     });
   };
@@ -79,7 +66,7 @@ export const initializeSoundEffects = () => {
           if (mutation.attributeName === 'class') {
             const target = mutation.target as HTMLElement;
             if (target.classList.contains('active')) {
-              playSound(gameSounds.lightning);
+              playGameSound('lightning');
             }
           }
         });
@@ -99,10 +86,10 @@ export const initializeSoundEffects = () => {
           if (mutation.attributeName === 'class') {
             const target = mutation.target as HTMLElement;
             if (target.classList.contains('flying')) {
-              playSound(gameSounds.rocketFly);
+              playGameSound('rocketFly');
             } else if (target.classList.contains('crashed')) {
-              gameSounds.rocketFly.pause();
-              playSound(gameSounds.rocketCrash);
+              pauseGameSound('rocketFly');
+              playGameSound('rocketCrash');
             }
           }
         });
@@ -118,9 +105,9 @@ export const initializeSoundEffects = () => {
       tile.addEventListener('click', () => {
         const isSuccess = !tile.classList.contains('trap');
         if (isSuccess) {
-          playSound(gameSounds.towerSuccess);
+          playGameSound('towerSuccess');
         } else {
-          playSound(gameSounds.towerFail);
+          playGameSound('towerFail');
         }
       });
     });

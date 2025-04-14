@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import gameSounds from '../utils/gameSounds';
+import { playGameSound, pauseGameSound } from '../utils/gameSounds';
 
 // This component is responsible for integrating sounds into the existing games
 // without modifying their core functionality
@@ -13,9 +13,9 @@ const SoundIntegration: React.FC = () => {
         tile.addEventListener('click', (e) => {
           const target = e.currentTarget as HTMLElement;
           if (target.classList.contains('mine')) {
-            gameSounds.mineExplosion.play();
+            playGameSound('mineExplosion');
           } else {
-            gameSounds.mineClick.play();
+            playGameSound('mineClick');
           }
         });
       });
@@ -23,31 +23,31 @@ const SoundIntegration: React.FC = () => {
       // Blackjack Game
       document.querySelectorAll('.blackjack-deal').forEach(button => {
         button.addEventListener('click', () => {
-          gameSounds.cardShuffle.play();
-          setTimeout(() => gameSounds.cardDeal.play(), 500);
+          playGameSound('cardShuffle');
+          setTimeout(() => playGameSound('cardDeal'), 500);
         });
       });
 
       document.querySelectorAll('.blackjack-hit').forEach(button => {
         button.addEventListener('click', () => {
-          gameSounds.cardHit.play();
+          playGameSound('cardHit');
         });
       });
 
       // Cases
       document.querySelectorAll('.case-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
-          gameSounds.caseHover.play();
+          playGameSound('caseHover');
         });
         item.addEventListener('click', () => {
-          gameSounds.caseSelect.play();
+          playGameSound('caseSelect');
         });
       });
 
       // Horse Racing
       document.querySelectorAll('.race-start-button').forEach(button => {
         button.addEventListener('click', () => {
-          gameSounds.raceStart.play();
+          playGameSound('raceStart');
         });
       });
 
@@ -58,7 +58,7 @@ const SoundIntegration: React.FC = () => {
             if (mutation.attributeName === 'class') {
               const element = mutation.target as HTMLElement;
               if (element.classList.contains('active')) {
-                gameSounds.lightning.play();
+                playGameSound('lightning');
               }
             }
           });
@@ -74,10 +74,10 @@ const SoundIntegration: React.FC = () => {
             if (mutation.attributeName === 'class') {
               const element = mutation.target as HTMLElement;
               if (element.classList.contains('active')) {
-                gameSounds.rocketFly.play();
+                playGameSound('rocketFly');
               } else if (element.classList.contains('crashed')) {
-                gameSounds.rocketFly.pause();
-                gameSounds.rocketCrash.play();
+                pauseGameSound('rocketFly');
+                playGameSound('rocketCrash');
               }
             }
           });
@@ -91,9 +91,9 @@ const SoundIntegration: React.FC = () => {
         tile.addEventListener('click', (e) => {
           const target = e.currentTarget as HTMLElement;
           if (target.classList.contains('bomb')) {
-            gameSounds.towerFail.play();
+            playGameSound('towerFail');
           } else {
-            gameSounds.towerSuccess.play();
+            playGameSound('towerSuccess');
           }
         });
       });
