@@ -1,405 +1,297 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from "../ui/button";
-import { Card } from "../ui/card";
-import { motion } from 'framer-motion';
-import { useToast } from "../../hooks/use-toast";
+import { toast } from 'sonner';
 import HorseIcon from './HorseIcon';
+
+// Using constants for better readability
+const NUM_HORSES = 5;
+const TRACK_LENGTH = 90;
+const MIN_SPEED = 0.5;
+const MAX_SPEED = 2.0;
+const UPDATE_INTERVAL = 100; // milliseconds
+const DEFAULT_BET_AMOUNT = 10;
 
 interface Horse {
   id: number;
-  name: string;
-  color: string;
-  odds: number;
   position: number;
+  color: string;
   speed: number;
+  odds: number;
+  finished: boolean;
 }
 
-const generateHorses = (): Horse[] => {
-  const colors = ['red', 'blue', 'green', 'purple', 'orange'];
-  const names = [
-    'Thunder Bolt', 'Speedy Hooves', 'Galloping Ghost', 
-    'Midnight Runner', 'Lucky Charm', 'Victory Lap',
-    'Silver Streak', 'Golden Gallop'
-  ];
-  
-  return Array.from({ length: 5 }, (_, i) => {
-    // Generate an odds value between 1.5 and 10
-    const minOdds = 1.5;
-    const maxOdds = 10;
-    const odds = +(minOdds + Math.random() * (maxOdds - minOdds)).toFixed(2);
-    
-    // Horses with lower odds are slightly faster on average (but still random)
-    // This creates a correlation between odds and performance
-    const baseSpeed = 1 - (odds / maxOdds) * 0.5; // Maps to 0.5 - 1 range
-    const randomFactor = Math.random() * 0.4 - 0.2; // -0.2 to +0.2 random adjustment
-    const speed = Math.max(0.3, Math.min(1, baseSpeed + randomFactor));
-    
-    return {
-      id: i,
-      name: names[i % names.length],
-      color: colors[i % colors.length],
-      odds: odds,
-      position: 0,
-      speed: speed
-    };
-  });
-};
+interface BetState {
+  amount: number;
+  selectedHorse: number | null;
+  isRaceStarted: boolean;
+  isPlacingBet: boolean;
+}
 
-const EnhancedHorseRacing = () => {
-  const { toast } = useToast();
-  const [horses, setHorses] = useState<Horse[]>(generateHorses());
-  const [selectedHorse, setSelectedHorse] = useState<Horse | null>(null);
-  const [gameState, setGameState] = useState<'betting' | 'racing' | 'results'>('betting');
-  const [bet, setBet] = useState<number>(10);
-  const [balance, setBalance] = useState<number>(1000);
+const COLORS = ['red', 'blue', 'green', 'purple', 'orange'];
+
+const EnhancedHorseRacing: React.FC = () => {
+  const [horses, setHorses] = useState<Horse[]>([]);
+  const [raceInProgress, setRaceInProgress] = useState(false);
   const [winner, setWinner] = useState<Horse | null>(null);
-  const [raceFinished, setRaceFinished] = useState<boolean>(false);
-  const [countDown, setCountDown] = useState<number | null>(null);
+  const [betState, setBetState] = useState<BetState>({
+    amount: DEFAULT_BET_AMOUNT,
+    selectedHorse: null,
+    isRaceStarted: false,
+    isPlacingBet: false,
+  });
+  const [balance, setBalance] = useState(1000);
+
   const raceInterval = useRef<number | null>(null);
-  const raceLength = 100; // 100% width of track
-  
-  // Clear interval when component unmounts
+  const initalRaceSetup = useRef(false);
+
+  // Initialize horses on component mount
   useEffect(() => {
-    return () => {
-      if (raceInterval.current) {
-        window.clearInterval(raceInterval.current);
-      }
-    };
-  }, []);
-  
-  // Reset the race
-  const resetRace = () => {
-    setHorses(generateHorses());
-    setSelectedHorse(null);
-    setGameState('betting');
-    setWinner(null);
-    setRaceFinished(false);
-    setCountDown(null);
-    if (raceInterval.current) {
-      window.clearInterval(raceInterval.current);
-      raceInterval.current = null;
+    if (!initalRaceSetup.current) {
+      initializeRace();
+      initalRaceSetup.current = true;
     }
-  };
-  
-  // Handle selecting a horse to bet on
-  const handleSelectHorse = (horse: Horse) => {
-    if (gameState !== 'betting') return;
-    setSelectedHorse(horse);
-  };
-  
-  // Start the race
-  const startRace = () => {
-    if (gameState !== 'betting' || !selectedHorse) return;
+  }, []);
+
+  // Initialize horses with random speeds and odds
+  const initializeRace = () => {
+    const newHorses: Horse[] = Array.from({ length: NUM_HORSES }, (_, i) => {
+      const baseSpeed = MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED);
+      // Calculate odds inversely proportional to speed (faster horses have lower odds)
+      const odds = Math.round((1 / baseSpeed) * 5 * 100) / 100;
+      
+      return {
+        id: i,
+        position: 0,
+        color: COLORS[i],
+        speed: baseSpeed,
+        odds: odds,
+        finished: false,
+      };
+    });
     
-    if (bet > balance) {
-      toast({
-        title: "Insufficient balance",
-        description: "Please lower your bet amount",
-        variant: "destructive"
-      });
+    // Sort horses by odds for display
+    newHorses.sort((a, b) => a.odds - b.odds);
+    
+    setHorses(newHorses);
+    setRaceInProgress(false);
+    setWinner(null);
+    setBetState({
+      amount: DEFAULT_BET_AMOUNT,
+      selectedHorse: null,
+      isRaceStarted: false,
+      isPlacingBet: false,
+    });
+  };
+
+  const startRace = () => {
+    if (raceInProgress) return;
+    
+    // Check if a bet is placed
+    if (betState.selectedHorse === null) {
+      toast.error("Please select a horse to bet on");
       return;
     }
     
-    // Deduct bet from balance
-    setBalance(prev => prev - bet);
+    if (betState.amount <= 0) {
+      toast.error("Please enter a valid bet amount");
+      return;
+    }
     
-    // Start countdown
-    setCountDown(3);
+    if (betState.amount > balance) {
+      toast.error("Insufficient balance");
+      return;
+    }
     
-    const countdownInterval = setInterval(() => {
-      setCountDown(prev => {
-        if (prev === null || prev <= 1) {
-          clearInterval(countdownInterval);
-          
-          // Reset all horses to starting position
-          setHorses(horses.map(h => ({ ...h, position: 0 })));
-          
-          // Start the race
-          setGameState('racing');
-          
-          // Start moving horses
-          raceInterval.current = window.setInterval(() => {
-            setHorses(prevHorses => {
-              const newHorses = prevHorses.map(horse => {
-                // Random movement between 0.3 and 1.0 percent of track, adjusted by horse speed
-                const movement = (Math.random() * 0.7 + 0.3) * horse.speed;
-                const newPosition = horse.position + movement;
-                
-                // Check if any horse has finished
-                if (newPosition >= raceLength && !raceFinished) {
-                  setWinner(horse);
-                  setRaceFinished(true);
-                  
-                  // If player's horse won
-                  if (horse.id === selectedHorse.id) {
-                    const winnings = bet * horse.odds;
-                    setBalance(prev => prev + winnings);
-                    toast({
-                      title: "Your horse won!",
-                      description: `You won $${winnings.toFixed(2)}!`,
-                    });
-                  } else {
-                    toast({
-                      title: `${horse.name} won!`,
-                      description: "Better luck next time!",
-                      variant: "destructive"
-                    });
-                  }
-                  
-                  // Move to results after short delay
-                  setTimeout(() => {
-                    setGameState('results');
-                    if (raceInterval.current) {
-                      window.clearInterval(raceInterval.current);
-                      raceInterval.current = null;
-                    }
-                  }, 1500);
-                }
-                
-                return {
-                  ...horse,
-                  position: Math.min(newPosition, raceLength) // Cap at 100%
-                };
-              });
-              
-              return newHorses;
-            });
-          }, 100);
-          
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-  
-  return (
-    <div className="max-w-5xl mx-auto p-4">
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Left panel - Race info & controls */}
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className="w-full md:w-1/3 bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-6"
-        >
-          <h2 className="text-2xl font-bold text-white mb-6">Horse Racing</h2>
-          
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-300 mb-2">Your Balance</h3>
-            <p className="text-2xl font-bold text-yellow-400">${balance.toFixed(2)}</p>
-          </div>
-          
-          {gameState === 'betting' && (
-            <>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">Your Bet</h3>
-                <div className="flex gap-2 mb-2">
-                  <Button 
-                    variant="outline"
-                    onClick={() => setBet(prev => Math.max(1, prev - 5))}
-                    className="px-2"
-                  >
-                    -5
-                  </Button>
-                  <div className="flex items-center justify-center bg-gray-700 rounded px-4 flex-1">
-                    <span className="text-xl font-bold text-yellow-400">${bet}</span>
-                  </div>
-                  <Button 
-                    variant="outline"
-                    onClick={() => setBet(prev => prev + 5)}
-                    className="px-2"
-                  >
-                    +5
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">Selected Horse</h3>
-                {selectedHorse ? (
-                  <Card className="bg-gray-700 p-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full bg-${selectedHorse.color}-500 flex items-center justify-center`}>
-                        <HorseIcon color="white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">{selectedHorse.name}</p>
-                        <p className="text-sm text-yellow-400">Odds: {selectedHorse.odds}x</p>
-                      </div>
-                    </div>
-                  </Card>
-                ) : (
-                  <p className="text-gray-400">Please select a horse</p>
-                )}
-              </div>
-              
-              <Button 
-                onClick={startRace}
-                disabled={!selectedHorse || bet > balance}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3"
-              >
-                Start Race
-              </Button>
-            </>
-          )}
-          
-          {gameState === 'racing' && (
-            <div className="text-center">
-              {countDown !== null ? (
-                <div className="text-4xl font-bold text-yellow-400 my-8">
-                  {countDown}
-                </div>
-              ) : (
-                <>
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-300 mb-2">Race in Progress</h3>
-                    <div className="relative w-full h-4 bg-gray-700 rounded-full overflow-hidden">
-                      <motion.div 
-                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-400"
-                        animate={{
-                          width: ["0%", "100%", "50%", "100%"],
-                          opacity: [1, 0.8, 0.9, 1]
-                        }}
-                        transition={{ 
-                          duration: 2, 
-                          repeat: Infinity, 
-                          ease: "linear" 
-                        }}
-                      />
-                    </div>
-                  </div>
-                  
-                  {selectedHorse && (
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-300 mb-2">Your Horse</h3>
-                      <Card className="bg-gray-700 p-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full bg-${selectedHorse.color}-500 flex items-center justify-center`}>
-                            <HorseIcon color="white" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-white">{selectedHorse.name}</p>
-                            <p className="text-sm text-yellow-400">Position: {Math.floor(selectedHorse.position)}%</p>
-                          </div>
-                        </div>
-                      </Card>
-                    </div>
-                  )}
-                  
-                  {winner && (
-                    <div className="mt-6 p-4 bg-green-900/20 border border-green-600 rounded-lg">
-                      <h3 className="text-xl font-bold text-green-400">Race Finished!</h3>
-                      <p className="text-white mt-1">{winner.name} won the race!</p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-          
-          {gameState === 'results' && (
-            <div className="text-center">
-              <div className="mb-6">
-                <h3 className="text-2xl font-bold text-white mb-2">Race Results</h3>
-                
-                {winner && (
-                  <Card className="bg-gray-700 p-4 mb-4">
-                    <p className="text-lg text-white mb-1">Winner: <span className="font-bold">{winner.name}</span></p>
-                    <div className={`w-12 h-12 mx-auto my-3 rounded-full bg-${winner.color}-500 flex items-center justify-center`}>
-                      <HorseIcon color="white" size={24} />
-                    </div>
-                    <p className="text-md text-yellow-400">Odds: {winner.odds}x</p>
-                  </Card>
-                )}
-                
-                {selectedHorse && winner && selectedHorse.id === winner.id ? (
-                  <div className="p-4 bg-green-900/20 border border-green-600 rounded-lg mb-4">
-                    <h3 className="text-xl font-bold text-green-400">You Won!</h3>
-                    <p className="text-white mt-1">Winnings: ${(bet * selectedHorse.odds).toFixed(2)}</p>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-red-900/20 border border-red-600 rounded-lg mb-4">
-                    <h3 className="text-xl font-bold text-red-400">You Lost!</h3>
-                    <p className="text-white mt-1">Better luck next time!</p>
-                  </div>
-                )}
-                
-                <Button 
-                  onClick={resetRace}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 mt-2"
-                >
-                  New Race
-                </Button>
-              </div>
-            </div>
-          )}
-        </motion.div>
+    // Update balance after betting
+    setBalance(prev => prev - betState.amount);
+    setBetState(prev => ({ ...prev, isRaceStarted: true }));
+    setRaceInProgress(true);
+    
+    if (raceInterval.current) clearInterval(raceInterval.current);
+    
+    // Start the race animation
+    raceInterval.current = window.setInterval(() => {
+      setHorses(prevHorses => {
+        const updatedHorses = [...prevHorses];
+        let allFinished = true;
         
-        {/* Right panel - Race track */}
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="w-full md:w-2/3 bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-6"
-        >
-          <div className="mb-4 flex justify-between items-center">
-            <h3 className="text-xl font-bold text-white">Race Track</h3>
-            {gameState === 'racing' && !countDown && (
-              <div className="px-3 py-1 bg-yellow-600 rounded text-sm font-medium text-white">
-                Live Race
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-6 mt-8">
-            {horses.map((horse) => (
-              <div 
-                key={horse.id} 
-                className={`relative ${gameState === 'betting' ? 'cursor-pointer' : ''}`}
-                onClick={() => {
-                  if (gameState === 'betting') {
-                    handleSelectHorse(horse);
-                  }
-                }}
-              >
-                <div className={`flex items-center gap-2 mb-2 ${selectedHorse?.id === horse.id ? 'bg-gray-700/50 p-2 rounded-lg' : ''}`}>
-                  <div className={`w-8 h-8 rounded-full bg-${horse.color}-500 flex items-center justify-center`}>
-                    <HorseIcon color="white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-white">{horse.name}</p>
-                    <div className="flex justify-between">
-                      <p className="text-sm text-gray-400">Odds: <span className="text-yellow-400">{horse.odds}x</span></p>
-                    </div>
-                  </div>
-                </div>
+        for (const horse of updatedHorses) {
+          if (!horse.finished) {
+            // Add random variation to speed for more realistic race
+            const randomVariation = Math.random() * 0.5 - 0.25;
+            const adjustedSpeed = horse.speed + randomVariation;
+            
+            // Update horse position
+            horse.position += adjustedSpeed;
+            
+            // Check if horse has finished
+            if (horse.position >= TRACK_LENGTH) {
+              horse.position = TRACK_LENGTH;
+              horse.finished = true;
+              
+              // Set as winner if no winner yet
+              if (!winner) {
+                setWinner(horse);
                 
-                {/* Race track */}
-                <div className="relative h-6 bg-gray-700 rounded-full overflow-hidden">
-                  {/* Progress */}
-                  <motion.div 
-                    className={`absolute top-0 left-0 h-full bg-${horse.color}-500`}
-                    style={{ width: `${horse.position}%` }}
-                  />
-                  
-                  {/* Horse indicator */}
-                  {horse.position > 0 && (
-                    <motion.div 
-                      className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-${horse.color}-300 border-2 border-white`}
-                      style={{ left: `calc(${horse.position}% - 8px)` }}
-                    />
-                  )}
-                  
-                  {/* Finish line */}
-                  <div className="absolute top-0 right-0 h-full w-1 bg-white" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+                // Handle betting outcome
+                if (betState.selectedHorse === horse.id) {
+                  const winnings = Math.round(betState.amount * horse.odds);
+                  setBalance(prev => prev + winnings);
+                  toast.success(`You won ${winnings} coins!`);
+                } else {
+                  toast.error("Better luck next time!");
+                }
+              }
+            } else {
+              allFinished = false;
+            }
+          }
+        }
+        
+        // End race if all horses finished
+        if (allFinished && raceInterval.current) {
+          clearInterval(raceInterval.current);
+          raceInterval.current = null;
+        }
+        
+        return updatedHorses;
+      });
+    }, UPDATE_INTERVAL);
+  };
+
+  const resetRace = () => {
+    // Clear any existing race interval
+    if (raceInterval.current) {
+      clearInterval(raceInterval.current);
+      raceInterval.current = null;
+    }
+    
+    // Completely reinitialize the race with the same logic as when the page was first loaded
+    initializeRace();
+  };
+
+  const selectHorse = (horseId: number) => {
+    if (!raceInProgress) {
+      setBetState(prev => ({ ...prev, selectedHorse: horseId }));
+    }
+  };
+
+  const handleBetAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const amount = parseInt(e.target.value) || 0;
+    setBetState(prev => ({ ...prev, amount }));
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-gray-900 text-white p-6 rounded-lg shadow-lg">
+      <div className="mb-6 text-center">
+        <h1 className="text-3xl font-bold mb-2">Horse Racing</h1>
+        <p className="text-gray-400">Place your bets and watch the race!</p>
       </div>
+
+      <div className="mb-6 bg-gray-800 p-4 rounded-lg">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Your Balance: {balance} coins</h2>
+          {!raceInProgress && (
+            <button
+              onClick={resetRace}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+            >
+              New Race
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-4 mb-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm text-gray-400 mb-1">Bet Amount</label>
+            <input
+              type="number"
+              value={betState.amount}
+              onChange={handleBetAmountChange}
+              disabled={raceInProgress}
+              className="w-full p-2 bg-gray-700 rounded text-white border border-gray-600 focus:outline-none focus:border-purple-500"
+              min="1"
+            />
+          </div>
+
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm text-gray-400 mb-1">Selected Horse</label>
+            <div className="p-2 bg-gray-700 rounded border border-gray-600 text-white">
+              {betState.selectedHorse !== null
+                ? `Horse ${betState.selectedHorse + 1} (${horses[betState.selectedHorse]?.color})`
+                : "None selected"}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={startRace}
+          disabled={raceInProgress}
+          className={`w-full py-3 rounded-lg font-bold ${
+            raceInProgress
+              ? "bg-gray-600 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700 transition"
+          }`}
+        >
+          {raceInProgress ? "Race in Progress..." : "Start Race"}
+        </button>
+      </div>
+
+      <div className="overflow-hidden flex-grow relative bg-gray-800 rounded-lg">
+        {/* Finish line */}
+        <div className="absolute right-0 top-0 bottom-0 w-1 bg-white" />
+        
+        {/* Race tracks */}
+        <div className="p-4">
+          {horses.map((horse) => (
+            <div 
+              key={horse.id}
+              onClick={() => selectHorse(horse.id)}
+              className={`mb-4 flex items-center cursor-pointer relative ${
+                betState.selectedHorse === horse.id ? "bg-gray-700" : ""
+              } hover:bg-gray-700 p-2 rounded-lg transition`}
+            >
+              <div className="w-24 flex flex-col items-center mr-4">
+                <HorseIcon color={horse.color} />
+                <span className="text-sm mt-1">Horse {horse.id + 1}</span>
+                <span className="text-xs text-gray-400">Odds: {horse.odds}x</span>
+              </div>
+              
+              <div className="flex-1 h-6 bg-gray-900 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${
+                    horse.id === betState.selectedHorse ? "bg-purple-600" : `bg-${horse.color}-500`
+                  }`}
+                  style={{
+                    width: `${(horse.position / TRACK_LENGTH) * 100}%`,
+                    backgroundColor: horse.color,
+                    transition: "width 0.1s ease-out"
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {winner && (
+        <div className="mt-6 p-4 bg-gray-800 rounded-lg text-center">
+          <h2 className="text-2xl font-bold mb-2">
+            Horse {winner.id + 1} ({winner.color}) Won!
+          </h2>
+          <p className="mb-4">
+            {betState.selectedHorse === winner.id
+              ? `You won ${Math.round(betState.amount * winner.odds)} coins!`
+              : "Better luck next time!"}
+          </p>
+          <button
+            onClick={resetRace}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-bold transition"
+          >
+            New Race
+          </button>
+        </div>
+      )}
     </div>
   );
 };

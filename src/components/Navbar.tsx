@@ -1,274 +1,221 @@
 
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Button } from './ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Bell, Menu } from 'lucide-react';
-import RocketLogo from './RocketLogo';
-import DepositButton from './DepositButton';
-import SoundManager from './SoundManager';
-import { useUser } from '../context/UserContext';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+import { Link } from 'react-router-dom';
+import { DepositButton } from './DepositButton';
 
 const Navbar = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, login, logout } = useUser();
-  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const isActive = (path: string) => {
-    return location.pathname === path ? "border-b-2 border-primary" : "";
-  };
-
-  // Auth status
-  const isLoggedIn = !!user;
-
-  const handleLogin = () => {
-    login("user123", "Demo User");
-  };
-
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
+  const toggleDropdown = () => {
+    setDropdownOpen(!dropdownOpen);
   };
 
   return (
-    <nav className="bg-gray-900/80 shadow backdrop-blur-md sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 flex items-center">
-              <RocketLogo className="h-9 w-9 text-blue-400" />
-              <span className="ml-2 text-xl font-bold text-white">Crypto<span className="text-blue-400">Rocket</span></span>
-            </Link>
-            
-            <div className="hidden md:ml-6 md:flex md:space-x-4 items-center">
-              <Link to="/" className={`text-gray-300 hover:text-white px-3 py-2 ${isActive('/')}`}>
-                Home
-              </Link>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className={`text-gray-300 hover:text-white px-3 py-2 ${location.pathname.includes('/games') ? isActive('/games') : ''}`}>
-                    Games
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-gray-800 text-white border-gray-700 w-48">
-                  <DropdownMenuLabel>Featured Games</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-gray-700" />
-                  <DropdownMenuItem asChild>
-                    <Link to="/blackjack" className="focus:bg-gray-700 cursor-pointer">Blackjack</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/mines" className="focus:bg-gray-700 cursor-pointer">Mines</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/crash" className="focus:bg-gray-700 cursor-pointer">Crash</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/tower" className="focus:bg-gray-700 cursor-pointer">Tower</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/horse-racing" className="focus:bg-gray-700 cursor-pointer">Horse Racing</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-gray-700" />
-                  <DropdownMenuLabel>Case Opening</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-gray-700" />
-                  <DropdownMenuItem asChild>
-                    <Link to="/cases" className="focus:bg-gray-700 cursor-pointer">Cases</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/case-battles" className="focus:bg-gray-700 cursor-pointer">Case Battles</Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
-              <Link to="/affiliates" className={`text-gray-300 hover:text-white px-3 py-2 ${isActive('/affiliates')}`}>
-                Affiliates
-              </Link>
-              
-              <Link to="/rewards" className={`text-gray-300 hover:text-white px-3 py-2 ${isActive('/rewards')}`}>
-                Rewards
-              </Link>
-            </div>
-          </div>
-          
-          <div className="hidden md:flex items-center">
-            <SoundManager />
-            
-            {isLoggedIn ? (
-              <>
-                <div className="flex items-center bg-gray-800 rounded-full px-3 py-1 mr-3">
-                  <span className="text-green-400 text-sm font-semibold mr-1">$</span>
-                  <span className="text-white font-medium">{user.balance.toFixed(2)}</span>
-                </div>
-                
-                <DepositButton />
-                
-                <button className="ml-3 p-1.5 text-gray-400 hover:text-white">
-                  <Bell className="h-5 w-5" />
-                </button>
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="ml-3 flex items-center">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar || "/placeholder.svg"} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-gray-800 text-white border-gray-700">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator className="bg-gray-700" />
-                    <DropdownMenuItem asChild>
-                      <Link to="/profile" className="focus:bg-gray-700 cursor-pointer">Profile</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/rake-back" className="focus:bg-gray-700 cursor-pointer">Rake Back</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-gray-700" />
-                    <DropdownMenuItem onClick={logout} className="focus:bg-gray-700 cursor-pointer text-red-400">
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : (
-              <Button onClick={handleLogin} className="bg-blue-600 hover:bg-blue-700">
-                Login
-              </Button>
-            )}
-          </div>
-          
-          <div className="flex md:hidden items-center">
-            {isLoggedIn && (
-              <div className="flex items-center bg-gray-800 rounded-full px-3 py-1 mr-3">
-                <span className="text-green-400 text-sm font-semibold mr-1">$</span>
-                <span className="text-white font-medium">{user.balance.toFixed(2)}</span>
-              </div>
-            )}
-            
-            <button
-              onClick={toggleMobileMenu}
-              className="p-2 rounded-md text-gray-400 hover:text-white focus:outline-none"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      {/* Mobile menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-gray-900 shadow-lg">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            <Link
-              to="/"
-              className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-gray-800"
-              onClick={toggleMobileMenu}
-            >
-              Home
-            </Link>
-            <Link
-              to="/blackjack"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
-            >
-              Blackjack
-            </Link>
-            <Link
-              to="/mines"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
-            >
-              Mines
-            </Link>
-            <Link
-              to="/crash"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
-            >
-              Crash
-            </Link>
-            <Link
-              to="/tower"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
-            >
-              Tower
-            </Link>
-            <Link
-              to="/cases"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
-            >
+    <nav className="bg-gray-800 text-white p-4">
+      <div className="container mx-auto flex justify-between items-center">
+        <div className="flex items-center">
+          <Link to="/" className="text-2xl font-bold mr-6">
+            DUMP.FUN
+          </Link>
+          <div className="hidden md:flex space-x-4">
+            <Link to="/cases" className="hover:text-gray-300">
               Cases
             </Link>
-            <Link
-              to="/case-battles"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
-            >
+            <div className="relative">
+              <button
+                onClick={toggleDropdown}
+                className="hover:text-gray-300 flex items-center"
+              >
+                Games
+                <svg
+                  className="w-4 h-4 ml-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 9l-7 7-7-7"
+                  ></path>
+                </svg>
+              </button>
+              {dropdownOpen && (
+                <div className="absolute z-10 left-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg py-1">
+                  <Link
+                    to="/crash"
+                    className="block px-4 py-2 hover:bg-gray-600"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    Crash
+                  </Link>
+                  <Link
+                    to="/mines"
+                    className="block px-4 py-2 hover:bg-gray-600"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    Mines
+                  </Link>
+                  <Link
+                    to="/blackjack"
+                    className="block px-4 py-2 hover:bg-gray-600"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    Blackjack
+                  </Link>
+                  <Link
+                    to="/horseracing"
+                    className="block px-4 py-2 hover:bg-gray-600"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    Horse Racing
+                  </Link>
+                  <Link
+                    to="/tower"
+                    className="block px-4 py-2 hover:bg-gray-600"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    Tower
+                  </Link>
+                </div>
+              )}
+            </div>
+            <Link to="/case-battles" className="hover:text-gray-300">
               Case Battles
             </Link>
-            <Link
-              to="/horse-racing"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
-            >
-              Horse Racing
-            </Link>
-            <Link
-              to="/affiliates"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
-            >
+            <Link to="/affiliates" className="hover:text-gray-300">
               Affiliates
             </Link>
-            <Link
-              to="/rewards"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-              onClick={toggleMobileMenu}
+          </div>
+        </div>
+
+        <div className="hidden md:flex items-center space-x-4">
+          <DepositButton />
+          <Link
+            to="/profile"
+            className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded"
+          >
+            Profile
+          </Link>
+        </div>
+
+        <div className="md:hidden">
+          <button onClick={() => setIsOpen(!isOpen)}>
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              Rewards
-            </Link>
-            
-            {isLoggedIn ? (
-              <>
-                <Link
-                  to="/profile"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
-                  onClick={toggleMobileMenu}
-                >
-                  Profile
-                </Link>
-                <button
-                  onClick={() => {
-                    logout();
-                    toggleMobileMenu();
-                  }}
-                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-400 hover:bg-gray-800"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => {
-                  handleLogin();
-                  toggleMobileMenu();
-                }}
-                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d={isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {isOpen && (
+        <div className="md:hidden mt-4">
+          <Link
+            to="/cases"
+            className="block py-2 hover:bg-gray-700"
+            onClick={() => setIsOpen(false)}
+          >
+            Cases
+          </Link>
+          <div className="block py-2 hover:bg-gray-700">
+            <button
+              onClick={toggleDropdown}
+              className="flex items-center justify-between w-full"
+            >
+              <span>Games</span>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
               >
-                Login
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d={dropdownOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
+                ></path>
+              </svg>
+            </button>
+            {dropdownOpen && (
+              <div className="pl-4 mt-2">
+                <Link
+                  to="/crash"
+                  className="block py-2 hover:bg-gray-600"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Crash
+                </Link>
+                <Link
+                  to="/mines"
+                  className="block py-2 hover:bg-gray-600"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Mines
+                </Link>
+                <Link
+                  to="/blackjack"
+                  className="block py-2 hover:bg-gray-600"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Blackjack
+                </Link>
+                <Link
+                  to="/horseracing"
+                  className="block py-2 hover:bg-gray-600"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Horse Racing
+                </Link>
+                <Link
+                  to="/tower"
+                  className="block py-2 hover:bg-gray-600"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Tower
+                </Link>
+              </div>
             )}
+          </div>
+          <Link
+            to="/case-battles"
+            className="block py-2 hover:bg-gray-700"
+            onClick={() => setIsOpen(false)}
+          >
+            Case Battles
+          </Link>
+          <Link
+            to="/affiliates"
+            className="block py-2 hover:bg-gray-700"
+            onClick={() => setIsOpen(false)}
+          >
+            Affiliates
+          </Link>
+          <div className="mt-4 flex flex-col space-y-2">
+            <DepositButton />
+            <Link
+              to="/profile"
+              className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-center"
+              onClick={() => setIsOpen(false)}
+            >
+              Profile
+            </Link>
           </div>
         </div>
       )}
