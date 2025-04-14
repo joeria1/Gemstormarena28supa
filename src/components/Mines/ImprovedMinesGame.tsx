@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -42,7 +41,6 @@ const ImprovedMinesGame: React.FC = () => {
 
   const betPresets = [5, 10, 25, 50, 100];
 
-  // Initialize grid with placeholder tiles (visible but not active)
   useEffect(() => {
     initializeGrid();
   }, []);
@@ -69,7 +67,6 @@ const ImprovedMinesGame: React.FC = () => {
 
   useEffect(() => {
     initializeGrid();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridSize]);
 
   const calculateMaxMines = (): number => {
@@ -400,7 +397,7 @@ const ImprovedMinesGame: React.FC = () => {
           
           {gameCompleted && (
             <Button
-              onClick={initializeGame}
+              onClick={initializeGrid}
               className="w-full mt-2 bg-blue-600 hover:bg-blue-700"
             >
               Play Again

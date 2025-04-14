@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useUserContext } from '../context/UserContext';
+import { useUser } from '../context/UserContext';
 import { 
   Menu, 
   X, 
@@ -11,19 +12,19 @@ import {
   Home,
   Bomb,
   Rocket,
-  Horse,
-  Cards,
+  Gamepad2,
+  PlayingCards,
   Castle,
   Swords,
   CircleDot
 } from 'lucide-react';
 import { Button } from './ui/button';
 import DepositButton from './DepositButton';
-import RocketLogo from './RocketLogo';
+import { RocketLogo } from './RocketLogo';
 
 const NavbarUpdated: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useUserContext();
+  const { user } = useUser();
   const location = useLocation();
 
   const toggleMenu = () => {
@@ -38,8 +39,8 @@ const NavbarUpdated: React.FC = () => {
     { to: '/', label: 'Home', icon: <Home className="w-5 h-5" /> },
     { to: '/mines', label: 'Mines', icon: <Bomb className="w-5 h-5" /> },
     { to: '/crash', label: 'Crash', icon: <Rocket className="w-5 h-5" /> },
-    { to: '/horse-racing', label: 'Horse Racing', icon: <Horse className="w-5 h-5" /> },
-    { to: '/blackjack', label: 'Blackjack', icon: <Cards className="w-5 h-5" /> },
+    { to: '/horse-racing', label: 'Horse Racing', icon: <Gamepad2 className="w-5 h-5" /> },
+    { to: '/blackjack', label: 'Blackjack', icon: <PlayingCards className="w-5 h-5" /> },
     { to: '/tower', label: 'Tower', icon: <Castle className="w-5 h-5" /> },
     { to: '/case-battles', label: 'Case Battles', icon: <Swords className="w-5 h-5" /> },
     { to: '/plinko', label: 'Plinko', icon: <CircleDot className="w-5 h-5" /> },
