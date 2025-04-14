@@ -31,7 +31,7 @@ const EnhancedGames = () => {
   const renderGame = () => {
     switch (game) {
       case 'blackjack':
-        return <EnhancedBlackjackGame />;
+        return <EnhancedBlackjackGame minBet={10} maxBet={1000} />;
       case 'mines':
         return <EnhancedMinesGame />;
       case 'horse-racing':
