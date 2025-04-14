@@ -13,7 +13,7 @@ import {
   Bomb,
   Rocket,
   Gamepad2,
-  PlayingCards,
+  Card,  // Replaced PlayingCards with Card
   Castle,
   Swords,
   CircleDot
@@ -40,7 +40,7 @@ const NavbarUpdated: React.FC = () => {
     { to: '/mines', label: 'Mines', icon: <Bomb className="w-5 h-5" /> },
     { to: '/crash', label: 'Crash', icon: <Rocket className="w-5 h-5" /> },
     { to: '/horse-racing', label: 'Horse Racing', icon: <Gamepad2 className="w-5 h-5" /> },
-    { to: '/blackjack', label: 'Blackjack', icon: <PlayingCards className="w-5 h-5" /> },
+    { to: '/blackjack', label: 'Blackjack', icon: <Card className="w-5 h-5" /> }, // Updated icon
     { to: '/tower', label: 'Tower', icon: <Castle className="w-5 h-5" /> },
     { to: '/case-battles', label: 'Case Battles', icon: <Swords className="w-5 h-5" /> },
     { to: '/plinko', label: 'Plinko', icon: <CircleDot className="w-5 h-5" /> },
