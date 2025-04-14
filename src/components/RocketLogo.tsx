@@ -32,12 +32,7 @@ export const RocketLogo: React.FC<RocketLogoProps> = ({ className = "h-6 w-6" })
           fill="#111827"
         />
       </svg>
-      <div className="rocket-flames absolute w-full h-24 -bottom-20 left-1/2 -translate-x-1/2">
-        <div className="relative w-full h-full">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-full bg-gradient-to-b from-yellow-300 via-orange-500 to-transparent opacity-80 animate-pulse rounded-b-full blur-sm"></div>
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-3/4 bg-gradient-to-b from-white via-yellow-300 to-transparent opacity-70 animate-pulse rounded-b-full blur-sm"></div>
-        </div>
-      </div>
+      <div className="rocket-trail w-3 h-12 left-1/2 -translate-x-1/2 top-[60%]"></div>
     </div>
   );
 };

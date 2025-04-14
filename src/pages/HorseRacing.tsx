@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useUser } from '../context/UserContext';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
@@ -20,7 +20,7 @@ const horses = [
 ];
 
 const HorseRacing = () => {
-  const { user, updateBalance, addBet, addXp } = useUser();
+  const { user, updateUser, addBet } = useUser();
   const [betAmount, setBetAmount] = useState<number>(5);
   const [selectedHorse, setSelectedHorse] = useState<number | null>(null);
   const [isRacing, setIsRacing] = useState<boolean>(false);
@@ -33,17 +33,12 @@ const HorseRacing = () => {
   const [showLightning, setShowLightning] = useState<boolean>(false);
   const [raceRestart, setRaceRestart] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(0);
-  
-  // Use refs to maintain consistent animation speed
-  const raceInterval = useRef<NodeJS.Timeout | null>(null);
-  const raceDuration = useRef<number>(10000); // 10 seconds for a race
-  const raceStartTime = useRef<number>(0);
 
   // Initialize horse positions
   useEffect(() => {
     resetPositions();
     
-    // Start the auto racing cycle with fixed timing
+    // Start the auto racing cycle
     const interval = setInterval(() => {
       setTimeToNextRace(prev => {
         if (prev <= 1) {
@@ -110,11 +105,10 @@ const HorseRacing = () => {
     }
     
     // Deduct the bet amount from balance
-    updateBalance(-betAmount);
+    updateUser({ ...user, balance: user.balance - betAmount });
     
     // Add to wagered amount and increase XP
     addBet(betAmount);
-    addXp(Math.floor(betAmount / 2));
     
     setHasBet(true);
     
@@ -126,47 +120,20 @@ const HorseRacing = () => {
     
     setRaceRestart(false);
     setIsRacing(true);
-    raceStartTime.current = Date.now();
     
     // Show lightning effect at race start
     setShowLightning(true);
     setTimeout(() => setShowLightning(false), 1500);
     
-    // Use a fixed interval for consistent timing
-    const updateFrequency = 100; // Update positions every 100ms
-    const totalSteps = raceDuration.current / updateFrequency;
-    let currentStep = 0;
-    
-    // Clear any existing interval
-    if (raceInterval.current) {
-      clearInterval(raceInterval.current);
-    }
-    
-    // Start new race with consistent timing
-    raceInterval.current = setInterval(() => {
-      currentStep++;
-      const progressPercent = currentStep / totalSteps;
-      
-      if (progressPercent >= 1) {
-        // Race is finished
-        finishRace();
-        return;
-      }
-      
+    // Race simulation logic
+    const raceInterval = setInterval(() => {
       setPositions(prevPositions => {
         const newPositions = [...prevPositions].map(horse => {
-          // Each horse has a slightly different speed but consistent across races
-          const horseSpeed = 1 + (horse.id * 0.1);
-          
-          // Calculate progress based on elapsed time and horse speed
-          const horseProgress = Math.min(
-            (progressPercent * horseSpeed * 100) + (Math.random() * 2 - 1),
-            100
-          );
-          
+          // Random movement between 1-5% of track
+          const randomMovement = Math.random() * 5 + 1;
           return {
             ...horse,
-            position: horseProgress
+            position: Math.min(horse.position + randomMovement, 100)
           };
         });
         
@@ -174,52 +141,36 @@ const HorseRacing = () => {
         const finishedHorse = newPositions.find(horse => horse.position >= 100);
         
         if (finishedHorse) {
-          finishRace(finishedHorse.id);
+          clearInterval(raceInterval);
+          setIsRacing(false);
+          setRaceCompleted(true);
+          setWinner(finishedHorse.id);
+          
+          // Handle winning logic for the user if they placed a bet
+          if (selectedHorse !== null && hasBet) {
+            if (finishedHorse.id === selectedHorse) {
+              const winningHorse = horses.find(h => h.id === selectedHorse);
+              if (winningHorse) {
+                const winAmount = betAmount * winningHorse.odds;
+                updateUser({ ...user, balance: user.balance + winAmount });
+                toast.success(`You won $${winAmount.toFixed(2)}!`);
+              }
+            } else {
+              toast.error("Better luck next time!");
+            }
+          }
+          
+          // Wait 5 seconds before preparing for the next race
+          setTimeout(() => {
+            if (isAutoRacing) {
+              prepareForRace();
+            }
+          }, 5000);
         }
         
         return newPositions;
       });
-    }, updateFrequency);
-  };
-  
-  const finishRace = (finishedHorseId?: number) => {
-    // Clear the race interval
-    if (raceInterval.current) {
-      clearInterval(raceInterval.current);
-      raceInterval.current = null;
-    }
-    
-    setIsRacing(false);
-    setRaceCompleted(true);
-    
-    // If no horse is specified as winner, find the one that's furthest along
-    if (!finishedHorseId) {
-      const furthestHorse = [...positions].sort((a, b) => b.position - a.position)[0];
-      finishedHorseId = furthestHorse.id;
-    }
-    
-    setWinner(finishedHorseId);
-    
-    // Handle winning logic for the user if they placed a bet
-    if (selectedHorse !== null && hasBet) {
-      if (finishedHorseId === selectedHorse) {
-        const winningHorse = horses.find(h => h.id === selectedHorse);
-        if (winningHorse) {
-          const winAmount = betAmount * winningHorse.odds;
-          updateBalance(winAmount);
-          toast.success(`You won $${winAmount.toFixed(2)}!`);
-        }
-      } else {
-        toast.error("Better luck next time!");
-      }
-    }
-    
-    // Wait 5 seconds before preparing for the next race
-    setTimeout(() => {
-      if (isAutoRacing) {
-        prepareForRace();
-      }
-    }, 5000);
+    }, 100);
   };
 
   return (
@@ -287,12 +238,8 @@ const HorseRacing = () => {
                     transition: 'left 0.3s ease-in-out'
                   }}
                 >
-                  <PulseAnimation isActive={isWinner && raceCompleted || isSelected && hasBet}>
-                    <div className={`w-10 h-6 ${horse.color} rounded-md flex items-center justify-center relative ${
-                      isSelected && hasBet 
-                        ? 'ring-2 ring-yellow-500 shadow-lg shadow-yellow-500/50'
-                        : ''
-                    }`}>
+                  <PulseAnimation isActive={isWinner && raceCompleted}>
+                    <div className={`w-10 h-6 ${horse.color} rounded-md flex items-center justify-center relative ${isSelected && hasBet ? 'ring-2 ring-yellow-500' : ''}`}>
                       <HorseIcon className="text-white w-4 h-4" />
                       {isSelected && hasBet && (
                         <div className="absolute -top-5 left-1/2 transform -translate-x-1/2">
@@ -343,7 +290,7 @@ const HorseRacing = () => {
                       variant={betAmount === amount ? "default" : "outline"}
                       className={betAmount === amount ? "bg-green-600 hover:bg-green-700" : "border-gray-700 text-white"}
                       onClick={() => handleBet(amount)}
-                      disabled={isRacing || hasBet || user.balance < amount}
+                      disabled={isRacing || hasBet}
                     >
                       ${amount}
                     </Button>
@@ -363,7 +310,7 @@ const HorseRacing = () => {
                       whileTap={!isRacing && !hasBet ? { scale: 0.98 } : {}}
                       className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between ${
                         selectedHorse === horse.id 
-                          ? 'bg-gray-800 border-green-500 shadow-md shadow-green-500/20' 
+                          ? 'bg-gray-800 border-green-500' 
                           : 'bg-gray-800 border-gray-700 hover:border-gray-500'
                       }`}
                       onClick={() => !isRacing && !hasBet && handleSelectHorse(horse.id)}
