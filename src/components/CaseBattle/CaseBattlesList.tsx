@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from "../ui/button";
 import { Card } from '../ui/card';
@@ -11,6 +10,7 @@ export interface BattleParticipant {
   name: string;
   username: string;
   avatar: string;
+  isBot?: boolean; // Added isBot as an optional property
 }
 
 // Export the Battle interface for use in other components
