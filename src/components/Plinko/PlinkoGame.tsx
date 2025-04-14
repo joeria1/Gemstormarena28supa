@@ -42,55 +42,84 @@ const PlinkoGame: React.FC = () => {
     const rows = 12;
     let currentPosition = 0;
     
+    // Create initial path for the ball
+    path.push(0); // Start at position 0
+    
     for (let i = 0; i < rows; i++) {
-      // Play peg hit sound
+      // Randomly decide to go left or right
+      const direction = Math.random() < 0.5 ? 0 : 1;
+      
+      // Calculate next position
+      if (direction === 0) {
+        // Go left (stay at current position)
+        path.push(currentPosition);
+      } else {
+        // Go right (increment position)
+        currentPosition += 1;
+        path.push(currentPosition);
+      }
+      
+      // Schedule peg hit sound with delay based on row
       setTimeout(() => {
         if (!isMuted) {
           playGameSound('plinkoPeg', volume);
         }
       }, i * 300);
-      
-      // Randomly decide to go left or right
-      const direction = Math.random() < 0.5 ? 0 : 1;
-      if (direction === 0) {
-        // Go left
-        path.push(currentPosition);
-      } else {
-        // Go right
-        currentPosition += 1;
-        path.push(currentPosition);
-      }
     }
     
-    setActiveBalls(prev => [...prev, { id: ballId, path }]);
+    console.log("Ball path:", path);
     
-    // Calculate result after ball reaches bottom
-    setTimeout(() => {
-      const finalPosition = path[path.length - 1];
-      const multipliers = riskMultipliers[risk];
-      const multiplier = multipliers[finalPosition] || 1;
-      const winAmount = betAmount * multiplier;
-      
-      // Add to results
-      const newResult: BallResult = {
-        id: ballId,
-        multiplier,
-        amount: winAmount,
-        timestamp: new Date()
-      };
-      
-      setResults(prev => [newResult, ...prev].slice(0, 50));
-      setBalance(prev => prev + winAmount);
-      
-      // Play win sound
-      if (!isMuted) {
-        playGameSound('plinkoWin', volume);
+    // Add the active ball with its path
+    setActiveBalls(prev => [...prev, { id: ballId, path: path.slice(0, 1) }]);
+    
+    // Animate the ball through each position in the path
+    let currentStep = 1;
+    const animationInterval = setInterval(() => {
+      if (currentStep < path.length) {
+        setActiveBalls(prev => 
+          prev.map(ball => 
+            ball.id === ballId 
+              ? { ...ball, path: path.slice(0, currentStep + 1) } 
+              : ball
+          )
+        );
+        currentStep++;
+      } else {
+        // Animation complete
+        clearInterval(animationInterval);
+        
+        // Calculate result and update
+        const finalPosition = path[path.length - 1];
+        const multipliers = riskMultipliers[risk];
+        const multiplier = multipliers[finalPosition] || 1;
+        const winAmount = betAmount * multiplier;
+        
+        // Add to results
+        const newResult: BallResult = {
+          id: ballId,
+          multiplier,
+          amount: winAmount,
+          timestamp: new Date()
+        };
+        
+        // Wait a bit before showing the result
+        setTimeout(() => {
+          setResults(prev => [newResult, ...prev].slice(0, 50));
+          setBalance(prev => prev + winAmount);
+          
+          // Play win sound
+          if (!isMuted) {
+            playGameSound('plinkoWin', volume);
+          }
+          
+          // Remove ball from active balls (after showing the result)
+          setTimeout(() => {
+            setActiveBalls(prev => prev.filter(ball => ball.id !== ballId));
+            animationInProgress.current = false;
+          }, 500);
+        }, 500);
       }
-      
-      // Remove ball from active balls
-      setActiveBalls(prev => prev.filter(ball => ball.id !== ballId));
-      animationInProgress.current = false;
-    }, rows * 300 + 500);
+    }, 300);
   };
 
   return (

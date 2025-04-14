@@ -52,15 +52,24 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
   // Render active balls
   const renderBalls = () => {
     return activeBalls.map(ball => {
-      const lastPathIndex = Math.min(ball.path.length - 1, rows - 1);
+      // Get the last position in the current path
+      const currentPath = ball.path;
+      const lastPathIndex = currentPath.length - 1;
+      
+      // Calculate position based on the current row and column
       const row = lastPathIndex;
-      const col = ball.path[lastPathIndex];
+      const col = currentPath[lastPathIndex];
+      
+      // If no path is available, don't render the ball
+      if (row === undefined || col === undefined) return null;
       
       const ballStyle = {
         left: `${50 - (row) * 5 + col * 10}%`,
         top: `${(row + 1) * 7}%`,
         transition: 'all 0.3s ease-out'
       };
+      
+      console.log(`Ball ${ball.id} at row ${row}, col ${col}`);
       
       return (
         <div 
