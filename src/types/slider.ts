@@ -6,6 +6,7 @@ export interface SliderItem {
   rarity: string;
   price: number;
   isReroll?: boolean;
+  playerId?: string; // Added this field to support CaseBattle functionality
 }
 
 export interface SliderProps {

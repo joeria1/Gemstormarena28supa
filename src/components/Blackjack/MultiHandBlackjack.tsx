@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -184,14 +183,11 @@ const MultiHandBlackjack: React.FC = () => {
     
     for (let i = 0; i < activeHandCount; i++) {
       // Make sure each card has hidden property set to false
-      const card1 = newDeck.pop()!;
-      const card2 = newDeck.pop()!;
+      const card1 = { ...newDeck.pop()!, hidden: false };
+      const card2 = { ...newDeck.pop()!, hidden: false };
       
       initialPlayerHands.push({
-        cards: [
-          { ...card1, hidden: false },
-          { ...card2, hidden: false }
-        ],
+        cards: [card1, card2],
         bet: betAmount,
         result: 'playing',
         settled: false,
@@ -378,22 +374,22 @@ const MultiHandBlackjack: React.FC = () => {
       
       if (isBlackjack) {
         if (dealerBlackjack) {
-          return { ...hand, result: 'push', settled: true };
+          return { ...hand, result: 'push' as const, settled: true };
         } else {
-          return { ...hand, result: 'blackjack', settled: true };
+          return { ...hand, result: 'blackjack' as const, settled: true };
         }
       }
       
       if (dealerBusted) {
-        return { ...hand, result: 'won', settled: true };
+        return { ...hand, result: 'won' as const, settled: true };
       }
       
       if (handValue > dealerValue) {
-        return { ...hand, result: 'won', settled: true };
+        return { ...hand, result: 'won' as const, settled: true };
       } else if (handValue === dealerValue) {
-        return { ...hand, result: 'push', settled: true };
+        return { ...hand, result: 'push' as const, settled: true };
       } else {
-        return { ...hand, result: 'lost', settled: true };
+        return { ...hand, result: 'lost' as const, settled: true };
       }
     });
     
@@ -527,10 +523,9 @@ const MultiHandBlackjack: React.FC = () => {
                 
                 <Card className="p-4">
                   <BettingOptions
-                    bet={betAmount}
-                    setBet={setBetAmount}
-                    min={5}
-                    max={1000}
+                    currentBet={betAmount}
+                    onBetChange={setBetAmount}
+                    isGameActive={gamePhase !== 'betting'}
                   />
                 </Card>
               </div>
