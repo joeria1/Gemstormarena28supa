@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -13,7 +12,6 @@ import {
   Bomb,
   Rocket,
   Gamepad2,
-  Card,  // Replaced PlayingCards with Card
   Castle,
   Swords,
   CircleDot
@@ -40,7 +38,7 @@ const NavbarUpdated: React.FC = () => {
     { to: '/mines', label: 'Mines', icon: <Bomb className="w-5 h-5" /> },
     { to: '/crash', label: 'Crash', icon: <Rocket className="w-5 h-5" /> },
     { to: '/horse-racing', label: 'Horse Racing', icon: <Gamepad2 className="w-5 h-5" /> },
-    { to: '/blackjack', label: 'Blackjack', icon: <Card className="w-5 h-5" /> }, // Updated icon
+    { to: '/blackjack', label: 'Blackjack', icon: <CreditCard className="w-5 h-5" /> },
     { to: '/tower', label: 'Tower', icon: <Castle className="w-5 h-5" /> },
     { to: '/case-battles', label: 'Case Battles', icon: <Swords className="w-5 h-5" /> },
     { to: '/plinko', label: 'Plinko', icon: <CircleDot className="w-5 h-5" /> },
@@ -55,20 +53,17 @@ const NavbarUpdated: React.FC = () => {
   return (
     <nav className="bg-gray-900 text-white py-4 shadow-md">
       <div className="container mx-auto flex items-center justify-between">
-        {/* Logo and Brand */}
         <Link to="/" className="flex items-center text-xl font-semibold">
           <RocketLogo className="w-8 h-8 mr-2" />
           DUMP.FUN
         </Link>
 
-        {/* Mobile Menu Button */}
         <div className="lg:hidden">
           <button onClick={toggleMenu} className="text-gray-300 hover:text-white focus:outline-none focus:text-white">
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
-        {/* Main Navigation Links */}
         <div className={`lg:flex items-center space-x-6 ${isOpen ? 'block' : 'hidden'} lg:block`}>
           {navLinks.map((link) => (
             <Link
@@ -83,7 +78,6 @@ const NavbarUpdated: React.FC = () => {
           ))}
         </div>
 
-        {/* User Info and Actions */}
         <div className="hidden lg:flex items-center space-x-4">
           {user ? (
             <>
@@ -107,7 +101,6 @@ const NavbarUpdated: React.FC = () => {
           )}
         </div>
 
-        {/* Mobile User Menu (if user is logged in) */}
         {user && (
           <div className={`lg:hidden ${isOpen ? 'block' : 'none'}`}>
             <div className="mt-4">
