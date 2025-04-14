@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -88,17 +87,15 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     const totalBetAmount = bet * activeHandCount;
     
     if (!user) {
-      toast({
-        title: "Error",
-        description: "You need to be logged in to play",
+      toast("Error: You need to be logged in to play", {
+        description: "Please login to continue",
         variant: "destructive"
       });
       return;
     }
     
     if (totalBetAmount > balance) {
-      toast({
-        title: "Insufficient funds",
+      toast("Insufficient funds", {
         description: `You need ${totalBetAmount} to place these bets`,
         variant: "destructive"
       });
@@ -231,8 +228,7 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     const doubleAmount = playerHands[currentHandIndex].bet;
     
     if (balance < doubleAmount) {
-      toast({
-        title: "Insufficient funds",
+      toast("Insufficient funds", {
         description: "You don't have enough to double down",
         variant: "destructive"
       });
@@ -362,10 +358,8 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
         setShowLightning(true);
       }
       
-      toast({
-        title: "Win!",
-        description: `You won ${winAmount} gems!`,
-        variant: "default"
+      toast("Win!", {
+        description: `You won ${winAmount} gems!`
       });
     }
   };
