@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ArrowRight, PlusSquare, Rocket, Users, Gem, ArrowLeft, Copy, Percent, DollarSign, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { SliderItem } from '@/types/slider';
-import { useUser } from '@/context/UserContext';
-import { playButtonSound } from "@/utils/sounds";
-import CaseSlider from '@/components/CaseSlider/CaseSlider';
-import { useChat } from '@/context/ChatContext';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import ImprovedCaseBattleCreator from '@/components/CaseBattle/ImprovedCaseBattleCreator';
-import CaseBattlesList from '@/components/CaseBattle/CaseBattlesList';
-import ImprovedCaseBattleGame from '@/components/CaseBattle/ImprovedCaseBattleGame';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SliderItem } from '../types/slider';
+import { useUser } from '../context/UserContext';
+import { playButtonSound } from "../utils/sounds";
+import CaseSlider from '../components/CaseSlider/CaseSlider';
+import { useChat } from '../context/ChatContext';
+import { Input } from '../components/ui/input';
+import { Badge } from '../components/ui/badge';
+import ImprovedCaseBattleCreator from '../components/CaseBattle/ImprovedCaseBattleCreator';
+import CaseBattlesList from '../components/CaseBattle/CaseBattlesList';
+import ImprovedCaseBattleGame from '../components/CaseBattle/ImprovedCaseBattleGame';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 interface CaseItemWithChance extends SliderItem {
   chance: number;

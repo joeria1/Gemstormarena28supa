@@ -174,7 +174,7 @@ const MultiHandBlackjack: React.FC = () => {
     
     const newDeck = [...deck];
     
-    // Fix: Explicitly specify the hidden property for both cards
+    // Create dealer's hand with explicit hidden property
     const newDealerHand: PlayingCard[] = [
       { ...newDeck.pop()!, hidden: false },
       { ...newDeck.pop()!, hidden: true }
@@ -183,8 +183,15 @@ const MultiHandBlackjack: React.FC = () => {
     const initialPlayerHands: BlackjackHand[] = [];
     
     for (let i = 0; i < activeHandCount; i++) {
+      // Make sure each card has hidden property set to false
+      const card1 = newDeck.pop()!;
+      const card2 = newDeck.pop()!;
+      
       initialPlayerHands.push({
-        cards: [newDeck.pop()!, newDeck.pop()!],
+        cards: [
+          { ...card1, hidden: false },
+          { ...card2, hidden: false }
+        ],
         bet: betAmount,
         result: 'playing',
         settled: false,
@@ -206,7 +213,7 @@ const MultiHandBlackjack: React.FC = () => {
     
     const currentHand = playerHands[currentHandIndex];
     const newDeck = [...deck];
-    const newCard = newDeck.pop()!;
+    const newCard = { ...newDeck.pop()!, hidden: false };
     
     const updatedHands = [...playerHands];
     updatedHands[currentHandIndex] = {
@@ -264,7 +271,7 @@ const MultiHandBlackjack: React.FC = () => {
     
     // Deal one more card and stand
     const newDeck = [...deck];
-    const newCard = newDeck.pop()!;
+    const newCard = { ...newDeck.pop()!, hidden: false };
     
     const updatedHands = [...playerHands];
     updatedHands[currentHandIndex] = {
@@ -338,7 +345,7 @@ const MultiHandBlackjack: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       while (calculateHandValue(currentDealerHand) < 17) {
-        const newCard = currentDeck.pop()!;
+        const newCard = { ...currentDeck.pop()!, hidden: false };
         currentDealerHand = [...currentDealerHand, newCard];
         
         setDealerHand(currentDealerHand);
@@ -520,10 +527,10 @@ const MultiHandBlackjack: React.FC = () => {
                 
                 <Card className="p-4">
                   <BettingOptions
-                    currentBet={betAmount}
-                    setCurrentBet={setBetAmount}
-                    minBet={5}
-                    maxBet={1000}
+                    bet={betAmount}
+                    setBet={setBetAmount}
+                    min={5}
+                    max={1000}
                   />
                 </Card>
               </div>
