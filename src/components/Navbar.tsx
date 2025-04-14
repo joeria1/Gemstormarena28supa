@@ -17,7 +17,8 @@ import {
   CreditCard,
   Gift,
   User,
-  Award
+  Award,
+  Building2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -45,8 +46,8 @@ const Navbar = () => {
   };
 
   // Calculate progress for the XP bar
-  const level = user.level || 1;
-  const xp = user.xp || 0;
+  const level = user?.level || 1;
+  const xp = user?.xp || 0;
   const xpRequired = level * 1000; // Simple calculation for required XP
   const progress = Math.min((xp / xpRequired) * 100, 100);
 
@@ -83,7 +84,7 @@ const Navbar = () => {
                   variant="ghost"
                   className={cn(
                     "h-10 px-4 py-2 rounded flex items-center",
-                    isActive("/crash") || isActive("/mines") || isActive("/horse-racing")
+                    isActive("/crash") || isActive("/mines") || isActive("/horse-racing") || isActive("/tower")
                       ? "bg-gray-800 text-white"
                       : "text-gray-400 hover:text-white hover:bg-gray-800"
                   )}
@@ -111,6 +112,12 @@ const Navbar = () => {
                     Racing
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/tower" className="flex items-center text-gray-200 hover:text-white hover:bg-gray-700 cursor-pointer">
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Tower
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             
@@ -123,7 +130,7 @@ const Navbar = () => {
         <div className="flex items-center space-x-4">
           <div className="bg-gray-800 px-4 py-2 rounded flex items-center">
             <DollarSign className="text-green-500 w-4 h-4 mr-1" />
-            <span className="font-bold">${user.balance.toFixed(2)}</span>
+            <span className="font-bold">${user?.balance?.toFixed(2) || '0.00'}</span>
           </div>
           
           <div className="flex items-center gap-3">
@@ -148,8 +155,8 @@ const Navbar = () => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center hover:opacity-80">
                     <Avatar className="h-8 w-8 border border-gray-700">
-                      <AvatarImage src={user.avatar || "https://api.dicebear.com/7.x/lorelei/svg?seed=user"} />
-                      <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+                      <AvatarImage src={user?.avatar || "https://api.dicebear.com/7.x/lorelei/svg?seed=user"} />
+                      <AvatarFallback>{getInitials(user?.username || '')}</AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>

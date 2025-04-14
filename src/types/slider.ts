@@ -5,8 +5,8 @@ export interface SliderItem {
   image: string;
   rarity: string;
   price: number;
+  playerId?: string; // Added playerId as an optional property
   isReroll?: boolean;
-  playerId?: string; // Added this field to support CaseBattle functionality
 }
 
 export interface SliderProps {

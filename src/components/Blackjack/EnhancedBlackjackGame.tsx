@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { motion } from 'framer-motion';
-import { useToast } from "../../hooks/use-toast";
+import { toast } from "sonner";
 import { useUser } from "@/context/UserContext";
 import ItemGlowEffect from '../GameEffects/ItemGlowEffect';
 import { Gift, DollarSign, RotateCcw, Sparkles, Shield, User, ChevronUp, Hash } from 'lucide-react';
@@ -12,7 +13,7 @@ import LightningEffect from '../GameEffects/LightningEffect';
 interface CardType {
   suit: string;
   value: string;
-  hidden: boolean;
+  hidden: boolean; // Making hidden required instead of optional
 }
 
 interface BlackjackHand {
@@ -28,7 +29,6 @@ interface EnhancedBlackjackGameProps {
 }
 
 const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) => {
-  const { toast } = useToast();
   const { user, updateBalance } = useUser();
   
   const [playerHands, setPlayerHands] = useState<BlackjackHand[]>([]);

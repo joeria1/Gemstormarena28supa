@@ -1,297 +1,342 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { toast } from 'sonner';
-import HorseIcon from './HorseIcon';
-
-// Using constants for better readability
-const NUM_HORSES = 5;
-const TRACK_LENGTH = 90;
-const MIN_SPEED = 0.5;
-const MAX_SPEED = 2.0;
-const UPDATE_INTERVAL = 100; // milliseconds
-const DEFAULT_BET_AMOUNT = 10;
+import { Button } from "@/components/ui/button";
+import { useUser } from "@/context/UserContext";
+import { toast } from "sonner";
+import { DollarSign, Flag, RotateCcw, Trophy, User } from 'lucide-react';
+import PulseAnimation from '../GameEffects/PulseAnimation';
+import ItemGlowEffect from '../GameEffects/ItemGlowEffect';
 
 interface Horse {
   id: number;
-  position: number;
+  name: string;
   color: string;
+  position: number;
   speed: number;
-  odds: number;
+  baseSpeed: number;
   finished: boolean;
+  finishTime: number | null;
+  avatar: string;
 }
 
-interface BetState {
-  amount: number;
-  selectedHorse: number | null;
-  isRaceStarted: boolean;
-  isPlacingBet: boolean;
-}
+const EnhancedHorseRacing = () => {
+  const { user, updateBalance } = useUser();
 
-const COLORS = ['red', 'blue', 'green', 'purple', 'orange'];
-
-const EnhancedHorseRacing: React.FC = () => {
   const [horses, setHorses] = useState<Horse[]>([]);
+  const [raceStarted, setRaceStarted] = useState(false);
   const [raceInProgress, setRaceInProgress] = useState(false);
+  const [raceFinished, setRaceFinished] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const [winner, setWinner] = useState<Horse | null>(null);
-  const [betState, setBetState] = useState<BetState>({
-    amount: DEFAULT_BET_AMOUNT,
-    selectedHorse: null,
-    isRaceStarted: false,
-    isPlacingBet: false,
-  });
-  const [balance, setBalance] = useState(1000);
+  const [countdown, setCountdown] = useState(3);
+  const [selectedHorse, setSelectedHorse] = useState<Horse | null>(null);
+  const [betAmount, setBetAmount] = useState(10);
+  const [raceResults, setRaceResults] = useState<Horse[]>([]);
+  const [balance, setBalance] = useState(user?.balance || 1000);
 
-  const raceInterval = useRef<number | null>(null);
-  const initalRaceSetup = useRef(false);
+  const animationFrameRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number | null>(null);
 
-  // Initialize horses on component mount
+  const trackLength = 800; // Length of the race track in pixels
+  const numberOfHorses = 4;
+  const finishLineOffset = 50; // Offset to ensure the horse crosses the finish line
+
   useEffect(() => {
-    if (!initalRaceSetup.current) {
-      initializeRace();
-      initalRaceSetup.current = true;
+    if (user) {
+      setBalance(user.balance);
     }
+  }, [user]);
+
+  // Initialize horses only once
+  const initialHorses = useRef<Horse[]>([]);
+  if (initialHorses.current.length === 0) {
+    initialHorses.current = Array.from({ length: numberOfHorses }, (_, index) => ({
+      id: index + 1,
+      name: `Horse ${index + 1}`,
+      color: ['red', 'blue', 'green', 'yellow'][index],
+      position: 0,
+      speed: 0,
+      baseSpeed: 2 + Math.random() * 3,
+      finished: false,
+      finishTime: null,
+      avatar: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${index + 1}`
+    }));
+  }
+
+  useEffect(() => {
+    setHorses(initialHorses.current);
   }, []);
 
-  // Initialize horses with random speeds and odds
-  const initializeRace = () => {
-    const newHorses: Horse[] = Array.from({ length: NUM_HORSES }, (_, i) => {
-      const baseSpeed = MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED);
-      // Calculate odds inversely proportional to speed (faster horses have lower odds)
-      const odds = Math.round((1 / baseSpeed) * 5 * 100) / 100;
-      
-      return {
-        id: i,
-        position: 0,
-        color: COLORS[i],
-        speed: baseSpeed,
-        odds: odds,
-        finished: false,
-      };
-    });
-    
-    // Sort horses by odds for display
-    newHorses.sort((a, b) => a.odds - b.odds);
-    
-    setHorses(newHorses);
-    setRaceInProgress(false);
+  const startRace = () => {
+    // Reset all state before starting a new race
+    setRaceStarted(true);
+    setRaceFinished(false);
     setWinner(null);
-    setBetState({
-      amount: DEFAULT_BET_AMOUNT,
-      selectedHorse: null,
-      isRaceStarted: false,
-      isPlacingBet: false,
-    });
+    
+    // Important: Reset the horses to their initial positions and speed
+    setHorses(horses.map(horse => ({
+      ...horse,
+      position: 0,
+      finished: false,
+      finishTime: null,
+      baseSpeed: 2 + Math.random() * 3 // Regenerate random base speed for each race
+    })));
+    
+    // Reset the countdown
+    setCountdown(3);
+    
+    // Start the countdown timer with delays between each number
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setTimeout(() => {
+            setRaceInProgress(true);
+            startHorseMovement();
+          }, 1000);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
-  const startRace = () => {
-    if (raceInProgress) return;
+  const startHorseMovement = () => {
+    // Reset race timing
+    const startTime = performance.now();
+    let lastTime = startTime;
     
-    // Check if a bet is placed
-    if (betState.selectedHorse === null) {
-      toast.error("Please select a horse to bet on");
-      return;
-    }
-    
-    if (betState.amount <= 0) {
-      toast.error("Please enter a valid bet amount");
-      return;
-    }
-    
-    if (betState.amount > balance) {
-      toast.error("Insufficient balance");
-      return;
-    }
-    
-    // Update balance after betting
-    setBalance(prev => prev - betState.amount);
-    setBetState(prev => ({ ...prev, isRaceStarted: true }));
-    setRaceInProgress(true);
-    
-    if (raceInterval.current) clearInterval(raceInterval.current);
-    
-    // Start the race animation
-    raceInterval.current = window.setInterval(() => {
+    const animate = (currentTime: number) => {
+      if (!raceInProgress) return;
+      
+      const deltaTime = (currentTime - lastTime) / 1000; // in seconds
+      lastTime = currentTime;
+      
       setHorses(prevHorses => {
-        const updatedHorses = [...prevHorses];
-        let allFinished = true;
-        
-        for (const horse of updatedHorses) {
-          if (!horse.finished) {
-            // Add random variation to speed for more realistic race
-            const randomVariation = Math.random() * 0.5 - 0.25;
-            const adjustedSpeed = horse.speed + randomVariation;
-            
-            // Update horse position
-            horse.position += adjustedSpeed;
-            
-            // Check if horse has finished
-            if (horse.position >= TRACK_LENGTH) {
-              horse.position = TRACK_LENGTH;
-              horse.finished = true;
-              
-              // Set as winner if no winner yet
-              if (!winner) {
-                setWinner(horse);
-                
-                // Handle betting outcome
-                if (betState.selectedHorse === horse.id) {
-                  const winnings = Math.round(betState.amount * horse.odds);
-                  setBalance(prev => prev + winnings);
-                  toast.success(`You won ${winnings} coins!`);
-                } else {
-                  toast.error("Better luck next time!");
-                }
-              }
-            } else {
-              allFinished = false;
-            }
+        const updatedHorses = prevHorses.map(horse => {
+          if (horse.finished) return horse;
+          
+          const speedIncrease = 1 + Math.random() * 0.5; // Add a bit of variance to the speed
+          const newPosition = horse.position + horse.baseSpeed * speedIncrease * deltaTime * 100;
+          
+          if (newPosition >= trackLength + finishLineOffset) {
+            return {
+              ...horse,
+              position: trackLength + finishLineOffset,
+              finished: true,
+              finishTime: currentTime - startTime
+            };
           }
-        }
-        
-        // End race if all horses finished
-        if (allFinished && raceInterval.current) {
-          clearInterval(raceInterval.current);
-          raceInterval.current = null;
-        }
+          
+          return { ...horse, position: newPosition };
+        });
         
         return updatedHorses;
       });
-    }, UPDATE_INTERVAL);
+      
+      setElapsedTime(currentTime - startTime);
+      animationFrameRef.current = requestAnimationFrame(animate);
+      
+      // Check for race finish
+      if (!raceFinished && horses.every(horse => horse.finished)) {
+        finishRace();
+      }
+    };
+    
+    animationFrameRef.current = requestAnimationFrame(animate);
+  };
+
+  const finishRace = () => {
+    setRaceInProgress(false);
+    setRaceFinished(true);
+    
+    const finishedHorses = horses.filter(horse => horse.finished)
+                                .sort((a, b) => (a.finishTime || 0) - (b.finishTime || 0));
+    
+    setRaceResults(finishedHorses);
+    const winningHorse = finishedHorses[0];
+    setWinner(winningHorse);
+    
+    if (selectedHorse && winningHorse && selectedHorse.id === winningHorse.id) {
+      // Calculate payout (e.g., 3x the bet amount)
+      const payout = betAmount * 3;
+      updateBalance(payout);
+      setBalance(prev => prev + payout);
+      toast.success(`Horse ${winningHorse.name} won! You won $${payout}!`);
+    } else {
+      toast.error(`Horse ${winningHorse?.name} won! You lost your bet.`);
+    }
   };
 
   const resetRace = () => {
-    // Clear any existing race interval
-    if (raceInterval.current) {
-      clearInterval(raceInterval.current);
-      raceInterval.current = null;
+    // Stop all animations and timers
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     
-    // Completely reinitialize the race with the same logic as when the page was first loaded
-    initializeRace();
+    // Reset state
+    setRaceStarted(false);
+    setRaceInProgress(false);
+    setRaceFinished(false);
+    setElapsedTime(0);
+    setWinner(null);
+    setHorses(initialHorses.current); // Reset to completely fresh horses
+    setCountdown(3);
+    setRaceResults([]);
+    
+    // Ready for new bets
+    setSelectedHorse(null);
   };
 
-  const selectHorse = (horseId: number) => {
-    if (!raceInProgress) {
-      setBetState(prev => ({ ...prev, selectedHorse: horseId }));
+  const handleHorseSelect = (horse: Horse) => {
+    setSelectedHorse(horse);
+  };
+
+  const handleBetAmountChange = (amount: number) => {
+    if (user && amount > user.balance) {
+      toast.error("You don't have enough balance to place this bet.");
+      return;
     }
-  };
-
-  const handleBetAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const amount = parseInt(e.target.value) || 0;
-    setBetState(prev => ({ ...prev, amount }));
+    setBetAmount(amount);
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 text-white p-6 rounded-lg shadow-lg">
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold mb-2">Horse Racing</h1>
-        <p className="text-gray-400">Place your bets and watch the race!</p>
+    <div className="min-h-screen bg-gradient-to-b from-green-900/40 to-gray-900 text-white p-4 md:p-8 rounded-xl border-2 border-green-800/50 relative overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-green-800/20 to-green-900/10 z-0"></div>
+        <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoIGQ9Ik01NCA0OEw2IDQ4TDYgNnY0OGg0OHoiIGZpbGw9Imdyb3VwIiBvcGFjaXR5PSIwLjAyIiAvPgogICAgPHBhdGggZD0iTTEyIDEySDE4VjE4SDI0VjI0SDMwVjEySDM2VjEySDQyVjE4SDQ4VjMwSDQyVjM2SDM2VjQySDMwVjQ4SDI0VjQySDEyVjM2SDZWMzBIMTJWMjRIMTJWMTJaIgogICAgICAgIHN0cm9rZT0iIzBmNjYzMCIgc3Ryb2tlLW9wYWNpdHk9IjAuMDgiIGZpbGw9Im5vbmUiIC8+Cjwvc3ZnPg==')] opacity-10 z-0"></div>
       </div>
 
-      <div className="mb-6 bg-gray-800 p-4 rounded-lg">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Your Balance: {balance} coins</h2>
-          {!raceInProgress && (
-            <button
-              onClick={resetRace}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+      <div className="container mx-auto relative z-10">
+        <h1 className="text-3xl font-bold text-center mb-6 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-600">
+          Enhanced Horse Racing
+        </h1>
+
+        <div className="mb-6 flex justify-between items-center">
+          <div className="flex items-center bg-black/40 rounded-lg px-4 py-2 backdrop-blur-sm">
+            <DollarSign className="mr-2 text-yellow-400" />
+            <span className="text-xl font-bold">{balance.toFixed(2)}</span>
+          </div>
+
+          <div className="flex items-center">
+            <span className="mr-3">Bet Amount:</span>
+            <Button 
+              onClick={() => handleBetAmountChange(Math.max(10, betAmount - 10))}
+              disabled={betAmount <= 10}
+              className="bg-red-900/50 border-red-500/50 text-white hover:bg-red-800 rounded-full w-10 h-10"
             >
-              New Race
-            </button>
+              -
+            </Button>
+            <span className="mx-2 text-xl font-bold text-yellow-400">{betAmount}</span>
+            <Button 
+              onClick={() => handleBetAmountChange(Math.min(user?.balance || 1000, betAmount + 10))}
+              disabled={betAmount >= (user?.balance || 1000)}
+              className="bg-green-900/50 border-green-500/50 text-white hover:bg-green-800 rounded-full w-10 h-10"
+            >
+              +
+            </Button>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg mb-6 border border-gray-700">
+          <h2 className="text-xl font-bold mb-4">Select Your Horse:</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {horses.map(horse => (
+              <PulseAnimation isActive={selectedHorse?.id === horse.id} key={horse.id}>
+                <button
+                  onClick={() => handleHorseSelect(horse)}
+                  className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-colors duration-300 ${
+                    selectedHorse?.id === horse.id ? 'border-green-500 bg-green-900/20' : 'border-gray-700 hover:border-white'
+                  }`}
+                >
+                  <img src={horse.avatar} alt={horse.name} className="w-16 h-16 rounded-full mb-2" />
+                  <span className="text-lg font-semibold">{horse.name}</span>
+                </button>
+              </PulseAnimation>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-lg">
+          <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-600 transform -translate-y-1/2 z-0"></div>
+          {horses.map(horse => (
+            <ItemGlowEffect 
+              key={horse.id}
+              isActive={raceFinished && winner?.id === horse.id}
+              color={horse.color}
+            >
+              <div
+                key={horse.id}
+                className={`absolute top-1/2 left-0 h-12 w-12 rounded-full border-4 border-white flex items-center justify-center z-10 transition-transform duration-100`}
+                style={{
+                  backgroundColor: horse.color,
+                  transform: `translateX(${horse.position}px) translateY(-50%)`
+                }}
+              >
+                <img src={horse.avatar} alt={horse.name} className="w-8 h-8 rounded-full" />
+              </div>
+            </ItemGlowEffect>
+          ))}
+          <div className="absolute top-0 bottom-0 right-0 w-1 bg-yellow-500 z-20"></div>
+        </div>
+
+        <div className="mt-6 text-center">
+          {!raceStarted && (
+            <Button 
+              onClick={startRace}
+              disabled={!selectedHorse || raceStarted || (user && user.balance < betAmount)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 rounded-lg border border-blue-400/30 shadow-lg"
+            >
+              {user && user.balance < betAmount ? "Insufficient Balance" : "Start Race"}
+            </Button>
+          )}
+          {raceStarted && !raceFinished && (
+            <div className="text-2xl font-bold text-yellow-400">
+              {raceInProgress ? "Racing..." : `Race starts in ${countdown}...`}
+            </div>
+          )}
+          {raceFinished && winner && (
+            <div className="mt-4">
+              <h2 className="text-2xl font-bold text-green-400">
+                {winner.id === selectedHorse?.id ? "You Won!" : "Race Finished!"}
+              </h2>
+              <p className="text-gray-300">
+                {winner.id === selectedHorse?.id
+                  ? `Horse ${winner.name} won! You won $${betAmount * 3}!`
+                  : `Horse ${winner.name} won!`}
+              </p>
+              <Button 
+                onClick={resetRace}
+                className="mt-4 bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 text-white font-bold flex items-center justify-center py-3 rounded-lg border border-indigo-400/30"
+              >
+                <RotateCcw className="mr-2" size={16} />
+                Reset Race
+              </Button>
+            </div>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-4 mb-4">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm text-gray-400 mb-1">Bet Amount</label>
-            <input
-              type="number"
-              value={betState.amount}
-              onChange={handleBetAmountChange}
-              disabled={raceInProgress}
-              className="w-full p-2 bg-gray-700 rounded text-white border border-gray-600 focus:outline-none focus:border-purple-500"
-              min="1"
-            />
+        {raceResults.length > 0 && (
+          <div className="mt-8 bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border border-gray-700">
+            <h2 className="text-xl font-bold mb-4">Race Results:</h2>
+            <ul>
+              {raceResults.map((horse, index) => (
+                <li key={horse.id} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
+                  <div className="flex items-center">
+                    <span className="mr-2">{index + 1}.</span>
+                    <img src={horse.avatar} alt={horse.name} className="w-6 h-6 rounded-full mr-2" />
+                    <span>{horse.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-400">
+                    {horse.finishTime ? (horse.finishTime / 1000).toFixed(2) : 'N/A'} seconds
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
-
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm text-gray-400 mb-1">Selected Horse</label>
-            <div className="p-2 bg-gray-700 rounded border border-gray-600 text-white">
-              {betState.selectedHorse !== null
-                ? `Horse ${betState.selectedHorse + 1} (${horses[betState.selectedHorse]?.color})`
-                : "None selected"}
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={startRace}
-          disabled={raceInProgress}
-          className={`w-full py-3 rounded-lg font-bold ${
-            raceInProgress
-              ? "bg-gray-600 cursor-not-allowed"
-              : "bg-green-600 hover:bg-green-700 transition"
-          }`}
-        >
-          {raceInProgress ? "Race in Progress..." : "Start Race"}
-        </button>
+        )}
       </div>
-
-      <div className="overflow-hidden flex-grow relative bg-gray-800 rounded-lg">
-        {/* Finish line */}
-        <div className="absolute right-0 top-0 bottom-0 w-1 bg-white" />
-        
-        {/* Race tracks */}
-        <div className="p-4">
-          {horses.map((horse) => (
-            <div 
-              key={horse.id}
-              onClick={() => selectHorse(horse.id)}
-              className={`mb-4 flex items-center cursor-pointer relative ${
-                betState.selectedHorse === horse.id ? "bg-gray-700" : ""
-              } hover:bg-gray-700 p-2 rounded-lg transition`}
-            >
-              <div className="w-24 flex flex-col items-center mr-4">
-                <HorseIcon color={horse.color} />
-                <span className="text-sm mt-1">Horse {horse.id + 1}</span>
-                <span className="text-xs text-gray-400">Odds: {horse.odds}x</span>
-              </div>
-              
-              <div className="flex-1 h-6 bg-gray-900 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    horse.id === betState.selectedHorse ? "bg-purple-600" : `bg-${horse.color}-500`
-                  }`}
-                  style={{
-                    width: `${(horse.position / TRACK_LENGTH) * 100}%`,
-                    backgroundColor: horse.color,
-                    transition: "width 0.1s ease-out"
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {winner && (
-        <div className="mt-6 p-4 bg-gray-800 rounded-lg text-center">
-          <h2 className="text-2xl font-bold mb-2">
-            Horse {winner.id + 1} ({winner.color}) Won!
-          </h2>
-          <p className="mb-4">
-            {betState.selectedHorse === winner.id
-              ? `You won ${Math.round(betState.amount * winner.odds)} coins!`
-              : "Better luck next time!"}
-          </p>
-          <button
-            onClick={resetRace}
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-bold transition"
-          >
-            New Race
-          </button>
-        </div>
-      )}
     </div>
   );
 };
