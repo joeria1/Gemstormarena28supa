@@ -207,15 +207,24 @@ const EnhancedMinesGame: React.FC = () => {
             </div>
             
             <MinesSettings 
-              wager={wager}
-              onWagerChange={handleWagerChange}
-              minesCount={minesCount}
-              onMinesCountChange={handleMinesCountChange}
-              disabled={gameStarted}
+              bet={wager}
+              setBet={setWager}
+              mines={minesCount}
+              setMines={setMinesCount}
+              maxMines={24}
+              isGameActive={gameStarted}
+              handleStart={startGame}
+              handleCashout={cashout}
+              currentMultiplier={calculateMultiplier(minesCount, revealedTiles)}
             />
             
             <div className="mt-6">
-              <MinesCustomSettings />
+              <MinesCustomSettings 
+                onMineCountChange={handleMinesCountChange}
+                currentMineCount={minesCount}
+                maxMines={24}
+                isGameActive={gameStarted}
+              />
             </div>
             
             <div className="mt-6 space-y-3">

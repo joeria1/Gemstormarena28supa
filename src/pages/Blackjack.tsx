@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import EnhancedBlackjackGame from '../components/Blackjack/EnhancedBlackjackGame';
 import BettingOptions from '../components/Blackjack/BettingOptions';
@@ -144,10 +143,7 @@ const Blackjack = () => {
                 </h1>
               </div>
               <div className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-b-xl shadow-lg border border-gray-700">
-                <EnhancedBlackjackGame
-                  minBet={tables.find((t) => t.id === selectedTable)?.minBet || 10}
-                  maxBet={tables.find((t) => t.id === selectedTable)?.maxBet || 100}
-                />
+                <EnhancedBlackjackGame />
               </div>
             </div>
           </div>

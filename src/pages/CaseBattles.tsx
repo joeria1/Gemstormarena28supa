@@ -8,6 +8,30 @@ import { Button } from '../components/ui/button';
 import LightningEffect from '../components/GameEffects/LightningEffect';
 import PulseAnimation from '../components/GameEffects/PulseAnimation';
 
+// Mock data for case battles
+const mockBattles = [
+  {
+    id: '1',
+    name: 'High Roller Battle',
+    creator: 'Player123',
+    status: 'waiting',
+    maxPlayers: 2,
+    currentPlayers: 1,
+    cases: [{ id: 'case1', name: 'Premium Case', price: 100 }],
+    totalValue: 200
+  },
+  {
+    id: '2',
+    name: 'Budget Battle',
+    creator: 'Gamer456',
+    status: 'in_progress',
+    maxPlayers: 4,
+    currentPlayers: 3,
+    cases: [{ id: 'case2', name: 'Basic Case', price: 25 }],
+    totalValue: 100
+  }
+];
+
 const CaseBattles = () => {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [showLightning, setShowLightning] = useState(false);
@@ -31,6 +55,23 @@ const CaseBattles = () => {
       setTimeout(() => setShowLightning(false), 2000);
     }
   }, [activeTab]);
+
+  // Mock handlers
+  const handleJoinBattle = (battleId: string) => {
+    console.log("Joining battle:", battleId);
+  };
+
+  const handleSpectate = (battleId: string) => {
+    console.log("Spectating battle:", battleId);
+  };
+
+  const handleCreateBattle = (battleConfig: any) => {
+    console.log("Creating battle with config:", battleConfig);
+  };
+
+  const handleCancelCreation = () => {
+    setActiveTab('list');
+  };
 
   return (
     <div className="container py-8">
@@ -76,11 +117,19 @@ const CaseBattles = () => {
           transition={{ duration: 0.5 }}
         >
           <TabsContent value="list" className="mt-0">
-            <CaseBattlesList />
+            <CaseBattlesList 
+              battles={mockBattles} 
+              onJoinBattle={handleJoinBattle} 
+              onSpectate={handleSpectate}
+            />
           </TabsContent>
 
           <TabsContent value="create" className="mt-0">
-            <ImprovedCaseBattleCreator />
+            <ImprovedCaseBattleCreator 
+              onCreateBattle={handleCreateBattle}
+              onCancel={handleCancelCreation}
+              userBalance={1000}
+            />
           </TabsContent>
         </motion.div>
       </Tabs>
