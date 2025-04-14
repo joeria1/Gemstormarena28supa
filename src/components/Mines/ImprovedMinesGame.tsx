@@ -8,6 +8,8 @@ import { useUser } from '../../context/UserContext';
 import { useSound } from '../SoundManager';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { toast } from 'sonner';
+import { showGameResult } from '../GameResultNotification';
 
 const GRID_SIZES = {
   "5x1": { rows: 5, cols: 1 },
@@ -71,14 +73,14 @@ const ImprovedMinesGame: React.FC = () => {
 
   const startGame = () => {
     if (!user) {
-      toast.error("Login Required", {
+      toast("Login Required", {
         description: "You need to be logged in to play."
       });
       return;
     }
 
     if (user.balance < betAmount) {
-      toast.error("Insufficient Balance", {
+      toast("Insufficient Balance", {
         description: `You need $${betAmount.toFixed(2)} to play.`
       });
       return;
@@ -161,8 +163,9 @@ const ImprovedMinesGame: React.FC = () => {
       setIsPlaying(false);
       setGameCompleted(true);
       
-      toast.error("Game Over!", {
-        description: "You hit a mine!"
+      toast("Game Over!", {
+        description: "You hit a mine!",
+        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
       });
     } else {
       playSound('tileClick');
@@ -189,8 +192,9 @@ const ImprovedMinesGame: React.FC = () => {
         setGameCompleted(true);
         updateBalance(newWinnings);
         
-        toast.success("You Won!", {
-          description: `You found all safe tiles and won $${newWinnings.toFixed(2)}!`
+        toast("You Won!", {
+          description: `You found all safe tiles and won $${newWinnings.toFixed(2)}!`,
+          style: { backgroundColor: 'rgb(34, 197, 94)', color: 'white' }
         });
       }
     }
@@ -213,22 +217,25 @@ const ImprovedMinesGame: React.FC = () => {
     
     playSound('cashOut');
     
-    toast.success("Cashed Out!", {
-      description: `You cashed out $${winnings.toFixed(2)}!`
+    toast("Cashed Out!", {
+      description: `You cashed out $${winnings.toFixed(2)}!`,
+      style: { backgroundColor: 'rgb(34, 197, 94)', color: 'white' }
     });
   };
 
   const toggleSafetyForNextTile = () => {
     if (usedSafety) {
-      toast.error("Safety Already Used", {
-        description: "You can only use the safety feature once per game."
+      toast("Safety Already Used", {
+        description: "You can only use the safety feature once per game.",
+        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
       });
       return;
     }
     
     if (!isPlaying) {
-      toast.error("Game Not Active", {
-        description: "Start a game first to use the safety feature."
+      toast("Game Not Active", {
+        description: "Start a game first to use the safety feature.",
+        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
       });
       return;
     }

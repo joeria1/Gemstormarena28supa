@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -13,7 +12,7 @@ import LightningEffect from '../GameEffects/LightningEffect';
 interface CardType {
   suit: string;
   value: string;
-  hidden: boolean; // Making hidden required instead of optional
+  hidden: boolean;
 }
 
 interface BlackjackHand {
@@ -88,19 +87,17 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     const totalBetAmount = bet * activeHandCount;
     
     if (!user) {
-      toast({
-        title: "Error",
-        description: "You need to be logged in to play",
-        variant: "destructive"
+      toast("You need to be logged in to play", {
+        description: "Please log in to continue",
+        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
       });
       return;
     }
     
     if (totalBetAmount > balance) {
-      toast({
-        title: "Insufficient funds",
+      toast("Insufficient funds", {
         description: `You need ${totalBetAmount} to place these bets`,
-        variant: "destructive"
+        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
       });
       return;
     }
@@ -231,10 +228,9 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     const doubleAmount = playerHands[currentHandIndex].bet;
     
     if (balance < doubleAmount) {
-      toast({
-        title: "Insufficient funds",
+      toast("Insufficient funds", {
         description: "You don't have enough to double down",
-        variant: "destructive"
+        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
       });
       return;
     }
@@ -362,10 +358,9 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
         setShowLightning(true);
       }
       
-      toast({
-        title: "Win!",
+      toast("Win!", {
         description: `You won ${winAmount} gems!`,
-        variant: "default"
+        style: { backgroundColor: 'rgb(34, 197, 94)', color: 'white' }
       });
     }
   };
