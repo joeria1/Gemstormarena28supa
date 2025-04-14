@@ -12,7 +12,7 @@ import LightningEffect from '../GameEffects/LightningEffect';
 interface CardType {
   suit: string;
   value: string;
-  hidden: boolean; // Making hidden required instead of optional
+  hidden: boolean;
 }
 
 interface BlackjackHand {
@@ -88,16 +88,14 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     
     if (!user) {
       toast("Error: You need to be logged in to play", {
-        description: "Please login to continue",
-        variant: "destructive"
+        description: "Please login to continue"
       });
       return;
     }
     
     if (totalBetAmount > balance) {
       toast("Insufficient funds", {
-        description: `You need ${totalBetAmount} to place these bets`,
-        variant: "destructive"
+        description: `You need ${totalBetAmount} to place these bets`
       });
       return;
     }
@@ -229,8 +227,7 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     
     if (balance < doubleAmount) {
       toast("Insufficient funds", {
-        description: "You don't have enough to double down",
-        variant: "destructive"
+        description: "You don't have enough to double down"
       });
       return;
     }
