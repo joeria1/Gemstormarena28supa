@@ -19,7 +19,7 @@ const PlinkoGame: React.FC = () => {
   const [betAmount, setBetAmount] = useState(10);
   const [risk, setRisk] = useState<'low' | 'medium' | 'high'>('medium');
   const [results, setResults] = useState<BallResult[]>([]);
-  const [activeBalls, setActiveBalls] = useState<{id: number, x: number, y: number, vx: number, vy: number, currentRow: number, inPocket: boolean, pocketIndex?: number}[]>([]);
+  const [activeBalls, setActiveBalls] = useState<{id: number, x: number, y: number, vx: number, vy: number, currentRow: number, inPocket: boolean, pocketIndex?: number, lastHitPeg?: {row: number, col: number}, stuckTime?: number}[]>([]);
   const nextBallId = useRef(1);
   const { volume, isMuted } = useSound();
   const { playSound } = useSoundEffect();
@@ -27,13 +27,13 @@ const PlinkoGame: React.FC = () => {
   const ballsInPlay = useRef<number>(0);
   const [riskLockEnabled, setRiskLockEnabled] = useState(false);
 
-  // Custom multipliers distribution, higher on edges, lower in middle
+  // Custom multipliers distribution, higher on edges, lower in middle - with very low values in middle
   const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number = 10): number[] => {
-    // Base multiplier values based on risk
+    // Base multiplier values based on risk - lowered minimums
     const baseValues = {
-      low: { min: 1.1, mid: 1.5, max: 9 },
-      medium: { min: 1.2, mid: 2, max: 100 },
-      high: { min: 1.5, mid: 5, max: 1000 }
+      low: { min: 0.3, mid: 1.0, max: 9 },
+      medium: { min: 0.3, mid: 1.5, max: 100 },
+      high: { min: 0.3, mid: 3, max: 1000 }
     };
     
     const { min, mid, max } = baseValues[risk];
@@ -47,11 +47,12 @@ const PlinkoGame: React.FC = () => {
       // Calculate multiplier value based on position
       // Use exponential curve for more dramatic increase at edges
       let value;
-      if (positionFactor < 0.3) {
-        value = min + (mid - min) * (positionFactor / 0.3);
+      if (positionFactor < 0.2) {
+        // Center positions - lowest multipliers
+        value = min + (mid - min) * (positionFactor / 0.2);
       } else {
         // Exponential increase for edge positions
-        const expFactor = (positionFactor - 0.3) / 0.7;
+        const expFactor = (positionFactor - 0.2) / 0.8;
         value = mid + (max - mid) * Math.pow(expFactor, 2);
       }
       
@@ -94,18 +95,19 @@ const PlinkoGame: React.FC = () => {
   }, [activeBalls]);
 
   // Physics constants - improved for more reliable behavior
-  const GRAVITY = 0.25; // Reduced for more controlled falling
-  const BOUNCE_FACTOR = 0.6; // Adjusted for more predictable bounces
-  const FRICTION = 0.96; // Slightly more friction to prevent endless spinning
+  const GRAVITY = 0.28; // Adjusted for more controlled falling
+  const BOUNCE_FACTOR = 0.65; // Adjusted for more predictable bounces
+  const FRICTION = 0.95; // More friction to prevent endless spinning
   const MAX_VELOCITY = 15; // Controlled max velocity
-  const PEG_RADIUS = 10;
-  const BALL_RADIUS = 12;
+  const PEG_RADIUS = 12; // Increased peg radius for better collisions
+  const BALL_RADIUS = 14; // Increased ball radius
   const BOARD_WIDTH = 1000; // Normalized board width
   const BOARD_HEIGHT = 1400; // Normalized board height
   const PEG_ROWS = 12;
-  const INITIAL_VELOCITY_RANGE = 1.8; // Reduced for more consistent initial paths
-  const STUCK_DETECTION_TIME = 500; // ms to detect a stuck ball
-  const MAX_STUCK_POSITIONS = 10; // Number of positions to track for stuck detection
+  const INITIAL_VELOCITY_RANGE = 1.5; // Reduced for more consistent initial paths
+  const STUCK_DETECTION_TIME = 700; // ms to detect a stuck ball
+  const STUCK_VELOCITY_THRESHOLD = 0.8; // Threshold for detecting a stuck ball
+  const SAME_PEG_HIT_THRESHOLD = 5; // Maximum times to hit the same peg before taking action
   
   // Get peg positions for collision detection
   const getPegPositions = () => {
@@ -143,11 +145,12 @@ const PlinkoGame: React.FC = () => {
     });
   };
   
-  // Check if ball collides with a peg
+  // Check if ball collides with a peg - improved to prevent getting stuck
   const checkPegCollision = (ball: typeof activeBalls[0], pegPositions: ReturnType<typeof getPegPositions>) => {
     // Keep track of closest collision
     let closestCollision = null;
     let closestDistance = Infinity;
+    let hitPeg = null;
     
     for (const peg of pegPositions) {
       // Skip pegs that are in rows we've already passed (with some buffer to catch edge cases)
@@ -163,6 +166,7 @@ const PlinkoGame: React.FC = () => {
       // Check if this is a collision and closer than previous collisions
       if (distance < BALL_RADIUS + PEG_RADIUS && distance < closestDistance) {
         closestDistance = distance;
+        hitPeg = { row: peg.row, col: peg.col };
         
         // Calculate collision response (bounce) - more accurate physics
         const nx = dx / distance; // Normalized x component of collision normal
@@ -175,9 +179,9 @@ const PlinkoGame: React.FC = () => {
         const newVx = ball.vx - (1 + BOUNCE_FACTOR) * dotProduct * nx;
         const newVy = ball.vy - (1 + BOUNCE_FACTOR) * dotProduct * ny;
         
-        // Add a touch of randomness to prevent predictable paths
-        // More variation to avoid getting stuck on pegs
-        const randomFactor = 0.92 + Math.random() * 0.16; // Random factor between 0.92 and 1.08
+        // Calculate collision intensity for better physics feedback
+        const impactIntensity = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        const randomFactor = 0.95 + Math.random() * 0.15; // Random factor to avoid getting stuck
         
         // Update row if we've passed into a new row
         const newRow = peg.row >= ball.currentRow ? peg.row + 1 : ball.currentRow;
@@ -187,12 +191,30 @@ const PlinkoGame: React.FC = () => {
           vy: Math.min(Math.max(newVy * randomFactor, -MAX_VELOCITY / 2), MAX_VELOCITY),
           row: newRow,
           pegRow: peg.row,
-          pegCol: peg.col
+          pegCol: peg.col,
+          impactIntensity
         };
       }
     }
     
     if (closestCollision) {
+      // Check if the ball might be stuck on this peg
+      const sameHitPeg = ball.lastHitPeg && 
+                        ball.lastHitPeg.row === hitPeg?.row && 
+                        ball.lastHitPeg.col === hitPeg?.col;
+      
+      // If the ball hit the same peg multiple times, give it a stronger nudge
+      let extraRandomness = 1.0;
+      if (sameHitPeg) {
+        extraRandomness = 1.2 + Math.random() * 0.5; // Add significant randomness to escape
+        
+        // If velocity is too low, give an extra boost
+        if (Math.abs(closestCollision.vx) + Math.abs(closestCollision.vy) < STUCK_VELOCITY_THRESHOLD * 2) {
+          closestCollision.vx = closestCollision.vx * 1.5 + (Math.random() - 0.5) * 5;
+          closestCollision.vy = Math.max(closestCollision.vy * 1.3, GRAVITY * 5);
+        }
+      }
+
       // Play peg hit sound with varying volume based on impact velocity
       if (!isMuted) {
         const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
@@ -202,9 +224,10 @@ const PlinkoGame: React.FC = () => {
       
       // Update the ball's current row
       ball.currentRow = closestCollision.row;
+      ball.lastHitPeg = hitPeg;
       
       return {
-        vx: closestCollision.vx,
+        vx: closestCollision.vx * extraRandomness,
         vy: closestCollision.vy
       };
     }
@@ -224,49 +247,31 @@ const PlinkoGame: React.FC = () => {
     return null;
   };
 
-  // Function to detect stuck balls
-  const isStuckBall = (ball: typeof activeBalls[0], ballHistory: Map<number, {positions: Array<{x: number, y: number}>, lastUpdate: number}>) => {
-    // Get history for this ball
-    if (!ballHistory.has(ball.id)) {
-      ballHistory.set(ball.id, {
-        positions: [],
-        lastUpdate: Date.now()
-      });
-      return false;
+  // Detect and fix stuck balls
+  const handleStuckBalls = (ball: typeof activeBalls[0]) => {
+    const currentTime = Date.now();
+    const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+    
+    // Check if the ball's speed is too low (potentially stuck)
+    if (speed < STUCK_VELOCITY_THRESHOLD) {
+      if (!ball.stuckTime) {
+        ball.stuckTime = currentTime;
+      } else if (currentTime - ball.stuckTime > STUCK_DETECTION_TIME) {
+        // Ball has been slow/stuck for too long, give it a significant nudge
+        const kickAngle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; // Mostly downward with some randomness
+        const kickStrength = GRAVITY * 15;
+        
+        ball.vx = Math.cos(kickAngle) * kickStrength * (Math.random() > 0.5 ? 1 : -1);
+        ball.vy = Math.sin(kickAngle) * kickStrength;
+        ball.stuckTime = 0; // Reset stuck timer
+        return true;
+      }
+    } else {
+      // Ball is moving fine, reset stuck timer
+      ball.stuckTime = 0;
     }
     
-    const history = ballHistory.get(ball.id)!;
-    const now = Date.now();
-    
-    // Don't check too often
-    if (now - history.lastUpdate < 50) return false;
-    history.lastUpdate = now;
-    
-    // Add current position
-    history.positions.push({x: ball.x, y: ball.y});
-    
-    // Keep only the last N positions
-    if (history.positions.length > MAX_STUCK_POSITIONS) {
-      history.positions.shift();
-    }
-    
-    // Need enough positions to check
-    if (history.positions.length < MAX_STUCK_POSITIONS) return false;
-    
-    // Check if ball is stuck by measuring maximum distance moved
-    let maxDistance = 0;
-    const latest = history.positions[history.positions.length - 1];
-    
-    for (let i = 0; i < history.positions.length - 1; i++) {
-      const pos = history.positions[i];
-      const dx = latest.x - pos.x;
-      const dy = latest.y - pos.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      maxDistance = Math.max(maxDistance, distance);
-    }
-    
-    // If the ball hasn't moved much, it's likely stuck
-    return maxDistance < BALL_RADIUS * 0.8;
+    return false;
   };
 
   // Main physics update loop
@@ -277,30 +282,24 @@ const PlinkoGame: React.FC = () => {
       const pegPositions = getPegPositions();
       const pocketPositions = getPocketPositions();
       
-      // Track position history to detect stuck balls
-      const ballHistory = new Map<number, {positions: Array<{x: number, y: number}>, lastUpdate: number}>();
-      
       // Process each ball with improved physics
       const updatedBalls = prevBalls.map(ball => {
         // Skip balls that are already in a pocket
         if (ball.inPocket) return ball;
         
-        // Check if the ball is stuck and give it a nudge if needed
-        const isStuck = isStuckBall(ball, ballHistory);
+        // Check if the ball is stuck and fix if necessary
+        const wasUnstuck = handleStuckBalls(ball);
         
         // Apply gravity with more natural acceleration
-        let newVy = ball.vy + GRAVITY * (1 + Math.random() * 0.05); // Slight random variation
+        let newVy = ball.vy + GRAVITY * (1 + Math.random() * 0.03); // Slight random variation
         let newVx = ball.vx * FRICTION;
         
-        // Add random nudge if ball appears to be stuck
-        if (isStuck) {
-          // Strong nudge in a random direction to free the ball
-          const angle = Math.random() * Math.PI * 2;
-          newVx += Math.cos(angle) * 3;
-          newVy += Math.sin(angle) * 3 + GRAVITY * 10; // Extra boost downward
+        // Add random nudge if ball was unstuck
+        if (wasUnstuck) {
+          console.log('Unstucking ball', ball.id);
         } else {
           // Normal slight drift for natural movement
-          newVx += (Math.random() - 0.5) * 0.04;
+          newVx += (Math.random() - 0.5) * 0.05;
         }
         
         // Check for collisions with pegs
@@ -308,12 +307,6 @@ const PlinkoGame: React.FC = () => {
         if (collision) {
           newVx = collision.vx;
           newVy = collision.vy;
-          
-          // Add post-collision "wobble" for more natural movement
-          if (Math.random() > 0.7) {
-            newVx += (Math.random() - 0.5) * 0.8;
-            newVy += (Math.random() - 0.5) * 0.4;
-          }
         }
         
         // Update position
@@ -322,17 +315,17 @@ const PlinkoGame: React.FC = () => {
         
         // Board edge bounds with improved bounce physics
         if (newX < BALL_RADIUS) {
-          newX = BALL_RADIUS + (BALL_RADIUS - newX) * 0.2; // Slight correction to prevent sticking
-          newVx = -newVx * (0.7 + Math.random() * 0.2); // Variable bounce off left wall
+          newX = BALL_RADIUS + (BALL_RADIUS - newX) * 0.3; // Better edge correction
+          newVx = -newVx * (0.7 + Math.random() * 0.2); // Variable bounce off wall
           
-          // Small vertical component on wall bounce
-          newVy += (Math.random() - 0.3) * 0.5;
+          // Add downward push on wall bounce to prevent getting stuck
+          newVy = Math.max(newVy, GRAVITY * 2);
         } else if (newX > BOARD_WIDTH - BALL_RADIUS) {
-          newX = BOARD_WIDTH - BALL_RADIUS - (newX - (BOARD_WIDTH - BALL_RADIUS)) * 0.2;
-          newVx = -newVx * (0.7 + Math.random() * 0.2); // Variable bounce off right wall
+          newX = BOARD_WIDTH - BALL_RADIUS - (newX - (BOARD_WIDTH - BALL_RADIUS)) * 0.3;
+          newVx = -newVx * (0.7 + Math.random() * 0.2); // Variable bounce off wall
           
-          // Small vertical component on wall bounce
-          newVy += (Math.random() - 0.3) * 0.5;
+          // Add downward push on wall bounce to prevent getting stuck
+          newVy = Math.max(newVy, GRAVITY * 2);
         }
         
         // Apply velocity limits
@@ -349,7 +342,7 @@ const PlinkoGame: React.FC = () => {
         if (pocketIndex !== null) {
           inPocket = true;
           
-          // Handle pocket entry logic here (determined by pocketIndex)
+          // Handle pocket entry logic
           handleBallInPocket(ball.id, pocketIndex);
         }
         
@@ -377,7 +370,7 @@ const PlinkoGame: React.FC = () => {
     });
   };
 
-  // Handle a ball entering a pocket
+  // Handle a ball entering a pocket - improved animation
   const handleBallInPocket = (ballId: number, pocketIndex: number) => {
     // Calculate winnings
     const multipliers = riskMultipliers[risk];
@@ -414,7 +407,7 @@ const PlinkoGame: React.FC = () => {
       setBalance(prev => prev + winAmount);
       
       // Show toast notification for significant wins
-      if (multiplier >= 5) {
+      if (multiplier >= 2) {
         toast.success(`You won ${multiplier}x - $${winAmount.toFixed(2)}!`, {
           position: 'top-center',
           duration: 3000,
@@ -426,7 +419,7 @@ const PlinkoGame: React.FC = () => {
     }, 100);
   };
 
-  // Drop a new ball - now allows unlimited balls
+  // Drop a new ball - allows unlimited balls
   const dropBall = () => {
     if (balance < betAmount) return;
     
@@ -441,14 +434,12 @@ const PlinkoGame: React.FC = () => {
     }
     
     // Calculate an initial position with some randomness
-    // This creates more varied and realistic starting positions
     const dropPosition = BOARD_WIDTH / 2 + (Math.random() * 100 - 50);
     
     // Calculate initial velocity components
-    // Adding a bit of initial spin and movement makes the physics more interesting
     const initialVx = (Math.random() * INITIAL_VELOCITY_RANGE - INITIAL_VELOCITY_RANGE/2) * 
                       (dropPosition > BOARD_WIDTH / 2 ? -0.5 : 0.5); // Bias toward center
-    const initialVy = Math.random() * 0.5; // Small initial downward velocity
+    const initialVy = 0.2 + Math.random() * 0.5; // Small initial downward velocity
     
     // Add a new ball with improved starting conditions
     const newBall = {

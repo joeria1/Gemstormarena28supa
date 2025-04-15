@@ -49,12 +49,13 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
   }
 
   // Update multipliers to be higher on the edges and lower in the middle
+  // Including much lower values (0.3x minimum)
   const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number = 10): number[] => {
-    // Base multiplier values based on risk
+    // Base multiplier values based on risk - lower minimum values
     const baseValues = {
-      low: { min: 1.1, mid: 1.5, max: 9 },
-      medium: { min: 1.2, mid: 2, max: 100 },
-      high: { min: 1.5, mid: 5, max: 1000 }
+      low: { min: 0.3, mid: 1.0, max: 9 },
+      medium: { min: 0.3, mid: 1.5, max: 100 },
+      high: { min: 0.3, mid: 3, max: 1000 }
     };
     
     const { min, mid, max } = baseValues[risk];
@@ -68,11 +69,12 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
       // Calculate multiplier value based on position
       // Use exponential curve for more dramatic increase at edges
       let value;
-      if (positionFactor < 0.3) {
-        value = min + (mid - min) * (positionFactor / 0.3);
+      if (positionFactor < 0.2) {
+        // Center positions - lowest multipliers
+        value = min + (mid - min) * (positionFactor / 0.2);
       } else {
         // Exponential increase for edge positions
-        const expFactor = (positionFactor - 0.3) / 0.7;
+        const expFactor = (positionFactor - 0.2) / 0.8;
         value = mid + (max - mid) * Math.pow(expFactor, 2);
       }
       
@@ -145,20 +147,22 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
       }
     });
 
-    // Animate pockets when balls land in them
+    // Animate pockets when balls land in them - enhanced animation
     activeBalls.forEach(ball => {
       if (ball.inPocket && ball.pocketIndex !== undefined) {
         const pocketKey = `pocket-${ball.pocketIndex}`;
         const pocketElement = pocketRefs.current[pocketKey];
         
         if (pocketElement && !pocketElement.classList.contains('pocket-pulse')) {
+          // Add stronger animation class
           pocketElement.classList.add('pocket-pulse');
           
+          // Remove class after animation completes
           setTimeout(() => {
             if (pocketElement) {
               pocketElement.classList.remove('pocket-pulse');
             }
-          }, 500);
+          }, 1000); // Extended animation time to 1 second
         }
       }
     });
@@ -176,7 +180,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
           key={pegKey}
           data-row={row}
           data-col={col}
-          className={`absolute w-3 h-3 rounded-full ${pegColor} transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150`} 
+          className={`absolute w-4 h-4 rounded-full ${pegColor} transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150`} 
           style={style}
         />
       );
@@ -201,7 +205,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
       };
       
       // Apply special effects for balls that have entered a pocket
-      const ballClasses = `absolute w-4 h-4 rounded-full ${ballColor} shadow-lg z-10 ${
+      const ballClasses = `absolute w-5 h-5 rounded-full ${ballColor} shadow-lg z-10 ${
         ball.inPocket ? 'animate-pocket-entry' : ''
       }`;
       
@@ -215,7 +219,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
     });
   };
 
-  // Render multiplier buckets at the bottom
+  // Render multiplier buckets at the bottom with enhanced animations
   const renderMultiplierBuckets = () => {
     const currentMultipliers = multipliers[risk];
     
@@ -235,16 +239,16 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
         >
           <div 
             ref={el => pocketRefs.current[`pocket-${index}`] = el}
-            className={`w-full h-2 ${riskColors[risk]} ${isActive ? 'h-3' : ''}`}
+            className={`w-full h-3 ${riskColors[risk]} rounded-t transition-all ${isActive ? 'h-4' : ''}`}
           ></div>
-          <div className={`mt-2 ${isActive ? 'text-yellow-400' : ''}`}>{multiplier}x</div>
+          <div className={`mt-2 ${isActive ? 'text-yellow-400 animate-bounce' : ''}`}>{multiplier}x</div>
         </div>
       );
     });
   };
 
   return (
-    <div className="relative w-full" style={{ paddingTop: '100%' }} ref={boardRef}>
+    <div className="relative w-full" style={{ paddingTop: '120%' }} ref={boardRef}>
       <div className="absolute inset-0 bg-gray-900 overflow-hidden">
         {/* Pegs */}
         {renderPegs()}
@@ -283,12 +287,14 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
         }
         
         .pocket-pulse {
-          animation: pocket-pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1);
+          animation: pocket-pulse 1s cubic-bezier(0.4, 0, 0.6, 1);
         }
         
         @keyframes pocket-pulse {
           0% { transform: scaleY(1); }
-          50% { transform: scaleY(1.8); }
+          25% { transform: scaleY(1.8); }
+          50% { transform: scaleY(1.3); }
+          75% { transform: scaleY(1.6); }
           100% { transform: scaleY(1); }
         }
         `}
