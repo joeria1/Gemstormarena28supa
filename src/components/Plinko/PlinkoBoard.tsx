@@ -221,7 +221,8 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
       };
       
       // Apply special effects for balls that have entered a pocket
-      const ballClasses = `absolute w-5 h-5 rounded-full ${ballColor} shadow-lg z-10 ${
+      // Restore original ball size (8x8 instead of 5x5)
+      const ballClasses = `absolute w-8 h-8 rounded-full ${ballColor} shadow-lg z-10 ${
         ball.inPocket ? 'animate-pocket-entry' : ''
       }`;
       
@@ -338,10 +339,10 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
 
         @keyframes pocket-bounce {
           0% { transform: translateY(0); }
-          20% { transform: translateY(-6px); }
+          20% { transform: translateY(-10px); }
           40% { transform: translateY(0); }
-          60% { transform: translateY(-4px); }
-          80% { transform: translateY(-1px); }
+          60% { transform: translateY(-6px); }
+          80% { transform: translateY(-2px); }
           100% { transform: translateY(0); }
         }
 
