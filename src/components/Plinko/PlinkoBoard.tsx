@@ -12,6 +12,10 @@ interface PlinkoBoardProps {
     currentRow: number;
     inPocket: boolean;
     pocketIndex?: number;
+    lastHitPeg?: {row: number, col: number}; 
+    stuckTime?: number;
+    scale?: number;
+    growing?: boolean;
   }[];
   risk: 'low' | 'medium' | 'high';
 }
@@ -124,13 +128,16 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
                 // Animate this peg
                 const pegElement = pegRefs.current[pegKey];
                 if (pegElement) {
-                  // Add pulse animation class
-                  pegElement.classList.add('peg-pulse');
+                  // Add vibration animation class
+                  pegElement.classList.add('peg-vibrate');
+                  
+                  // Play peg hit sound
+                  playSound('plinkoPeg');
                   
                   // Remove class after animation completes
                   setTimeout(() => {
                     if (pegElement) {
-                      pegElement.classList.remove('peg-pulse');
+                      pegElement.classList.remove('peg-vibrate');
                     }
                   }, 300);
                   
@@ -156,17 +163,22 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
         if (pocketElement && !pocketElement.classList.contains('pocket-pulse')) {
           // Add stronger animation class
           pocketElement.classList.add('pocket-pulse');
+          pocketElement.classList.add('animate-pocket-bounce');
+          
+          // Play win sound when ball lands in pocket
+          playSound('plinkoWin');
           
           // Remove class after animation completes
           setTimeout(() => {
             if (pocketElement) {
               pocketElement.classList.remove('pocket-pulse');
+              pocketElement.classList.remove('animate-pocket-bounce');
             }
-          }, 1000); // Extended animation time to 1 second
+          }, 1400); // Extended animation time
         }
       }
     });
-  }, [activeBalls, rows]);
+  }, [activeBalls, rows, playSound]);
 
   // Generate pegs grid - increased container width to prevent cut-off pegs
   const renderPegs = () => {
@@ -187,7 +199,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
     });
   };
 
-  // Render active balls with realistic physics
+  // Render active balls with realistic physics and animation effects
   const renderBalls = () => {
     return activeBalls.map(ball => {
       // Convert the normalized positions to percentages for rendering
@@ -197,11 +209,15 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
       // Calculate ball rotation based on horizontal velocity for added realism
       const rotation = ball.vx * 10;
       
+      // Calculate ball scale with growth animation if present
+      const ballScale = ball.scale !== undefined ? ball.scale : 1;
+      
       const ballStyle = {
         left: `${ballX}%`,
         top: `${ballY}%`,
-        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-        transition: 'transform 0.1s linear'
+        transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${ballScale})`,
+        transition: ball.growing ? 'transform 0.15s ease-out' : 'transform 0.1s linear',
+        opacity: ballScale < 0.3 ? 0.7 : 1
       };
       
       // Apply special effects for balls that have entered a pocket
@@ -290,23 +306,42 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
           100% { transform: scale(1) translate(-50%, -50%); }
         }
         
+        .peg-vibrate {
+          animation: vibrate 0.3s cubic-bezier(0.4, 0, 0.6, 1);
+        }
+        
+        @keyframes vibrate {
+          0% { transform: translate(-50%, -50%) scale(1.2); box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+          10% { transform: translate(-52%, -48%) scale(1.3); box-shadow: 0 0 8px rgba(255, 255, 255, 0.5); }
+          20% { transform: translate(-48%, -52%) scale(1.3); }
+          30% { transform: translate(-51%, -49%) scale(1.2); box-shadow: 0 0 4px rgba(255, 255, 255, 0.3); }
+          40% { transform: translate(-49%, -51%) scale(1.2); }
+          50% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 6px rgba(255, 255, 255, 0.2); }
+          60% { transform: translate(-49.5%, -50.5%) scale(1.1); }
+          70% { transform: translate(-50.5%, -49.5%) scale(1.1); }
+          80% { transform: translate(-50.2%, -49.8%) scale(1.05); box-shadow: 0 0 2px rgba(255, 255, 255, 0.1); }
+          100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+        }
+        
         .pocket-pulse {
           animation: pocket-pulse 1s cubic-bezier(0.4, 0, 0.6, 1);
+          filter: brightness(1.5);
         }
         
         @keyframes pocket-pulse {
           0% { transform: scaleY(1); }
-          25% { transform: scaleY(1.8); }
-          50% { transform: scaleY(1.3); }
-          75% { transform: scaleY(1.6); }
+          25% { transform: scaleY(2); }
+          50% { transform: scaleY(1.5); }
+          75% { transform: scaleY(1.8); }
           100% { transform: scaleY(1); }
         }
 
         @keyframes pocket-bounce {
           0% { transform: translateY(0); }
-          25% { transform: translateY(-4px); }
-          50% { transform: translateY(0); }
-          75% { transform: translateY(-2px); }
+          20% { transform: translateY(-6px); }
+          40% { transform: translateY(0); }
+          60% { transform: translateY(-4px); }
+          80% { transform: translateY(-1px); }
           100% { transform: translateY(0); }
         }
 

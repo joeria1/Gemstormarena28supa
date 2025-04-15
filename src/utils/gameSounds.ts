@@ -39,10 +39,11 @@ const gameSoundPaths = {
   cashout: '/sounds/win.mp3' // Adding cashout sound (using win sound)
 };
 
-// Preload sound files
+// Preload sound files with enhanced error handling
 let audioContext: AudioContext | null = null;
 const audioBuffers: Map<string, AudioBuffer> = new Map();
 const audioElements: Map<string, HTMLAudioElement> = new Map();
+const failedSounds: Set<string> = new Set(); // Track sounds that failed to load
 
 // Initialize audio context on user interaction
 const initAudioContext = () => {
@@ -94,11 +95,16 @@ const createAudioElement = (soundPath: string): HTMLAudioElement => {
   return audio;
 };
 
-// Helper function to play a sound by name
+// Helper function to play a sound by name with improved error handling
 export const playGameSound = (soundName: keyof typeof gameSoundPaths, volume = 0.5) => {
   const soundPath = gameSoundPaths[soundName];
   if (!soundPath) {
     console.error(`Sound "${soundName}" not found`);
+    return;
+  }
+  
+  // Skip sounds that have previously failed to avoid repeated errors
+  if (failedSounds.has(soundPath)) {
     return;
   }
   
@@ -109,6 +115,12 @@ export const playGameSound = (soundName: keyof typeof gameSoundPaths, volume = 0
     if (!audio) {
       audio = createAudioElement(soundPath);
       audioElements.set(soundPath, audio);
+      
+      // Add error handler for loading issues
+      audio.addEventListener('error', (e) => {
+        console.error(`Failed to load sound ${soundName}:`, e);
+        failedSounds.add(soundPath);
+      });
     }
     
     // Reset the audio to the beginning if it's already playing
@@ -116,7 +128,7 @@ export const playGameSound = (soundName: keyof typeof gameSoundPaths, volume = 0
     audio.currentTime = 0;
     audio.volume = volume;
     
-    // Forcefully unlock audio on Safari/iOS
+    // Forcefully unlock audio on Safari/iOS with enhanced error handling
     const playAttempt = () => {
       const playPromise = audio!.play();
       
@@ -124,14 +136,25 @@ export const playGameSound = (soundName: keyof typeof gameSoundPaths, volume = 0
         playPromise
           .then(() => {
             // Playback started successfully
-            console.log(`Playing ${soundName} sound at volume ${volume}`);
+            // console.log(`Playing ${soundName} sound at volume ${volume}`);
           })
           .catch(error => {
             console.warn('Audio play error, trying again:', error);
             
-            // Try one more time with user interaction
+            // Try again with a different approach
+            setTimeout(() => {
+              audio!.play().catch(e => {
+                console.error('Still cannot play audio:', e);
+                // If we've failed twice, mark this sound as problematic
+                if (e.name === "NotSupportedError" || e.name === "NotAllowedError") {
+                  failedSounds.add(soundPath);
+                }
+              });
+            }, 100);
+            
+            // Also try on next user interaction (for browsers that require it)
             document.addEventListener('click', function playOnce() {
-              audio!.play().catch(e => console.error('Still cannot play audio:', e));
+              audio!.play().catch(() => {}); // Silence errors here
               document.removeEventListener('click', playOnce);
             }, { once: true });
           });
@@ -141,22 +164,61 @@ export const playGameSound = (soundName: keyof typeof gameSoundPaths, volume = 0
     playAttempt();
   } catch (error) {
     console.error(`Error with sound ${soundName}:`, error);
+    failedSounds.add(soundPath);
   }
 };
 
-// Function to preload all sounds
+// Function to preload all sounds with enhanced error handling
 export const preloadGameSounds = () => {
   Object.entries(gameSoundPaths).forEach(([name, path]) => {
     try {
-      if (!audioElements.has(path)) {
+      if (!audioElements.has(path) && !failedSounds.has(path)) {
         const audio = createAudioElement(path);
-        audio.load(); // Start loading the audio file
+        
+        // Add event listeners to monitor loading progress
+        audio.addEventListener('canplaythrough', () => {
+          // console.log(`Sound ${name} loaded successfully`);
+        });
+        
+        audio.addEventListener('error', (e) => {
+          console.error(`Failed to load sound ${name}:`, e);
+          failedSounds.add(path);
+        });
+        
+        // Start loading the audio file
+        audio.load();
         audioElements.set(path, audio);
+        
+        // For better Safari/iOS compatibility, try loading with a short play attempt
+        setTimeout(() => {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                // Successfully started playing, immediately pause
+                audio.pause();
+                audio.currentTime = 0;
+              })
+              .catch(() => {
+                // Expected - this just primes the audio for later
+              });
+          }
+        }, 100);
       }
     } catch (error) {
       console.error(`Error preloading sound ${name}:`, error);
+      failedSounds.add(path);
     }
   });
+  
+  // Log results of preloading
+  setTimeout(() => {
+    if (failedSounds.size > 0) {
+      console.warn(`Failed to preload ${failedSounds.size} sounds.`);
+    } else {
+      // console.log('All sounds preloaded successfully');
+    }
+  }, 3000);
 };
 
 // Pause a specific sound
