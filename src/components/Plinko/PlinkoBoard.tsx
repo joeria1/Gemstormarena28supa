@@ -33,6 +33,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
 
   // Peg collision animation refs
   const pegRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
+  const pocketRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
 
   // Set up peg positions for rendering
   const pegPositions = [];
@@ -47,10 +48,45 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
     }
   }
 
+  // Update multipliers to be higher on the edges and lower in the middle
+  const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number = 10): number[] => {
+    // Base multiplier values based on risk
+    const baseValues = {
+      low: { min: 1.1, mid: 1.5, max: 9 },
+      medium: { min: 1.2, mid: 2, max: 100 },
+      high: { min: 1.5, mid: 5, max: 1000 }
+    };
+    
+    const { min, mid, max } = baseValues[risk];
+    const result: number[] = [];
+    
+    // Fill in multipliers, higher on edges, lower in middle
+    for (let i = 0; i < count; i++) {
+      // Calculate position relative to center (0 = middle, 1 = edge)
+      const positionFactor = Math.abs((i - (count - 1) / 2) / ((count - 1) / 2));
+      
+      // Calculate multiplier value based on position
+      // Use exponential curve for more dramatic increase at edges
+      let value;
+      if (positionFactor < 0.3) {
+        value = min + (mid - min) * (positionFactor / 0.3);
+      } else {
+        // Exponential increase for edge positions
+        const expFactor = (positionFactor - 0.3) / 0.7;
+        value = mid + (max - mid) * Math.pow(expFactor, 2);
+      }
+      
+      // Round to 1 decimal place
+      result.push(Math.round(value * 10) / 10);
+    }
+    
+    return result;
+  };
+
   const multipliers = {
-    low: [1.2, 1.4, 1.6, 1.8, 2.1, 2.4, 2.9, 3.5, 4.9, 8.9],
-    medium: [1.5, 1.8, 2.2, 2.6, 3.5, 5.2, 9.5, 16.2, 44, 100],
-    high: [2.7, 3.5, 5.2, 8.1, 15, 29, 58, 140, 400, 1000]
+    low: generateMultipliers('low'),
+    medium: generateMultipliers('medium'),
+    high: generateMultipliers('high')
   };
 
   // Animate peg when ball hits it
@@ -105,6 +141,24 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
               }
             }
           }
+        }
+      }
+    });
+
+    // Animate pockets when balls land in them
+    activeBalls.forEach(ball => {
+      if (ball.inPocket && ball.pocketIndex !== undefined) {
+        const pocketKey = `pocket-${ball.pocketIndex}`;
+        const pocketElement = pocketRefs.current[pocketKey];
+        
+        if (pocketElement && !pocketElement.classList.contains('pocket-pulse')) {
+          pocketElement.classList.add('pocket-pulse');
+          
+          setTimeout(() => {
+            if (pocketElement) {
+              pocketElement.classList.remove('pocket-pulse');
+            }
+          }, 500);
         }
       }
     });
@@ -179,7 +233,10 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
           }`}
           style={{ width: `${100 / currentMultipliers.length}%` }}
         >
-          <div className={`w-full h-2 ${riskColors[risk]} ${isActive ? 'h-3' : ''}`}></div>
+          <div 
+            ref={el => pocketRefs.current[`pocket-${index}`] = el}
+            className={`w-full h-2 ${riskColors[risk]} ${isActive ? 'h-3' : ''}`}
+          ></div>
           <div className={`mt-2 ${isActive ? 'text-yellow-400' : ''}`}>{multiplier}x</div>
         </div>
       );
@@ -223,6 +280,16 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
           0% { transform: scale(1) translate(-50%, -50%); }
           50% { transform: scale(2) translate(-50%, -50%); }
           100% { transform: scale(1) translate(-50%, -50%); }
+        }
+        
+        .pocket-pulse {
+          animation: pocket-pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1);
+        }
+        
+        @keyframes pocket-pulse {
+          0% { transform: scaleY(1); }
+          50% { transform: scaleY(1.8); }
+          100% { transform: scaleY(1); }
         }
         `}
       </style>

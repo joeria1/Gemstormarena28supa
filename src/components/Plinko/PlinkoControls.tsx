@@ -8,6 +8,7 @@ interface PlinkoControlsProps {
   setRisk: (risk: 'low' | 'medium' | 'high') => void;
   onDrop: () => void;
   balance: number;
+  riskLocked?: boolean;
 }
 
 const PlinkoControls: React.FC<PlinkoControlsProps> = ({ 
@@ -16,7 +17,8 @@ const PlinkoControls: React.FC<PlinkoControlsProps> = ({
   risk, 
   setRisk, 
   onDrop,
-  balance
+  balance,
+  riskLocked = false
 }) => {
   const handleBetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
@@ -71,29 +73,37 @@ const PlinkoControls: React.FC<PlinkoControlsProps> = ({
         </div>
         
         <div className="flex-1">
-          <label className="block text-gray-300 mb-1">Risk Level</label>
+          <label className="block text-gray-300 mb-1">
+            Risk Level
+            {riskLocked && (
+              <span className="ml-2 text-xs text-yellow-500">(Locked while balls are in play)</span>
+            )}
+          </label>
           <div className="flex gap-2">
             <button
-              onClick={() => setRisk('low')}
+              onClick={() => !riskLocked && setRisk('low')}
               className={`flex-1 py-2 rounded ${
                 risk === 'low' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-white'
-              }`}
+              } ${riskLocked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-400'}`}
+              disabled={riskLocked}
             >
               Low
             </button>
             <button
-              onClick={() => setRisk('medium')}
+              onClick={() => !riskLocked && setRisk('medium')}
               className={`flex-1 py-2 rounded ${
                 risk === 'medium' ? 'bg-purple-500 text-white' : 'bg-gray-700 text-white'
-              }`}
+              } ${riskLocked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-purple-400'}`}
+              disabled={riskLocked}
             >
               Medium
             </button>
             <button
-              onClick={() => setRisk('high')}
+              onClick={() => !riskLocked && setRisk('high')}
               className={`flex-1 py-2 rounded ${
                 risk === 'high' ? 'bg-red-500 text-white' : 'bg-gray-700 text-white'
-              }`}
+              } ${riskLocked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-400'}`}
+              disabled={riskLocked}
             >
               High
             </button>
