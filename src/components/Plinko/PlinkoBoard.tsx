@@ -48,14 +48,14 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
     }
   }
 
-  // Update multipliers to be higher on the edges and lower in the middle
-  // Including much lower values (0.3x minimum)
+  // Update multipliers to have lowest values in the middle and highest on edges
+  // With proper min values for different risk levels
   const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number = 10): number[] => {
-    // Base multiplier values based on risk - lower minimum values
+    // Base multiplier values based on risk - set min values per risk level
     const baseValues = {
-      low: { min: 0.3, mid: 1.0, max: 9 },
-      medium: { min: 0.3, mid: 1.5, max: 100 },
-      high: { min: 0.3, mid: 3, max: 1000 }
+      low: { min: 0.7, mid: 1.0, max: 9 },
+      medium: { min: 0.4, mid: 1.0, max: 100 },
+      high: { min: 0.2, mid: 1.0, max: 1000 }
     };
     
     const { min, mid, max } = baseValues[risk];
@@ -70,12 +70,12 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
       // Use exponential curve for more dramatic increase at edges
       let value;
       if (positionFactor < 0.2) {
-        // Center positions - lowest multipliers
+        // Center positions - lowest multipliers (house edge)
         value = min + (mid - min) * (positionFactor / 0.2);
       } else {
         // Exponential increase for edge positions
         const expFactor = (positionFactor - 0.2) / 0.8;
-        value = mid + (max - mid) * Math.pow(expFactor, 2);
+        value = mid + (max - mid) * Math.pow(expFactor, 2.2); // Increased exponent for steeper curve
       }
       
       // Round to 1 decimal place
@@ -168,7 +168,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
     });
   }, [activeBalls, rows]);
 
-  // Generate pegs grid
+  // Generate pegs grid - increased container width to prevent cut-off pegs
   const renderPegs = () => {
     return pegPositions.map(({ row, col, style }) => {
       // Add a unique key for each peg for ball collision animation
@@ -239,17 +239,21 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
         >
           <div 
             ref={el => pocketRefs.current[`pocket-${index}`] = el}
-            className={`w-full h-3 ${riskColors[risk]} rounded-t transition-all ${isActive ? 'h-4' : ''}`}
+            className={`w-full h-4 ${riskColors[risk]} rounded-t-md transition-all ${
+              isActive ? 'animate-pocket-bounce h-6 brightness-150' : ''
+            }`}
           ></div>
-          <div className={`mt-2 ${isActive ? 'text-yellow-400 animate-bounce' : ''}`}>{multiplier}x</div>
+          <div className={`mt-2 ${isActive ? 'text-yellow-400 animate-bounce text-xl' : ''}`}>
+            {multiplier}x
+          </div>
         </div>
       );
     });
   };
 
   return (
-    <div className="relative w-full" style={{ paddingTop: '120%' }} ref={boardRef}>
-      <div className="absolute inset-0 bg-gray-900 overflow-hidden">
+    <div className="relative w-full" style={{ paddingTop: '130%' }} ref={boardRef}>
+      <div className="absolute inset-0 bg-gray-900 overflow-hidden px-2">
         {/* Pegs */}
         {renderPegs()}
         
@@ -296,6 +300,18 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
           50% { transform: scaleY(1.3); }
           75% { transform: scaleY(1.6); }
           100% { transform: scaleY(1); }
+        }
+
+        @keyframes pocket-bounce {
+          0% { transform: translateY(0); }
+          25% { transform: translateY(-4px); }
+          50% { transform: translateY(0); }
+          75% { transform: translateY(-2px); }
+          100% { transform: translateY(0); }
+        }
+
+        .animate-pocket-bounce {
+          animation: pocket-bounce 0.7s cubic-bezier(0.4, 0, 0.6, 1) 2;
         }
         `}
       </style>
