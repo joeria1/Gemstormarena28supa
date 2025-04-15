@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useSoundEffect } from '../../hooks/useSoundEffect';
 
@@ -161,9 +160,10 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
         const pocketElement = pocketRefs.current[pocketKey];
         
         if (pocketElement && !pocketElement.classList.contains('pocket-pulse')) {
-          // Add stronger animation class
+          // Add stronger animation classes
           pocketElement.classList.add('pocket-pulse');
           pocketElement.classList.add('animate-pocket-bounce');
+          pocketElement.classList.add('pocket-vibrate'); // Add vibration effect
           
           // Play win sound when ball lands in pocket
           playSound('plinkoWin');
@@ -173,8 +173,9 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
             if (pocketElement) {
               pocketElement.classList.remove('pocket-pulse');
               pocketElement.classList.remove('animate-pocket-bounce');
+              pocketElement.classList.remove('pocket-vibrate');
             }
-          }, 1400); // Extended animation time
+          }, 1500); // Extended animation time
         }
       }
     });
@@ -348,6 +349,24 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
 
         .animate-pocket-bounce {
           animation: pocket-bounce 0.7s cubic-bezier(0.4, 0, 0.6, 1) 2;
+        }
+        
+        @keyframes pocket-vibrate {
+          0% { transform: translateX(0); }
+          10% { transform: translateX(-3px); }
+          20% { transform: translateX(3px); }
+          30% { transform: translateX(-2px); }
+          40% { transform: translateX(2px); }
+          50% { transform: translateX(-1px); }
+          60% { transform: translateX(1px); }
+          70% { transform: translateX(-1px); }
+          80% { transform: translateX(1px); }
+          90% { transform: translateX(-1px); }
+          100% { transform: translateX(0); }
+        }
+        
+        .pocket-vibrate {
+          animation: pocket-vibrate 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) 2;
         }
         `}
       </style>
