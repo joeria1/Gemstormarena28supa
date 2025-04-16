@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Award, RefreshCw, ChevronLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,8 @@ import { toast } from 'sonner';
 import SpinningEffect from '../GameEffects/SpinningEffect';
 import LightningEffect from '../GameEffects/LightningEffect';
 import ItemGlowEffect from '../GameEffects/ItemGlowEffect';
+import CaseSlider from '@/components/CaseSlider/CaseSlider';
+import { SliderItem } from '@/types/slider';
 
 interface Player {
   id: number;
@@ -45,6 +48,8 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   const [results, setResults] = useState<any[]>([]);
   const [winningTeam, setWinningTeam] = useState<number | null>(null);
   const { playSound } = useSoundEffect();
+  const [sliderSpinning, setSliderSpinning] = useState(false);
+  const [activePlayerIndex, setActivePlayerIndex] = useState<number | null>(null);
   
   const defaultPlayers: Player[] = [
     { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', balance: 0, team: 0 },
@@ -61,6 +66,15 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   const actualCases = cases.length > 0 ? cases : defaultCases;
 
   const totalValue = actualCases.reduce((sum, caseItem) => sum + caseItem.price, 0);
+  
+  // Create slider items from cases
+  const sliderItems: SliderItem[] = [
+    { id: '1', name: 'Catrina Mask', image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png', rarity: 'rare', price: 138 },
+    { id: '2', name: 'Common Item', image: '/placeholder.svg', rarity: 'common', price: 25 },
+    { id: '3', name: 'Uncommon Item', image: '/placeholder.svg', rarity: 'uncommon', price: 75 },
+    { id: '4', name: 'Rare Item', image: '/placeholder.svg', rarity: 'rare', price: 150 },
+    { id: '5', name: 'Epic Item', image: '/placeholder.svg', rarity: 'epic', price: 350 }
+  ];
 
   const handleReadyPlayer = (playerId: number) => {
     if (readyPlayers.includes(playerId)) {
@@ -94,45 +108,72 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           clearInterval(timer);
           playSound('caseSelect');
           
-          setTimeout(() => {
-            setGameState('results');
-            
-            const winTeam = Math.random() > 0.5 ? 0 : 1;
-            setWinningTeam(winTeam);
-            
-            const simulatedResults = actualPlayers.map(player => ({
-              ...player,
-              isWinner: player.team === winTeam,
-              winAmount: player.team === winTeam ? Math.floor(totalValue * 0.9 / actualPlayers.filter(p => p.team === winTeam).length) : 0,
-              items: player.team === winTeam ? [
-                { 
-                  id: 1, 
-                  name: 'Catrina Día de Muertos Mask', 
-                  price: 138, 
-                  image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png', 
-                  rarity: 'rare',
-                  dropChance: '5%'
-                }
-              ] : [
-                { 
-                  id: 2, 
-                  name: 'Bozo', 
-                  price: 10, 
-                  image: '', 
-                  rarity: 'common',
-                  dropChance: '95%'
-                }
-              ]
-            }));
-            
-            setResults(simulatedResults);
-          }, 5000);
+          startSpinningProcess();
           
           return null;
         }
         return prev - 1;
       });
     }, 1000);
+  };
+  
+  const startSpinningProcess = () => {
+    // Process players one by one
+    const processPlayers = (index: number) => {
+      if (index >= actualPlayers.length) {
+        // All players processed, show results
+        setTimeout(() => {
+          setGameState('results');
+          const winTeam = Math.random() > 0.5 ? 0 : 1;
+          setWinningTeam(winTeam);
+          
+          const simulatedResults = actualPlayers.map(player => ({
+            ...player,
+            isWinner: player.team === winTeam,
+            winAmount: player.team === winTeam ? Math.floor(totalValue * 0.9 / actualPlayers.filter(p => p.team === winTeam).length) : 0,
+            items: player.team === winTeam ? [
+              { 
+                id: 1, 
+                name: 'Catrina Día de Muertos Mask', 
+                price: 138, 
+                image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png', 
+                rarity: 'rare',
+                dropChance: '5%'
+              }
+            ] : [
+              { 
+                id: 2, 
+                name: 'Bozo', 
+                price: 10, 
+                image: '', 
+                rarity: 'common',
+                dropChance: '95%'
+              }
+            ]
+          }));
+          
+          setResults(simulatedResults);
+        }, 1000);
+        return;
+      }
+      
+      // Start spinning for current player
+      setActivePlayerIndex(index);
+      setSliderSpinning(true);
+      
+      // After spinning completes, process the next player
+      setTimeout(() => {
+        setSliderSpinning(false);
+        
+        // Small delay before moving to the next player
+        setTimeout(() => {
+          processPlayers(index + 1);
+        }, 500);
+      }, 5000); // 5 seconds per player
+    };
+    
+    // Start with the first player
+    processPlayers(0);
   };
 
   const renderPlayerSlot = (player: Player, index: number) => {
@@ -198,6 +239,8 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         </div>
       );
     } else if (gameState === 'spinning') {
+      const isActivePlayer = activePlayerIndex === index;
+      
       return (
         <div key={`spinning-${index}`} className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 relative">
           <div className="flex items-center mb-4">
@@ -214,26 +257,36 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           </div>
 
           <div className="min-h-[180px] flex items-center justify-center">
-            <div className="relative">
-              <img 
-                src="/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png" 
-                alt="Spinning item" 
-                className={`w-16 h-16 object-contain animate-spin`} 
-              />
-              {index % 2 === 0 && (
-                <div className="absolute -left-10 top-1/2 transform -translate-y-1/2 text-red-500 text-3xl font-bold">👹</div>
-              )}
-              {index === 1 && (
-                <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
-                  <SpinningEffect isSpinning={true} onComplete={() => {}}>
-                    <div className="w-8 h-8 bg-blue-500 rounded-full"></div>
-                  </SpinningEffect>
+            {isActivePlayer ? (
+              <div className="w-full">
+                <div className="text-center text-blue-400 mb-2 font-semibold">
+                  Opening case...
                 </div>
-              )}
-              {index % 2 === 1 && (
-                <div className="absolute -right-10 top-1/2 transform -translate-y-1/2 text-red-500 text-3xl font-bold">👹</div>
-              )}
-            </div>
+                <CaseSlider
+                  items={sliderItems}
+                  onComplete={() => {}}
+                  autoSpin={true}
+                  isSpinning={sliderSpinning}
+                  setIsSpinning={setSliderSpinning}
+                  playerName={player.name}
+                  highlightPlayer={player.team === 0}
+                  options={{ duration: 5000, itemSize: 'small' }}
+                  isCompact={true}
+                />
+              </div>
+            ) : (
+              <div className="relative">
+                {activePlayerIndex !== null && activePlayerIndex < index && (
+                  <div className="text-center text-gray-400">Waiting turn...</div>
+                )}
+                {activePlayerIndex !== null && activePlayerIndex > index && (
+                  <div className="text-center text-green-400">Turn completed</div>
+                )}
+                {activePlayerIndex === null && (
+                  <div className="text-center text-blue-400">Preparing...</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       );

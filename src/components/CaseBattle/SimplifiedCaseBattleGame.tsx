@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -185,6 +186,7 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
       
       setCurrentCaseSliderSpinning(true);
       
+      // Use random item selection logic and add a delay to simulate spinning
       setTimeout(() => {
         const randomIndex = Math.floor(Math.random() * mockItems.length);
         const selectedItem = { ...caseItems[randomIndex], playerId: currentPlayer.id };
@@ -492,7 +494,7 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
                   playerName={players.find(p => p.id === activePlayer)?.name}
                   highlightPlayer={activePlayer === '1'}
                   caseName="Standard Case"
-                  autoSpin={false}
+                  autoSpin={true}
                 />
               </div>
             )}
@@ -686,7 +688,7 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
       </Dialog>
       
       {winner && winner.id === '1' && (
-        <SpinningEffect isSpinning={true}>
+        <SpinningEffect isSpinning={true} onComplete={() => {}}>
           <div className="h-full w-full absolute inset-0 pointer-events-none z-50"></div>
         </SpinningEffect>
       )}
