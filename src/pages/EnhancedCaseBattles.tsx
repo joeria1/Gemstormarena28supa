@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, Plus, X, ChevronDown, Search, Filter, User, Users, Bot } from 'lucide-react';
@@ -178,7 +177,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
       const newQuantity = updatedCases[index].quantity + change;
       
       if (newQuantity <= 0) {
-        // Remove the case if quantity would be 0 or less
         handleRemoveCase(index);
       } else {
         updatedCases[index].quantity = newQuantity;
@@ -220,7 +218,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     
     setPlayers(updatedPlayers);
     
-    // Check if all players are ready
     const allPlayersReady = checkAllPlayersReady(updatedPlayers);
     if (allPlayersReady) {
       startBattle();
@@ -237,7 +234,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     updatedPlayers[playerIndex].ready = !updatedPlayers[playerIndex].ready;
     setPlayers(updatedPlayers);
     
-    // Check if all players are ready
     const allPlayersReady = checkAllPlayersReady(updatedPlayers);
     if (allPlayersReady) {
       startBattle();
@@ -248,22 +244,21 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     setBattleStarted(true);
     setGamePhase('playing');
     
-    // Start countdown
     setCountdown(3);
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev === null || prev <= 1) {
           clearInterval(timer);
           
-          // After countdown, start spinning automatically
+          setSliderSpinning(true);
+          
           setTimeout(() => {
             setSliderSpinning(true);
             
-            // After spinning completes (5 seconds), show results
             setTimeout(() => {
               finishBattle();
             }, 5000);
-          }, 1000); // Add delay to ensure countdown is visible before spinning
+          }, 1000);
           
           return null;
         }
@@ -275,28 +270,22 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
   const finishBattle = () => {
     setSliderSpinning(false);
     
-    // Generate random items for each player
     const updatedPlayerItems: Record<number, SliderItem[]> = {};
     const updatedPlayers = [...players].filter(p => p.name !== '');
     
-    // Determine winning team randomly
     const teams = [...new Set(updatedPlayers.map(p => p.team))];
     const winningTeam = teams[Math.floor(Math.random() * teams.length)];
     
-    // Calculate number of players per team
     const teamPlayers: Record<number, any[]> = {};
     teams.forEach(team => {
       teamPlayers[team] = updatedPlayers.filter(p => p.team === team);
     });
     
-    // Generate unique items for each player
     updatedPlayers.forEach(player => {
-      // Winning team gets better items
       let playerItems: SliderItem[];
       let totalValue = 0;
       
       if (player.team === winningTeam) {
-        // Winners get better items
         const betterItems = sliderItems.filter(item => 
           item.rarity === 'epic' || item.rarity === 'legendary' || item.rarity === 'rare'
         );
@@ -304,7 +293,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
         playerItems = [randomItem];
         totalValue = randomItem.price;
       } else {
-        // Losers get common items
         const commonItems = sliderItems.filter(item => 
           item.rarity === 'common' || item.rarity === 'uncommon'
         );
@@ -315,7 +303,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
       
       updatedPlayerItems[player.id] = playerItems;
       
-      // Update player with result info
       player.result = player.team === winningTeam ? 'WINNER' : 'LOST BATTLE';
       player.winnings = player.team === winningTeam ? 
         Math.floor(totalCost * 0.9 / teamPlayers[player.team].length) : 0;
@@ -350,12 +337,10 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     sortOrder === 'LOWEST' ? a.price - b.price : b.price - a.price
   );
 
-  // Get active player count for display
   const getActivePlayerCount = () => {
     return players.filter(p => p.name !== '').length;
   };
 
-  // Get total required players based on mode
   const getTotalRequiredPlayers = () => {
     switch(selectedMode) {
       case '1v1': return 2;
@@ -738,48 +723,33 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {players.filter(p => p.name !== '').map((player, index) => (
-            <div key={`playing-player-${index}`} className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4">
-              <div className="flex items-center mb-4">
-                <div className="w-10 h-10 overflow-hidden rounded-full border border-[#1a2c4c] mr-2">
-                  <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-white font-medium">{player.name}</div>
-                  <div className="flex items-center">
-                    <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
-                    <span className="text-white">0</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="min-h-[180px] border-2 border-[#1a2c4c] rounded-lg p-2">
-                <CaseSlider
-                  items={sliderItems}
-                  onComplete={() => {}}
-                  isSpinning={sliderSpinning}
-                  autoSpin={true}
-                  spinDuration={5000}
-                  caseName={selectedCases.length > 0 ? selectedCases[0].name : "Standard Case"}
-                  playerName={player.name}
-                  highlightPlayer={player.team === 0}
-                  isCompact={true}
-                />
-              </div>
-              
-              {index === 1 && players.length > 2 && (
-                <div className="absolute top-1/2 -right-6 transform -translate-y-1/2">
-                  <div className="bg-[#0f2e3b] border border-[#00d7a3] text-[#00d7a3] rounded-full w-12 h-12 flex items-center justify-center">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                    </svg>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        <CaseBattleGame 
+          cases={selectedCases.map(caseItem => ({
+            id: String(caseItem.id),
+            name: caseItem.name,
+            price: caseItem.price,
+            image: caseItem.image,
+            items: itemsData
+          }))} 
+          users={players.filter(p => p.name !== '').map(player => ({
+            id: String(player.id),
+            name: player.name,
+            avatar: player.avatar,
+            items: [],
+            totalWin: 0,
+            team: player.team
+          }))}
+          isCursedMode={battleOptions.cursedMode}
+          isGroupMode={selectedVersion === 'GROUP'}
+          onFinish={(updatedUsers) => {
+            setGamePhase('results');
+            setBattleResults({
+              players: updatedUsers,
+              winners: updatedUsers.filter(u => u.totalWin > 0),
+              losers: updatedUsers.filter(u => u.totalWin === 0)
+            });
+          }}
+        />
       </div>
     </div>
   );

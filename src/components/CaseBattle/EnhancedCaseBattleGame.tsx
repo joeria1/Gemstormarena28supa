@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useSoundEffect } from '@/hooks/useSoundEffect';
 import LightningEffect from '../GameEffects/LightningEffect';
+import { showGameResult } from '../GameResultNotification';
 
 interface Case {
   id: string;
@@ -28,12 +29,15 @@ interface User {
   avatar: string;
   items: Item[];
   totalWin: number;
+  team?: number;
 }
 
 interface EnhancedCaseBattleGameProps {
   cases: Case[];
   users: User[];
   onFinish?: (users: User[]) => void;
+  isCursedMode?: boolean;
+  isGroupMode?: boolean;
 }
 
 const itemRarityColors = {
@@ -57,7 +61,13 @@ const slotMachineItems = [
   { id: '6', name: 'M4A4 Howl', price: 987.65, image: '/placeholder.svg', rarity: 'epic' as const },
 ];
 
-const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, users, onFinish }) => {
+const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ 
+  cases, 
+  users, 
+  onFinish, 
+  isCursedMode = false,
+  isGroupMode = false 
+}) => {
   const [currentRound, setCurrentRound] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [showLightning, setShowLightning] = useState(false);
@@ -68,6 +78,7 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
   const [currentCase, setCurrentCase] = useState<Case>(cases[0]);
   const [gameFinished, setGameFinished] = useState(false);
   const [countdownFinished, setCountdownFinished] = useState(false);
+  const [waitingForNextRound, setWaitingForNextRound] = useState(false);
   
   const slotsRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { playSound } = useSoundEffect();
@@ -95,23 +106,24 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
   }, []);
 
   useEffect(() => {
-    if (countdownFinished && !isSpinning) {
+    if (countdownFinished && !isSpinning && !waitingForNextRound) {
       startSpinning();
     }
-  }, [countdownFinished]);
+  }, [countdownFinished, isSpinning, waitingForNextRound]);
 
   useEffect(() => {
-    if (currentRound > 0 && currentRound < cases.length && !gameFinished) {
+    if (waitingForNextRound && currentRound < cases.length && !gameFinished) {
       setCurrentCase(cases[currentRound]);
       const timer = setTimeout(() => {
+        setWaitingForNextRound(false);
         setCountdownFinished(false);
         startCountdown();
       }, 2000);
       return () => clearTimeout(timer);
-    } else if (currentRound === cases.length && !gameFinished) {
+    } else if (currentRound >= cases.length && !gameFinished) {
       endGame();
     }
-  }, [currentRound, cases.length]);
+  }, [waitingForNextRound, currentRound, cases.length, gameFinished]);
 
   const startCountdown = () => {
     setCountdown(3);
@@ -178,9 +190,9 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
       setRoundResults(newRoundResults);
       setDisplayedUsers(updatedUsers);
       
-      setTimeout(() => {
-        setCurrentRound(prev => prev + 1);
-      }, 2000);
+      // Set to wait for next round
+      setWaitingForNextRound(true);
+      setCurrentRound(prev => prev + 1);
     }, maxDuration + 1000);
   };
   
@@ -190,12 +202,85 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
   
   const endGame = () => {
     setGameFinished(true);
+    
+    // Calculate the winner based on the game mode
+    const updatedUsers = [...displayedUsers];
+    
+    // Create teams map for calculation
+    const teamsMap: Record<number, User[]> = {};
+    const teamTotals: Record<number, number> = {};
+    
+    updatedUsers.forEach(user => {
+      const teamId = user.team || 0;
+      if (!teamsMap[teamId]) {
+        teamsMap[teamId] = [];
+        teamTotals[teamId] = 0;
+      }
+      teamsMap[teamId].push(user);
+      teamTotals[teamId] += user.totalWin;
+    });
+    
+    // Process the total reward
+    const totalReward = updatedUsers.reduce((sum, user) => sum + user.totalWin, 0);
+    
+    if (isGroupMode) {
+      // In group mode, split rewards evenly among all players
+      const perUserReward = totalReward / updatedUsers.length;
+      updatedUsers.forEach(user => {
+        user.totalWin = perUserReward;
+      });
+    } else if (isCursedMode) {
+      // In cursed mode, the team with the lowest total wins
+      const teams = Object.keys(teamTotals).map(Number);
+      const winningTeam = teams.reduce((lowest, team) => 
+        teamTotals[team] < teamTotals[lowest] ? team : lowest, teams[0]);
+      
+      // Calculate the reward for winning team
+      const winningTeamSize = teamsMap[winningTeam].length;
+      const winningTeamReward = totalReward;
+      const perWinnerReward = winningTeamReward / winningTeamSize;
+      
+      // Assign rewards
+      updatedUsers.forEach(user => {
+        const isWinner = (user.team || 0) === winningTeam;
+        user.totalWin = isWinner ? perWinnerReward : 0;
+      });
+    } else {
+      // Standard mode - find the team with highest total
+      const teams = Object.keys(teamTotals).map(Number);
+      const winningTeam = teams.reduce((highest, team) => 
+        teamTotals[team] > teamTotals[highest] ? team : highest, teams[0]);
+      
+      // Calculate the reward for winning team
+      const winningTeamSize = teamsMap[winningTeam].length;
+      const winningTeamReward = totalReward;
+      const perWinnerReward = winningTeamReward / winningTeamSize;
+      
+      // Assign rewards
+      updatedUsers.forEach(user => {
+        const isWinner = (user.team || 0) === winningTeam;
+        user.totalWin = isWinner ? perWinnerReward : 0;
+      });
+    }
+    
+    // Set the final displayed users
+    setDisplayedUsers(updatedUsers);
+    
     toast.success('Battle completed!');
     playSound('plinkoWin');
     
     if (onFinish) {
-      onFinish(displayedUsers);
+      onFinish(updatedUsers);
     }
+    
+    // Show game result notification
+    const topWinner = [...updatedUsers].sort((a, b) => b.totalWin - a.totalWin)[0];
+    showGameResult({
+      success: true,
+      message: `${topWinner.name} won the battle!`,
+      amount: Math.floor(topWinner.totalWin),
+      duration: 5000
+    });
   };
 
   return (
@@ -213,6 +298,18 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
             value={(currentRound / cases.length) * 100}
             className="h-2 bg-gray-700"
           />
+        )}
+        
+        {isCursedMode && (
+          <div className="mt-2 px-3 py-1 bg-red-900/40 inline-block rounded-md text-red-400 text-sm">
+            CURSED MODE: Lowest value wins!
+          </div>
+        )}
+        
+        {isGroupMode && (
+          <div className="mt-2 px-3 py-1 bg-blue-900/40 inline-block rounded-md text-blue-400 text-sm">
+            GROUP MODE: Rewards split evenly
+          </div>
         )}
       </div>
       
@@ -285,6 +382,15 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
               )}
             </div>
             
+            {/* Bottom border that indicates team */}
+            {user.team !== undefined && (
+              <div className={`absolute bottom-0 left-0 right-0 h-1 ${
+                user.team === 0 ? 'bg-blue-500' : 
+                user.team === 1 ? 'bg-red-500' : 
+                user.team === 2 ? 'bg-green-500' : 'bg-yellow-500'
+              }`}></div>
+            )}
+            
             {roundResults[user.id] && roundResults[user.id].length > 0 && (
               <div className="mt-4 border-t-2 border-gray-700 pt-4">
                 <h4 className="text-sm font-medium text-gray-300 mb-2">Items Won:</h4>
@@ -311,14 +417,47 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
       </div>
       
       {gameFinished && (
-        <div className="flex justify-center mt-4">
-          <Button 
-            onClick={() => window.location.reload()} 
-            variant="outline" 
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            New Battle
-          </Button>
+        <div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            {displayedUsers.map((user) => 
+              roundResults[user.id]?.map((item, itemIndex) => (
+                <div 
+                  key={`${user.id}-result-${itemIndex}`}
+                  className={`p-3 rounded-md border-2 ${
+                    user.totalWin === Math.max(...displayedUsers.map(u => u.totalWin)) 
+                      ? 'border-yellow-400' 
+                      : 'border-gray-700'
+                  } bg-gray-800`}
+                >
+                  <div className="flex flex-col items-center">
+                    <img
+                      src={item.image || '/placeholder.svg'}
+                      alt={item.name}
+                      className="w-16 h-16 object-contain mb-2"
+                    />
+                    <p className="text-white text-sm text-center">{item.name}</p>
+                    <p className="text-green-400 text-sm">${item.price.toFixed(2)}</p>
+                    <div className="mt-2 text-gray-400 text-xs flex items-center">
+                      <div className="w-4 h-4 rounded-full overflow-hidden mr-1">
+                        <img src={user.avatar || '/placeholder.svg'} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <span className="truncate max-w-[80px]">{user.name}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex justify-center mt-4">
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline" 
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              New Battle
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -356,14 +495,16 @@ const mockUsers: User[] = [
     name: 'Player 1',
     avatar: '/placeholder.svg',
     items: [],
-    totalWin: 0
+    totalWin: 0,
+    team: 0
   },
   {
     id: '2',
     name: 'Player 2',
     avatar: '/placeholder.svg',
     items: [],
-    totalWin: 0
+    totalWin: 0,
+    team: 1
   }
 ];
 
