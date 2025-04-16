@@ -336,7 +336,7 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
     setCaseInfoOpen(true);
   };
 
-  const onClose = () => {
+  const resetBattle = () => {
     setPlayers([]);
     setBattleStarted(false);
     setWinner(null);
@@ -637,7 +637,7 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
             </div>
             
             <button 
-              onClick={onClose}
+              onClick={resetBattle}
               className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md transition-colors"
             >
               Reset Battle

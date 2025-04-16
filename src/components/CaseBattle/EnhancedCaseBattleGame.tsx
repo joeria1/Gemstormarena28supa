@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Award, RefreshCw, ChevronLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -70,7 +69,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
       setReadyPlayers([...readyPlayers, playerId]);
       playSound('caseSelect');
 
-      // If all players are ready, start the game
       if (readyPlayers.length + 1 === actualPlayers.filter(p => !p.isBot).length) {
         startGame();
       }
@@ -81,7 +79,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     toast.success("Bot added to the game");
     playSound('caseSelect');
     
-    // Check if all slots are filled
     if (readyPlayers.length === actualPlayers.filter(p => !p.isBot).length - 1) {
       startGame();
     }
@@ -97,15 +94,12 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           clearInterval(timer);
           playSound('caseSelect');
           
-          // After countdown, simulate spinning for 5 seconds
           setTimeout(() => {
             setGameState('results');
             
-            // Randomly select winning team
             const winTeam = Math.random() > 0.5 ? 0 : 1;
             setWinningTeam(winTeam);
             
-            // Simulate results
             const simulatedResults = actualPlayers.map(player => ({
               ...player,
               isWinner: player.team === winTeam,

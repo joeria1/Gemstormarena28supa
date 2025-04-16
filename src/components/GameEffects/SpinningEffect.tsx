@@ -1,5 +1,5 @@
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 interface SpinningEffectProps {
@@ -7,14 +7,26 @@ interface SpinningEffectProps {
   children: ReactNode;
   duration?: number;
   intensity?: number;
+  onComplete?: () => void;
 }
 
 const SpinningEffect: React.FC<SpinningEffectProps> = ({ 
   isSpinning, 
   children,
   duration = 8,
-  intensity = 1
+  intensity = 1,
+  onComplete
 }) => {
+  useEffect(() => {
+    if (isSpinning && onComplete) {
+      const timer = setTimeout(() => {
+        onComplete();
+      }, duration * 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isSpinning, duration, onComplete]);
+
   const rotateAnimation = {
     animate: isSpinning ? {
       rotate: 360,
