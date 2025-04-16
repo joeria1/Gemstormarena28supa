@@ -224,14 +224,16 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
               <img 
                 src="/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png" 
                 alt="Spinning item" 
-                className="w-16 h-16 object-contain animate-spin" 
+                className={`w-16 h-16 object-contain animate-spin`} 
               />
               {index % 2 === 0 && (
                 <div className="absolute -left-10 top-1/2 transform -translate-y-1/2 text-red-500 text-3xl font-bold">👹</div>
               )}
               {index === 1 && (
                 <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
-                  <SpinningEffect />
+                  <SpinningEffect isSpinning={true} onComplete={() => {}}>
+                    <div className="w-8 h-8 bg-blue-500 rounded-full"></div>
+                  </SpinningEffect>
                 </div>
               )}
               {index % 2 === 1 && (

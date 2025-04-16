@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -219,10 +218,7 @@ const EnhancedHome = () => {
 
       <section className="py-12 px-4 max-w-7xl mx-auto">
         <h2 className="text-3xl font-bold mb-8 text-center">Live Case Battles</h2>
-        <CaseBattlesList 
-          onJoinBattle={handleJoinBattle} 
-          onSpectate={handleSpectateBattle} 
-        />
+        <CaseBattlesList />
       </section>
 
       {/* Replace the old popup with our new enhanced one */}

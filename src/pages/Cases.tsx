@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import ImprovedCaseBattleCreator from '../components/CaseBattle/ImprovedCaseBattleCreator';
@@ -16,7 +15,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-// Define case items
 const caseTypes = [
   {
     id: 'case-1',
@@ -113,8 +111,6 @@ const Cases = () => {
   const [selectedCase, setSelectedCase] = useState<string | null>(null);
   
   const handleCreateBattle = (battleSettings: any) => {
-    // In a real app, you'd create a battle on the server
-    // For now, we'll just generate a random ID
     const newBattleId = `battle-${Math.floor(Math.random() * 10000)}`;
     setActiveBattleId(newBattleId);
   };
@@ -142,11 +138,7 @@ const Cases = () => {
       return;
     }
     
-    // Deduct balance
     updateBalance(-selectedCase.price);
-    
-    // In a real app, this would be a call to determine the prize from the server
-    // For now, we'll just generate a random item based on the drop chances
     
     const random = Math.random() * 100;
     let cumulativeChance = 0;
@@ -160,10 +152,8 @@ const Cases = () => {
       }
     }
     
-    // Award the prize
     updateBalance(wonItem.value);
     
-    // Show success message
     toast.success(`You won: ${wonItem.name}`, {
       description: `Worth ${wonItem.value} gems!`
     });
@@ -272,7 +262,7 @@ const Cases = () => {
             </div>
             
             <ImprovedCaseBattleCreator onCreateBattle={handleCreateBattle} />
-            <CaseBattlesList onJoinBattle={handleJoinBattle} />
+            <CaseBattlesList />
           </div>
         </>
       )}

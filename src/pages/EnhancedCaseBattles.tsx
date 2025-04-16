@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Plus, X, ChevronDown, ChevronUp, Search, Filter, User, Users, Robot } from 'lucide-react';
+import { ChevronLeft, Plus, X, ChevronDown, ChevronUp, Search, Filter, User, Users, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import CaseBattleGame from '@/components/CaseBattle/EnhancedCaseBattleGame';
@@ -226,34 +225,16 @@ const EnhancedCaseBattles = () => {
     <div className="w-full max-w-6xl mx-auto p-4">
       <div className="bg-[#0a1424] rounded-lg border border-[#1a2c4c] p-4 mb-6">
         <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center">
-            <Link 
-              to="/case-battles" 
-              className="flex items-center text-gray-300 hover:text-white transition-colors mr-4"
-            >
-              <ChevronLeft className="w-5 h-5 mr-1" />
-              Back to lobby
-            </Link>
-            <div className="flex items-center text-xl font-bold text-white">
-              <div className="text-[#00d7a3] mr-2 font-medium">✗</div>
-              BATTLES CREATION
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center">
-              <span className="text-gray-400 mr-2">Total Cost</span>
-              <div className="flex items-center">
-                <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-5 h-5 mr-1" />
-                <span className="text-white font-bold">{totalCost.toFixed(2)}</span>
-              </div>
-            </div>
-            <Button 
-              onClick={() => handleCreateBattle()} 
-              className="bg-[#00d7a3] hover:bg-[#00bf8f] text-white rounded-md px-6 py-2 transition-colors"
-            >
-              <span className="text-white mr-2 font-medium">✗</span>
-              CREATE
-            </Button>
+          <Link 
+            to="/case-battles" 
+            className="flex items-center text-gray-300 hover:text-white transition-colors mr-4"
+          >
+            <ChevronLeft className="w-5 h-5 mr-1" />
+            Back to lobby
+          </Link>
+          <div className="flex items-center text-xl font-bold text-white">
+            <div className="text-[#00d7a3] mr-2 font-medium">✗</div>
+            BATTLES CREATION
           </div>
         </div>
 
@@ -323,7 +304,7 @@ const EnhancedCaseBattles = () => {
                     <div className="text-center text-white font-medium mb-2">{caseData.name}</div>
                     <div className="flex justify-center mb-2">
                       <div className="flex items-center">
-                        <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
+                        <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-5 h-5 mr-1" />
                         <span className="text-white font-bold">{caseData.price.toFixed(2)}</span>
                       </div>
                     </div>
@@ -544,7 +525,7 @@ const EnhancedCaseBattles = () => {
                         className="bg-[#0f2e3b] border border-[#00d7a3] text-white rounded-md px-4 py-2 hover:bg-[#1a5a4f] transition-colors"
                       >
                         <div className="flex items-center">
-                          <Robot className="w-5 h-5 mr-2 text-[#00d7a3]" />
+                          <Bot className="w-5 h-5 mr-2 text-[#00d7a3]" />
                           <span>Call Bot</span>
                         </div>
                       </button>
