@@ -23,10 +23,23 @@ const casesData = [
   { id: 10, name: 'Shining Galaxy', price: 961.22, image: '/lovable-uploads/bb236c40-d9ac-4887-8448-f955d662b8bc.png' },
 ];
 
-// Mock items that can be won from cases
-const itemsData = [
-  { id: 1, name: 'Catrina Día de Muertos Mask', price: 138, rarity: 'rare', image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png', dropChance: '5%' },
-  { id: 2, name: 'Bozo', price: 10, rarity: 'common', image: '', dropChance: '95%' },
+// Convert items data to match SliderItem type
+const itemsData: SliderItem[] = [
+  { id: '1', name: 'Catrina Día de Muertos Mask', price: 138, rarity: 'rare', image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png' },
+  { id: '2', name: 'Bozo', price: 10, rarity: 'common', image: '/placeholder.svg' },
+  { id: '3', name: 'Gold Chain', price: 55, rarity: 'uncommon', image: '/placeholder.svg' },
+  { id: '4', name: 'Diamond Ring', price: 280, rarity: 'epic', image: '/placeholder.svg' },
+  { id: '5', name: 'Rare Gem', price: 425, rarity: 'legendary', image: '/placeholder.svg' },
+];
+
+// Additional slider items for more variety
+const sliderItems: SliderItem[] = [
+  ...itemsData,
+  { id: '6', name: 'Emerald Necklace', image: '/placeholder.svg', rarity: 'rare', price: 175 },
+  { id: '7', name: 'Golden Statue', image: '/placeholder.svg', rarity: 'epic', price: 320 },
+  { id: '8', name: 'Silver Watch', image: '/placeholder.svg', rarity: 'uncommon', price: 85 },
+  { id: '9', name: 'Bronze Medal', image: '/placeholder.svg', rarity: 'common', price: 15 },
+  { id: '10', name: 'Platinum Trophy', image: '/placeholder.svg', rarity: 'legendary', price: 580 }
 ];
 
 interface EnhancedCaseBattlesProps {
@@ -60,6 +73,8 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     { id: 3, name: '', avatar: '', ready: false, isBot: false, team: 1 },
     { id: 4, name: '', avatar: '', ready: false, isBot: false, team: 1 },
   ]);
+  const [sliderSpinning, setSliderSpinning] = useState(false);
+  const [playerItems, setPlayerItems] = useState<Record<number, SliderItem[]>>({});
 
   const { playSound } = useSoundEffect();
 
@@ -186,27 +201,12 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
         if (prev === null || prev <= 1) {
           clearInterval(timer);
           
-          // After countdown, show results after 5 seconds
+          // After countdown, start spinning automatically
+          setSliderSpinning(true);
+          
+          // After spinning completes (5 seconds), show results
           setTimeout(() => {
-            const team1 = players.filter(p => p.team === 0 && p.name !== '');
-            const team2 = players.filter(p => p.team === 1 && p.name !== '');
-            
-            // Determine winner randomly
-            const winningTeam = Math.random() > 0.5 ? 0 : 1;
-            const winningPlayers = players.map(p => ({
-              ...p,
-              result: p.team === winningTeam ? 'WINNER' : 'LOST BATTLE',
-              winnings: p.team === winningTeam ? Math.floor(totalCost * 0.9 / team1.length) : 0,
-              items: p.team === winningTeam ? [itemsData[0]] : [itemsData[1]]
-            }));
-            
-            setBattleResults({
-              winners: winningPlayers.filter(p => p.team === winningTeam),
-              losers: winningPlayers.filter(p => p.team !== winningTeam),
-              players: winningPlayers
-            });
-            
-            setGamePhase('results');
+            finishBattle();
           }, 5000);
           
           return null;
@@ -214,6 +214,75 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
         return prev - 1;
       });
     }, 1000);
+  };
+
+  const finishBattle = () => {
+    setSliderSpinning(false);
+    
+    // Generate random items for each player
+    const updatedPlayerItems: Record<number, SliderItem[]> = {};
+    const updatedPlayers = [...players];
+    
+    // Determine winning team randomly
+    const winningTeam = Math.random() > 0.5 ? 0 : 1;
+    
+    // Calculate number of players per team
+    const team1 = players.filter(p => p.team === 0 && p.name !== '');
+    const team2 = players.filter(p => p.team === 1 && p.name !== '');
+    
+    // Generate unique items for each player
+    players.forEach(player => {
+      if (player.name === '') return;
+      
+      // Winning team gets better items
+      let playerItems: SliderItem[];
+      let totalValue = 0;
+      
+      if (player.team === winningTeam) {
+        // Winners get better items
+        const betterItems = sliderItems.filter(item => 
+          item.rarity === 'epic' || item.rarity === 'legendary' || item.rarity === 'rare'
+        );
+        const randomItem = betterItems[Math.floor(Math.random() * betterItems.length)];
+        playerItems = [randomItem];
+        totalValue = randomItem.price;
+      } else {
+        // Losers get common items
+        const commonItems = sliderItems.filter(item => 
+          item.rarity === 'common' || item.rarity === 'uncommon'
+        );
+        const randomItem = commonItems[Math.floor(Math.random() * commonItems.length)];
+        playerItems = [randomItem];
+        totalValue = randomItem.price;
+      }
+      
+      updatedPlayerItems[player.id] = playerItems;
+      
+      // Update player with result info
+      const playerIndex = updatedPlayers.findIndex(p => p.id === player.id);
+      if (playerIndex !== -1) {
+        updatedPlayers[playerIndex] = {
+          ...player,
+          result: player.team === winningTeam ? 'WINNER' : 'LOST BATTLE',
+          winnings: player.team === winningTeam ? Math.floor(totalCost * 0.9 / (player.team === 0 ? team1.length : team2.length)) : 0,
+          totalValue: totalValue
+        };
+      }
+    });
+    
+    setPlayerItems(updatedPlayerItems);
+    setPlayers(updatedPlayers);
+    
+    const winners = updatedPlayers.filter(p => p.team === winningTeam && p.name !== '');
+    const losers = updatedPlayers.filter(p => p.team !== winningTeam && p.name !== '');
+    
+    setBattleResults({
+      winners,
+      losers,
+      players: updatedPlayers.filter(p => p.name !== '')
+    });
+    
+    setGamePhase('results');
   };
 
   const handleRecreate = () => {
@@ -626,13 +695,15 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
 
               <div className="min-h-[180px]">
                 <CaseSlider
-                  items={itemsData}
-                  onComplete={(item) => {}}
-                  isSpinning={countdown === null}
+                  items={sliderItems}
+                  onComplete={() => {}}
+                  isSpinning={sliderSpinning}
+                  autoSpin={true}
                   spinDuration={5000}
-                  caseName="Standard Case"
+                  caseName={selectedCases.length > 0 ? selectedCases[0].name : "Standard Case"}
                   playerName={player.name}
-                  highlightPlayer={index === 0}
+                  highlightPlayer={player.team === 0}
+                  isCompact={true}
                 />
               </div>
               
@@ -687,7 +758,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                   <div className="text-white font-medium">{player.name}</div>
                   <div className="flex items-center">
                     <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
-                    <span className="text-white">{player.team === 0 ? 10 : (player.name === 'P. Diddy' ? 138 : 10)}</span>
+                    <span className="text-white">{player.totalValue || 0}</span>
                   </div>
                 </div>
               </div>
@@ -699,7 +770,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                 {player.result === 'WINNER' && (
                   <div className="flex items-center justify-center mt-2">
                     <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-5 h-5 mr-1" />
-                    <span className="text-white font-bold">+84.50</span>
+                    <span className="text-white font-bold">+{player.winnings?.toFixed(2) || '0.00'}</span>
                   </div>
                 )}
               </div>
@@ -733,29 +804,33 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
         </div>
         
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {battleResults?.players.flatMap(player => 
-            player.items.map((item, itemIdx) => (
+          {battleResults?.players.map(player => {
+            const playerItemsList = playerItems[player.id] || [];
+            return playerItemsList.map((item, itemIdx) => (
               <div key={`item-${player.id}-${itemIdx}`} className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 relative">
                 <div className="absolute top-3 right-3 bg-[#0f2e3b] text-[#00d7a3] px-2 py-0.5 rounded text-sm">
-                  {item.dropChance}
+                  {item.rarity === 'legendary' ? '1%' : 
+                   item.rarity === 'epic' ? '5%' : 
+                   item.rarity === 'rare' ? '10%' : 
+                   item.rarity === 'uncommon' ? '30%' : '54%'}
                 </div>
                 <div className="flex justify-center mb-2">
                   <img 
-                    src={item.image || (player.name === player.name ? '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png' : '')} 
+                    src={item.image} 
                     alt={item.name} 
                     className="w-16 h-16 object-contain" 
                   />
                 </div>
                 <div className="text-center text-white text-sm mb-1">
-                  {player.name === 'P. Diddy' ? 'Catrina Día de Muertos Mask' : 'Bozo'}
+                  {item.name}
                 </div>
                 <div className="flex items-center justify-center">
                   <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
-                  <span className="text-white font-bold">{player.name === 'P. Diddy' ? '138.00' : '10.00'}</span>
+                  <span className="text-white font-bold">{item.price.toFixed(2)}</span>
                 </div>
               </div>
-            ))
-          )}
+            ));
+          })}
         </div>
       </div>
     </div>

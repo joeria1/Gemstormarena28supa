@@ -45,6 +45,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   const [winningTeam, setWinningTeam] = useState<number | null>(null);
   const { playSound } = useSoundEffect();
   const [sliderSpinning, setSliderSpinning] = useState(false);
+  const [playerItems, setPlayerItems] = useState<Record<number, SliderItem[]>>({});
   
   const defaultPlayers: Player[] = [
     { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', balance: 0, team: 0 },
@@ -116,42 +117,55 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     // Set all players to spin simultaneously
     setSliderSpinning(true);
     
+    // Generate random items for each player
+    const newPlayerItems: Record<number, SliderItem[]> = {};
+    
     // After spinning completes (same duration for all), show results
     setTimeout(() => {
       setSliderSpinning(false);
       
+      // Determine winning team randomly
+      const winTeam = Math.random() > 0.5 ? 0 : 1;
+      setWinningTeam(winTeam);
+
+      // Generate random items for each player based on their team
+      actualPlayers.forEach(player => {
+        if (player.team === winTeam) {
+          // Winners get better items
+          const betterItems = sliderItems.filter(item => 
+            item.rarity === 'epic' || item.rarity === 'rare'
+          );
+          newPlayerItems[player.id] = [betterItems[Math.floor(Math.random() * betterItems.length)]];
+        } else {
+          // Losers get common items
+          const commonItems = sliderItems.filter(item => 
+            item.rarity === 'common' || item.rarity === 'uncommon'
+          );
+          newPlayerItems[player.id] = [commonItems[Math.floor(Math.random() * commonItems.length)]];
+        }
+      });
+      
+      setPlayerItems(newPlayerItems);
+      
+      // Generate result data with dynamic values
+      const simulatedResults = actualPlayers.map(player => {
+        const playerItem = newPlayerItems[player.id]?.[0];
+        const isWinner = player.team === winTeam;
+        
+        return {
+          ...player,
+          isWinner,
+          winAmount: isWinner ? Math.floor(totalValue * 0.9 / actualPlayers.filter(p => p.team === winTeam).length) : 0,
+          items: playerItem ? [playerItem] : [],
+          balance: playerItem ? playerItem.price : 0
+        };
+      });
+      
+      setResults(simulatedResults);
+      
       // Short delay before showing results
       setTimeout(() => {
         setGameState('results');
-        const winTeam = Math.random() > 0.5 ? 0 : 1;
-        setWinningTeam(winTeam);
-        
-        const simulatedResults = actualPlayers.map(player => ({
-          ...player,
-          isWinner: player.team === winTeam,
-          winAmount: player.team === winTeam ? Math.floor(totalValue * 0.9 / actualPlayers.filter(p => p.team === winTeam).length) : 0,
-          items: player.team === winTeam ? [
-            { 
-              id: 1, 
-              name: 'Catrina Día de Muertos Mask', 
-              price: 138, 
-              image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png', 
-              rarity: 'rare',
-              dropChance: '5%'
-            }
-          ] : [
-            { 
-              id: 2, 
-              name: 'Bozo', 
-              price: 10, 
-              image: '', 
-              rarity: 'common',
-              dropChance: '95%'
-            }
-          ]
-        }));
-        
-        setResults(simulatedResults);
       }, 1000);
     }, 5000); // 5 seconds for all players
   };
@@ -239,13 +253,14 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
               <CaseSlider
                 items={sliderItems}
                 onComplete={() => {}}
-                autoSpin={false}
+                autoSpin={true}
                 isSpinning={sliderSpinning}
                 playerName={player.name}
                 highlightPlayer={player.team === 0}
                 options={{ duration: 5000, itemSize: 'small' }}
                 isCompact={true}
                 caseName={`Case ${index + 1}`}
+                spinDuration={5000}
               />
             </div>
           </div>
@@ -254,6 +269,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     } else {
       const result = results.find(r => r.id === player.id);
       const isWinner = result?.isWinner;
+      const playerItem = playerItems[player.id]?.[0];
       
       return (
         <div key={`result-${index}`} className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 relative">
@@ -265,7 +281,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
               <div className="text-white font-medium">{player.name}</div>
               <div className="flex items-center">
                 <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
-                <span className="text-white">{player.name === 'P. Diddy' ? 138 : 10}</span>
+                <span className="text-white">{playerItem ? playerItem.price : 0}</span>
               </div>
             </div>
           </div>
@@ -303,15 +319,19 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mt-6">
-        {results.flatMap(player => 
-          player.items.map((item: any, itemIdx: number) => (
+        {results.map(player => {
+          const playerItemsArray = playerItems[player.id] || [];
+          return playerItemsArray.map((item, itemIdx) => (
             <div key={`item-${player.id}-${itemIdx}`} className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 relative">
               <div className="absolute top-3 right-3 bg-[#0f2e3b] text-[#00d7a3] px-2 py-0.5 rounded text-sm">
-                {item.dropChance}
+                {item.rarity === 'legendary' ? '1%' : 
+                 item.rarity === 'epic' ? '5%' : 
+                 item.rarity === 'rare' ? '10%' : 
+                 item.rarity === 'uncommon' ? '30%' : '54%'}
               </div>
               <div className="flex justify-center mb-2">
                 <img 
-                  src={item.image || '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png'} 
+                  src={item.image} 
                   alt={item.name} 
                   className="w-16 h-16 object-contain" 
                 />
@@ -324,8 +344,8 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
                 <span className="text-white font-bold">{item.price.toFixed(2)}</span>
               </div>
             </div>
-          ))
-        )}
+          ));
+        })}
       </div>
     );
   };

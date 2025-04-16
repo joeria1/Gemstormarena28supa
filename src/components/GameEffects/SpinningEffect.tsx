@@ -55,6 +55,7 @@ const SpinningEffect: React.FC<SpinningEffectProps> = ({
           onComplete={onComplete || (() => {})}
           isSpinning={isSpinning}
           spinDuration={duration * 1000}
+          autoSpin={true}
           caseName="Standard Case"
         />
       ) : (
