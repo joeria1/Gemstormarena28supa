@@ -1,425 +1,477 @@
+
 import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Slider } from '../ui/slider';
-import { Switch } from '../ui/switch';
-import { useToast } from '../ui/use-toast';
-import { useUser } from '../../context/UserContext';
-import { useSound } from '../SoundManager';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Bomb, RefreshCw, DollarSign } from "lucide-react";
+import { useSoundEffect } from '@/hooks/useSoundEffect';
 import { toast } from 'sonner';
-import { showGameResult } from '../GameResultNotification';
+import { useUser } from '@/context/UserContext';
 
-const GRID_SIZES = {
-  "5x1": { rows: 5, cols: 1 },
-  "3x3": { rows: 3, cols: 3 },
-  "5x5": { rows: 5, cols: 5 },
-};
+interface Tile {
+  id: number;
+  revealed: boolean;
+  isMine: boolean;
+  value: number;
+  multiplier: number;
+  revealOrder: number | null;
+}
 
-type GridSize = keyof typeof GRID_SIZES;
-
-const ImprovedMinesGame: React.FC = () => {
+const ImprovedMinesInterface = () => {
   const { user, updateBalance } = useUser();
-  const { playSound } = useSound();
-  const { toast: uiToast } = useToast();
-
-  const [gridSize, setGridSize] = useState<GridSize>("5x5");
-  const [minesCount, setMinesCount] = useState<number>(5);
+  const [mines, setMines] = useState<number>(1);
+  const [tiles, setTiles] = useState<Tile[]>([]);
+  const [gameStarted, setGameStarted] = useState<boolean>(false);
+  const [gameOver, setGameOver] = useState<boolean>(false);
+  const [safeRevealedCount, setSafeRevealedCount] = useState<number>(0);
+  const [remainingTiles, setRemainingTiles] = useState<number>(25);
+  const [currentProbability, setCurrentProbability] = useState<number>(0);
   const [betAmount, setBetAmount] = useState<number>(10);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [gameCompleted, setGameCompleted] = useState<boolean>(false);
-  const [safetyEnabled, setSafetyEnabled] = useState<boolean>(false);
-  const [nextTileIsSafe, setNextTileIsSafe] = useState<boolean>(false);
-  const [usedSafety, setUsedSafety] = useState<boolean>(false);
-
-  const [grid, setGrid] = useState<Array<{ isMine: boolean; revealed: boolean; multiplier: number }>>([]);
-  const [revealedCount, setRevealedCount] = useState<number>(0);
-  const [minePositions, setMinePositions] = useState<number[]>([]);
   const [currentMultiplier, setCurrentMultiplier] = useState<number>(1);
-  const [potentialWinnings, setPotentialWinnings] = useState<number>(0);
+  const [potentialPayout, setPotentialPayout] = useState<number>(0);
+  const [fixedMultipliers, setFixedMultipliers] = useState<number[]>([]);
+  
+  const { playSound } = useSoundEffect();
 
-  const betPresets = [5, 10, 25, 50, 100];
-
+  // Initialize tiles
   useEffect(() => {
-    initializeGrid();
+    resetGame();
   }, []);
 
-  const initializeGrid = () => {
-    const { rows, cols } = GRID_SIZES[gridSize];
-    const totalTiles = rows * cols;
-    
-    const newGrid = Array(totalTiles).fill(null).map(() => ({
-      isMine: false,
+  // Generate fixed multiplier progression from 1.01x to 24x
+  useEffect(() => {
+    generateFixedMultipliers();
+  }, []);
+
+  // Calculate current probability of hitting a mine
+  useEffect(() => {
+    if (gameStarted && !gameOver) {
+      const remainingSafeTiles = remainingTiles - mines;
+      const probability = (remainingSafeTiles / remainingTiles) * 100;
+      setCurrentProbability(Math.round(probability * 100) / 100);
+    } else if (!gameStarted) {
+      // On first move
+      const probability = ((25 - mines) / 25) * 100;
+      setCurrentProbability(Math.round(probability * 100) / 100);
+    }
+  }, [remainingTiles, mines, gameStarted, gameOver]);
+
+  // Update potential payout when multiplier or bet amount changes
+  useEffect(() => {
+    setPotentialPayout(betAmount * currentMultiplier);
+  }, [betAmount, currentMultiplier]);
+
+  const resetGame = () => {
+    const newTiles = Array(25).fill(null).map((_, index) => ({
+      id: index,
       revealed: false,
-      multiplier: 0
+      isMine: false,
+      value: 0,
+      multiplier: 0,
+      revealOrder: null
     }));
     
-    setGrid(newGrid);
-    setRevealedCount(0);
-    setMinePositions([]);
+    setTiles(newTiles);
+    setGameStarted(false);
+    setGameOver(false);
+    setSafeRevealedCount(0);
+    setRemainingTiles(25);
     setCurrentMultiplier(1);
-    setPotentialWinnings(betAmount);
-    setGameCompleted(false);
-    setNextTileIsSafe(false);
-    setUsedSafety(false);
+    setPotentialPayout(betAmount);
+    playSound('buttonClick');
   };
 
-  useEffect(() => {
-    initializeGrid();
-  }, [gridSize]);
-
-  const calculateMaxMines = (): number => {
-    const { rows, cols } = GRID_SIZES[gridSize];
-    return Math.floor((rows * cols) * 0.8);
+  const generateFixedMultipliers = () => {
+    // Create an array of multipliers from 1.01x to 24x with exponential growth
+    const totalSafeTiles = 24; // Maximum possible safe tiles
+    const multipliers = [];
+    
+    // First multiplier is always 1.01x
+    multipliers.push(1.01);
+    
+    for (let i = 1; i < totalSafeTiles; i++) {
+      // Generate a curve that starts slow and increases more rapidly
+      const progress = i / (totalSafeTiles - 1);
+      
+      // Use exponential growth for exciting progression
+      const baseMultiplier = 1.01;
+      const maxMultiplier = 24;
+      const exponent = 1.8; // Controls curve shape
+      
+      const multiplier = baseMultiplier + (Math.pow(progress, exponent) * (maxMultiplier - baseMultiplier));
+      multipliers.push(parseFloat(multiplier.toFixed(2)));
+    }
+    
+    setFixedMultipliers(multipliers);
   };
 
   const startGame = () => {
     if (!user) {
-      toast("Login Required - You need to be logged in to play.");
+      toast.error("Please log in to play");
       return;
     }
-
+    
     if (user.balance < betAmount) {
-      toast(`Insufficient Balance - You need $${betAmount.toFixed(2)} to play.`);
+      toast.error(`Insufficient balance. You need $${betAmount.toFixed(2)} to play.`);
       return;
     }
-
-    updateBalance(-betAmount);
     
-    const { rows, cols } = GRID_SIZES[gridSize];
-    const totalTiles = rows * cols;
-    
-    const minePos: number[] = [];
-    while (minePos.length < minesCount) {
-      const pos = Math.floor(Math.random() * totalTiles);
-      if (!minePos.includes(pos)) {
-        minePos.push(pos);
-      }
+    if (mines <= 0 || mines >= 25) {
+      toast.error("Please select between 1 and 24 mines");
+      return;
     }
     
-    const newGrid = [...grid];
-    minePos.forEach(pos => {
-      newGrid[pos].isMine = true;
+    // Deduct bet amount from balance
+    updateBalance(-betAmount);
+
+    const newTiles = [...tiles];
+    
+    // Reset any previous game state
+    newTiles.forEach(tile => {
+      tile.revealed = false;
+      tile.isMine = false;
+      tile.multiplier = 0;
+      tile.revealOrder = null;
     });
     
-    calculateMultipliers(newGrid, minePos);
-    
-    setGrid(newGrid);
-    setMinePositions(minePos);
-    setIsPlaying(true);
-    setPotentialWinnings(betAmount);
-
-    playSound('gameStart');
-  };
-
-  const calculateMultipliers = (currentGrid: typeof grid, mines: number[]) => {
-    const { rows, cols } = GRID_SIZES[gridSize];
-    const totalTiles = rows * cols;
-    const safeTiles = totalTiles - mines.length;
-    
-    const baseMultiplier = 0.95 / (1 - (mines.length / totalTiles));
-    
-    for (let i = 0; i < totalTiles; i++) {
-      if (!currentGrid[i].isMine) {
-        const tileMultiplier = baseMultiplier * (totalTiles / (totalTiles - 1 - revealedCount));
-        currentGrid[i].multiplier = parseFloat((currentMultiplier * tileMultiplier).toFixed(2));
-      }
-    }
-  };
-
-  const revealTile = (index: number) => {
-    if (!isPlaying || grid[index].revealed) return;
-    
-    if (nextTileIsSafe && !usedSafety) {
-      if (grid[index].isMine) {
-        const safeTileIndex = grid.findIndex(tile => !tile.isMine && !tile.revealed);
-        if (safeTileIndex !== -1) {
-          handleTileClick(safeTileIndex);
-        }
-        setUsedSafety(true);
-        setNextTileIsSafe(false);
-        return;
+    // Place mines randomly
+    let minesPlaced = 0;
+    while (minesPlaced < mines) {
+      const randomIndex = Math.floor(Math.random() * 25);
+      if (!newTiles[randomIndex].isMine) {
+        newTiles[randomIndex].isMine = true;
+        minesPlaced++;
       }
     }
     
-    handleTileClick(index);
-    setNextTileIsSafe(false);
+    setTiles(newTiles);
+    setGameStarted(true);
+    setGameOver(false);
+    setSafeRevealedCount(0);
+    setRemainingTiles(25);
+    setCurrentMultiplier(1);
+    setPotentialPayout(betAmount);
+    playSound('buttonClick');
   };
 
   const handleTileClick = (index: number) => {
-    const newGrid = [...grid];
-    newGrid[index].revealed = true;
+    if (gameOver || tiles[index].revealed) return;
     
-    if (newGrid[index].isMine) {
-      playSound('gameLose');
+    const newTiles = [...tiles];
+    
+    if (newTiles[index].isMine) {
+      // Hit a mine
+      newTiles[index].revealed = true;
+      setTiles(newTiles);
+      setGameOver(true);
+      playSound('mineExplosion');
+      toast.error("Game over! You hit a mine!");
       
-      minePositions.forEach(pos => {
-        newGrid[pos].revealed = true;
-      });
+      // Reveal all mines
+      setTimeout(() => {
+        const finalTiles = [...newTiles];
+        finalTiles.forEach(tile => {
+          if (tile.isMine) {
+            tile.revealed = true;
+          }
+        });
+        setTiles(finalTiles);
+      }, 500);
       
-      setGrid(newGrid);
-      setIsPlaying(false);
-      setGameCompleted(true);
-      
-      toast("Game Over! You hit a mine!");
     } else {
-      playSound('tileClick');
+      // Safe tile
+      const newSafeRevealedCount = safeRevealedCount + 1;
       
-      const newRevealedCount = revealedCount + 1;
-      const newMultiplier = newGrid[index].multiplier;
-      const newWinnings = betAmount * newMultiplier;
+      // Assign multiplier based on reveal order
+      newTiles[index].revealOrder = newSafeRevealedCount;
+      newTiles[index].revealed = true;
       
-      setGrid(newGrid);
-      setRevealedCount(newRevealedCount);
-      setCurrentMultiplier(newMultiplier);
-      setPotentialWinnings(newWinnings);
+      // Get multiplier from the fixed progression (array index starts at 0)
+      const multiplierIndex = newSafeRevealedCount - 1;
+      const tileMultiplier = fixedMultipliers[multiplierIndex];
       
-      calculateMultipliers(newGrid, minePositions);
+      // Assign multiplier to the revealed tile
+      newTiles[index].multiplier = tileMultiplier;
       
-      const { rows, cols } = GRID_SIZES[gridSize];
-      const totalTiles = rows * cols;
-      const safeTiles = totalTiles - minesCount;
+      // Update current multiplier to the latest revealed tile's multiplier
+      setCurrentMultiplier(tileMultiplier);
       
-      if (newRevealedCount === safeTiles) {
-        playSound('gameWin');
-        
-        setIsPlaying(false);
-        setGameCompleted(true);
-        updateBalance(newWinnings);
-        
-        toast(`You Won! You found all safe tiles and won $${newWinnings.toFixed(2)}!`);
+      setSafeRevealedCount(newSafeRevealedCount);
+      setRemainingTiles(remainingTiles - 1);
+      setTiles(newTiles);
+      playSound('mineClick');
+      
+      // Check if all safe tiles are revealed
+      if (newSafeRevealedCount === 25 - mines) {
+        cashOut(); // Auto cash out if all safe tiles are revealed
+        setGameOver(true);
+        toast.success("Congratulations! You found all safe tiles!");
       }
     }
   };
 
   const cashOut = () => {
-    if (!isPlaying) return;
+    if (!gameStarted || gameOver) return;
     
-    const winnings = potentialWinnings;
+    const winnings = betAmount * currentMultiplier;
     updateBalance(winnings);
+    setGameOver(true);
     
-    const newGrid = [...grid];
-    minePositions.forEach(pos => {
-      newGrid[pos].revealed = true;
+    // Reveal all mines after cashing out
+    const newTiles = [...tiles];
+    newTiles.forEach(tile => {
+      if (tile.isMine) {
+        tile.revealed = true;
+      }
     });
+    setTiles(newTiles);
     
-    setGrid(newGrid);
-    setIsPlaying(false);
-    setGameCompleted(true);
-    
-    playSound('cashOut');
-    
-    toast(`Cashed Out! You cashed out $${winnings.toFixed(2)}!`);
+    playSound('gameWin');
+    toast.success(`You cashed out $${winnings.toFixed(2)}!`);
   };
 
-  const toggleSafetyForNextTile = () => {
-    if (usedSafety) {
-      toast("Safety Already Used - You can only use the safety feature once per game.");
-      return;
+  const handleMineInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    
+    if (isNaN(value)) {
+      setMines(0);
+    } else if (value > 24) {
+      setMines(24);
+    } else {
+      setMines(value);
+    }
+  };
+  
+  const handleBetAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    
+    if (isNaN(value) || value <= 0) {
+      setBetAmount(1);
+    } else {
+      setBetAmount(value);
     }
     
-    if (!isPlaying) {
-      toast("Game Not Active - Start a game first to use the safety feature.");
-      return;
-    }
-    
-    setNextTileIsSafe(!nextTileIsSafe);
+    // Update potential payout
+    setPotentialPayout(value * currentMultiplier);
   };
 
-  const renderMineField = () => {
-    const { rows, cols } = GRID_SIZES[gridSize];
-    
-    return (
-      <div className="grid gap-2" style={{ 
-        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`
-      }}>
-        {grid.map((tile, index) => (
-          <button
-            key={index}
-            onClick={() => revealTile(index)}
-            disabled={!isPlaying || tile.revealed}
-            className={`
-              aspect-square rounded-md flex items-center justify-center text-lg font-bold transition-all
-              ${!tile.revealed 
-                ? 'bg-gray-700 hover:bg-gray-600 active:bg-gray-500' 
-                : tile.isMine
-                  ? 'bg-red-600'
-                  : 'bg-green-600'
-              }
-              ${nextTileIsSafe && !usedSafety && !tile.revealed ? 'ring-2 ring-yellow-400' : ''}
-            `}
-          >
-            {tile.revealed && (
-              tile.isMine 
-                ? '💥' 
-                : `${tile.multiplier.toFixed(2)}x`
-            )}
-          </button>
-        ))}
-      </div>
-    );
+  const setQuickMineCount = (count: number) => {
+    setMines(count);
+    playSound('buttonClick');
   };
-
-  const renderControls = () => {
-    return (
-      <Card className="p-4 space-y-4 bg-gray-800 text-white">
-        <div className="space-y-2">
-          <h2 className="text-xl font-bold">Game Settings</h2>
-          
-          <div className="space-y-1">
-            <Label htmlFor="gridSize">Grid Size</Label>
-            <div className="flex space-x-2">
-              {Object.keys(GRID_SIZES).map((size) => (
-                <Button
-                  key={size}
-                  variant={gridSize === size ? "default" : "outline"}
-                  onClick={() => setGridSize(size as GridSize)}
-                  className={`flex-1 ${gridSize === size ? 'bg-blue-600' : ''}`}
-                >
-                  {size}
-                </Button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="space-y-1">
-            <div className="flex justify-between">
-              <Label htmlFor="minesCount">Number of Mines</Label>
-              <span>{minesCount}</span>
-            </div>
-            <Slider
-              id="minesCount"
-              min={1}
-              max={calculateMaxMines()}
-              step={1}
-              value={[minesCount]}
-              onValueChange={(value) => setMinesCount(value[0])}
-              disabled={isPlaying}
-            />
-          </div>
-          
-          <div className="space-y-1">
-            <Label htmlFor="betAmount">Bet Amount</Label>
-            <div className="flex space-x-2 mb-2">
-              {betPresets.map((preset) => (
-                <Button
-                  key={preset}
-                  variant="outline"
-                  onClick={() => setBetAmount(preset)}
-                  disabled={isPlaying}
-                  className="flex-1"
-                >
-                  ${preset}
-                </Button>
-              ))}
-            </div>
-            <div className="flex space-x-2">
-              <Input
-                id="betAmount"
-                type="number"
-                min={1}
-                value={betAmount}
-                onChange={(e) => setBetAmount(Math.max(1, Number(e.target.value)))}
-                disabled={isPlaying}
-                className="bg-gray-700"
-              />
-            </div>
-          </div>
-          
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="safetySwitch">Safety Feature</Label>
-              <Switch
-                id="safetySwitch"
-                checked={safetyEnabled}
-                onCheckedChange={setSafetyEnabled}
-                disabled={isPlaying}
-              />
-            </div>
-            <p className="text-xs text-gray-400">
-              When enabled, you can activate safety once per game to guarantee your next click is not a mine.
-            </p>
-          </div>
-        </div>
-        
-        <div className="border-t border-gray-700 pt-4">
-          <h2 className="text-xl font-bold mb-2">Game Status</h2>
-          
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            <div className="bg-gray-700 p-2 rounded">
-              <div className="text-sm text-gray-400">Current Multiplier</div>
-              <div className="text-lg font-bold">{currentMultiplier.toFixed(2)}x</div>
-            </div>
-            <div className="bg-gray-700 p-2 rounded">
-              <div className="text-sm text-gray-400">Potential Win</div>
-              <div className="text-lg font-bold">${potentialWinnings.toFixed(2)}</div>
-            </div>
-            <div className="bg-gray-700 p-2 rounded">
-              <div className="text-sm text-gray-400">Tiles Revealed</div>
-              <div className="text-lg font-bold">{revealedCount} / {grid.length - minesCount}</div>
-            </div>
-            <div className="bg-gray-700 p-2 rounded">
-              <div className="text-sm text-gray-400">Mines</div>
-              <div className="text-lg font-bold">{minesCount}</div>
-            </div>
-          </div>
-          
-          {!isPlaying ? (
-            <Button
-              onClick={startGame}
-              disabled={!user || user.balance < betAmount}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              Start Game
-            </Button>
-          ) : (
-            <div className="flex flex-col space-y-2">
-              {safetyEnabled && (
-                <Button
-                  onClick={toggleSafetyForNextTile}
-                  disabled={usedSafety}
-                  className={`w-full ${nextTileIsSafe ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-                >
-                  {nextTileIsSafe ? "Safety Active" : "Activate Safety"}
-                </Button>
-              )}
-              
-              <Button
-                onClick={cashOut}
-                className="w-full bg-green-600 hover:bg-green-700"
-              >
-                Cash Out ${potentialWinnings.toFixed(2)}
-              </Button>
-            </div>
-          )}
-          
-          {gameCompleted && (
-            <Button
-              onClick={initializeGrid}
-              className="w-full mt-2 bg-blue-600 hover:bg-blue-700"
-            >
-              Play Again
-            </Button>
-          )}
-        </div>
-      </Card>
-    );
+  
+  const setQuickBetAmount = (amount: number) => {
+    setBetAmount(amount);
+    setPotentialPayout(amount * currentMultiplier);
+    playSound('buttonClick');
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-1">
-        {renderControls()}
+    <div className="flex flex-col lg:flex-row gap-6 w-full h-full">
+      {/* Settings Panel */}
+      <div className="w-full lg:w-72 bg-slate-900 rounded-lg p-4 space-y-4">
+        <div className="space-y-3">
+          <div className="font-semibold text-white">Mines Settings</div>
+          
+          <div className="space-y-2">
+            <label htmlFor="betAmount" className="text-sm text-slate-300">
+              Bet Amount
+            </label>
+            <Input 
+              id="betAmount"
+              type="number" 
+              min="1" 
+              step="0.01"
+              value={betAmount} 
+              onChange={handleBetAmountChange}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 border-slate-700"
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setQuickBetAmount(5)}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 hover:bg-slate-700 border-slate-700"
+            >
+              $5
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setQuickBetAmount(10)}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 hover:bg-slate-700 border-slate-700"
+            >
+              $10
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setQuickBetAmount(25)}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 hover:bg-slate-700 border-slate-700"
+            >
+              $25
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setQuickBetAmount(50)}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 hover:bg-slate-700 border-slate-700"
+            >
+              $50
+            </Button>
+          </div>
+          
+          <div className="space-y-2">
+            <label htmlFor="mineCount" className="text-sm text-slate-300">
+              Number of Mines
+            </label>
+            <Input 
+              id="mineCount"
+              type="number" 
+              min="1" 
+              max="24" 
+              value={mines} 
+              onChange={handleMineInputChange}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 border-slate-700"
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setQuickMineCount(1)}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 hover:bg-slate-700 border-slate-700"
+            >
+              1
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setQuickMineCount(3)}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 hover:bg-slate-700 border-slate-700"
+            >
+              3
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setQuickMineCount(5)}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 hover:bg-slate-700 border-slate-700"
+            >
+              5
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setQuickMineCount(10)}
+              disabled={gameStarted && !gameOver}
+              className="bg-slate-800 hover:bg-slate-700 border-slate-700"
+            >
+              10
+            </Button>
+          </div>
+          
+          {/* Game Status Display */}
+          <div className="space-y-2 pt-2 border-t border-slate-700">
+            <div className="text-sm text-slate-300">Game Status</div>
+            
+            <div className="flex justify-between">
+              <span className="text-xs text-slate-400">Balance:</span>
+              <span className="text-xs text-white">${user?.balance.toFixed(2) || '0.00'}</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-xs text-slate-400">Current Multiplier:</span>
+              <span className="text-xs text-white">{currentMultiplier.toFixed(2)}x</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-xs text-slate-400">Potential Payout:</span>
+              <span className="text-xs text-emerald-400">${potentialPayout.toFixed(2)}</span>
+            </div>
+            
+            {gameStarted && !gameOver && (
+              <div className="text-sm text-emerald-400 font-medium">
+                Safe probability: {currentProbability}%
+              </div>
+            )}
+          </div>
+          
+          <div className="pt-2">
+            {gameStarted && !gameOver ? (
+              <div className="space-y-2">
+                <Button 
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={cashOut}
+                >
+                  <DollarSign className="mr-2 h-4 w-4" /> Cash Out ${potentialPayout.toFixed(2)}
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  className="w-full border-slate-700 text-slate-300"
+                  onClick={resetGame}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" /> Forfeit
+                </Button>
+              </div>
+            ) : gameOver ? (
+              <Button 
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={resetGame}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" /> New Game
+              </Button>
+            ) : (
+              <Button 
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={startGame}
+                disabled={!user || user.balance < betAmount}
+              >
+                <Bomb className="mr-2 h-4 w-4" /> Start Mining
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
-      <div className="lg:col-span-2">
-        <Card className="p-4 bg-gray-800">
-          {renderMineField()}
-        </Card>
+
+      {/* Game Grid */}
+      <div className="flex-1 bg-slate-900 rounded-lg p-6">
+        <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
+          {tiles.map((tile, index) => (
+            <button
+              key={index}
+              onClick={() => handleTileClick(index)}
+              disabled={!gameStarted || gameOver || tile.revealed}
+              className={`
+                aspect-square rounded-md transition-all duration-200 flex items-center justify-center
+                ${!tile.revealed ? 'bg-slate-800 hover:bg-slate-700' : 
+                  tile.isMine ? 'bg-red-600' : 'bg-emerald-600'}
+                ${!gameStarted ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}
+              `}
+            >
+              {tile.revealed && tile.isMine ? (
+                <Bomb className="text-white h-8 w-8" />
+              ) : tile.revealed ? (
+                <div className="text-white font-bold">{tile.multiplier.toFixed(2)}x</div>
+              ) : null}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-export default ImprovedMinesGame;
+export default ImprovedMinesInterface;
