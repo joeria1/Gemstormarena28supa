@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, Plus, X, ChevronDown, Search, Filter, User, Users, Bot } from 'lucide-react';
@@ -78,6 +79,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
 
   const { playSound } = useSoundEffect();
 
+  // Update total cost when cases change
   useEffect(() => {
     let sum = 0;
     selectedCases.forEach(caseItem => {
@@ -86,8 +88,48 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     setTotalCost(sum);
   }, [selectedCases]);
 
+  // Update players based on selected mode
+  useEffect(() => {
+    updatePlayersByMode(selectedMode);
+  }, [selectedMode]);
+
+  const updatePlayersByMode = (mode: string) => {
+    switch(mode) {
+      case '1v1':
+        setPlayers([
+          { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', ready: false, isBot: false, team: 0 },
+          { id: 2, name: '', avatar: '', ready: false, isBot: false, team: 1 }
+        ]);
+        break;
+      case '1v1v1':
+        setPlayers([
+          { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', ready: false, isBot: false, team: 0 },
+          { id: 2, name: '', avatar: '', ready: false, isBot: false, team: 1 },
+          { id: 3, name: '', avatar: '', ready: false, isBot: false, team: 2 }
+        ]);
+        break;
+      case '1v1v1v1':
+        setPlayers([
+          { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', ready: false, isBot: false, team: 0 },
+          { id: 2, name: '', avatar: '', ready: false, isBot: false, team: 1 },
+          { id: 3, name: '', avatar: '', ready: false, isBot: false, team: 2 },
+          { id: 4, name: '', avatar: '', ready: false, isBot: false, team: 3 }
+        ]);
+        break;
+      case '2v2':
+      default:
+        setPlayers([
+          { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', ready: false, isBot: false, team: 0 },
+          { id: 2, name: '', avatar: '', ready: false, isBot: false, team: 0 },
+          { id: 3, name: '', avatar: '', ready: false, isBot: false, team: 1 },
+          { id: 4, name: '', avatar: '', ready: false, isBot: false, team: 1 }
+        ]);
+    }
+  };
+
   const handleModeSelect = (mode: string) => {
     setSelectedMode(mode);
+    updatePlayersByMode(mode);
     playSound('caseSelect');
   };
 
@@ -133,9 +175,15 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
   const handleQuantityChange = (index: number, change: number) => {
     const updatedCases = [...selectedCases];
     if (index >= 0 && index < updatedCases.length) {
-      const newQuantity = Math.max(1, updatedCases[index].quantity + change);
-      updatedCases[index].quantity = newQuantity;
-      setSelectedCases([...updatedCases]);
+      const newQuantity = updatedCases[index].quantity + change;
+      
+      if (newQuantity <= 0) {
+        // Remove the case if quantity would be 0 or less
+        handleRemoveCase(index);
+      } else {
+        updatedCases[index].quantity = newQuantity;
+        setSelectedCases([...updatedCases]);
+      }
     }
     playSound('caseSelect');
   };
@@ -160,7 +208,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
 
   const handleAddBot = (playerIndex: number) => {
     const updatedPlayers = [...players];
-    const randomId = Math.floor(Math.random() * 1000);
     const botNames = ['BinLaden', 'P. Diddy', 'Al Qaida'];
     
     updatedPlayers[playerIndex] = {
@@ -174,10 +221,15 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     setPlayers(updatedPlayers);
     
     // Check if all players are ready
-    const allReady = updatedPlayers.every(player => player.ready || player.isBot);
-    if (allReady) {
+    const allPlayersReady = checkAllPlayersReady(updatedPlayers);
+    if (allPlayersReady) {
       startBattle();
     }
+  };
+
+  const checkAllPlayersReady = (playerList: any[]) => {
+    const activePlayers = playerList.filter(p => p.name !== '');
+    return activePlayers.every(player => player.ready || player.isBot) && activePlayers.length > 1;
   };
 
   const handleToggleReady = (playerIndex: number) => {
@@ -186,8 +238,8 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     setPlayers(updatedPlayers);
     
     // Check if all players are ready
-    const allReady = updatedPlayers.every(player => player.ready || player.isBot || player.name === '');
-    if (allReady && updatedPlayers.filter(p => p.name !== '').length > 1) {
+    const allPlayersReady = checkAllPlayersReady(updatedPlayers);
+    if (allPlayersReady) {
       startBattle();
     }
   };
@@ -204,12 +256,14 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
           clearInterval(timer);
           
           // After countdown, start spinning automatically
-          setSliderSpinning(true);
-          
-          // After spinning completes (5 seconds), show results
           setTimeout(() => {
-            finishBattle();
-          }, 5000);
+            setSliderSpinning(true);
+            
+            // After spinning completes (5 seconds), show results
+            setTimeout(() => {
+              finishBattle();
+            }, 5000);
+          }, 1000); // Add delay to ensure countdown is visible before spinning
           
           return null;
         }
@@ -223,19 +277,20 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     
     // Generate random items for each player
     const updatedPlayerItems: Record<number, SliderItem[]> = {};
-    const updatedPlayers = [...players];
+    const updatedPlayers = [...players].filter(p => p.name !== '');
     
     // Determine winning team randomly
-    const winningTeam = Math.random() > 0.5 ? 0 : 1;
+    const teams = [...new Set(updatedPlayers.map(p => p.team))];
+    const winningTeam = teams[Math.floor(Math.random() * teams.length)];
     
     // Calculate number of players per team
-    const team1 = players.filter(p => p.team === 0 && p.name !== '');
-    const team2 = players.filter(p => p.team === 1 && p.name !== '');
+    const teamPlayers: Record<number, any[]> = {};
+    teams.forEach(team => {
+      teamPlayers[team] = updatedPlayers.filter(p => p.team === team);
+    });
     
     // Generate unique items for each player
-    players.forEach(player => {
-      if (player.name === '') return;
-      
+    updatedPlayers.forEach(player => {
       // Winning team gets better items
       let playerItems: SliderItem[];
       let totalValue = 0;
@@ -261,27 +316,21 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
       updatedPlayerItems[player.id] = playerItems;
       
       // Update player with result info
-      const playerIndex = updatedPlayers.findIndex(p => p.id === player.id);
-      if (playerIndex !== -1) {
-        updatedPlayers[playerIndex] = {
-          ...player,
-          result: player.team === winningTeam ? 'WINNER' : 'LOST BATTLE',
-          winnings: player.team === winningTeam ? Math.floor(totalCost * 0.9 / (player.team === 0 ? team1.length : team2.length)) : 0,
-          totalValue: totalValue
-        };
-      }
+      player.result = player.team === winningTeam ? 'WINNER' : 'LOST BATTLE';
+      player.winnings = player.team === winningTeam ? 
+        Math.floor(totalCost * 0.9 / teamPlayers[player.team].length) : 0;
+      player.totalValue = totalValue;
     });
     
     setPlayerItems(updatedPlayerItems);
-    setPlayers(updatedPlayers);
     
-    const winners = updatedPlayers.filter(p => p.team === winningTeam && p.name !== '');
-    const losers = updatedPlayers.filter(p => p.team !== winningTeam && p.name !== '');
+    const winners = updatedPlayers.filter(p => p.team === winningTeam);
+    const losers = updatedPlayers.filter(p => p.team !== winningTeam);
     
     setBattleResults({
       winners,
       losers,
-      players: updatedPlayers.filter(p => p.name !== '')
+      players: updatedPlayers
     });
     
     setGamePhase('results');
@@ -292,12 +341,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     setBattleStarted(false);
     setCountdown(null);
     setBattleResults(null);
-    setPlayers([
-      { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', ready: false, isBot: false, team: 0 },
-      { id: 2, name: '', avatar: '', ready: false, isBot: false, team: 0 },
-      { id: 3, name: '', avatar: '', ready: false, isBot: false, team: 1 },
-      { id: 4, name: '', avatar: '', ready: false, isBot: false, team: 1 },
-    ]);
+    updatePlayersByMode(selectedMode);
   };
 
   const filteredCases = casesData.filter(caseItem => 
@@ -305,6 +349,21 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
   ).sort((a, b) => 
     sortOrder === 'LOWEST' ? a.price - b.price : b.price - a.price
   );
+
+  // Get active player count for display
+  const getActivePlayerCount = () => {
+    return players.filter(p => p.name !== '').length;
+  };
+
+  // Get total required players based on mode
+  const getTotalRequiredPlayers = () => {
+    switch(selectedMode) {
+      case '1v1': return 2;
+      case '1v1v1': return 3;
+      case '1v1v1v1': return 4;
+      case '2v2': default: return 4;
+    }
+  };
 
   const renderBattleCreation = () => (
     <div className="w-full max-w-6xl mx-auto p-4">
@@ -431,14 +490,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                         +
                       </button>
                     </div>
-                    <button
-                      onClick={() => handleRemoveCase(index)}
-                      className="w-full mt-2 text-xs text-red-400 hover:text-red-300 transition-colors"
-                      aria-label="Remove case"
-                      type="button"
-                    >
-                      Remove
-                    </button>
                   </div>
                 );
               }
@@ -524,12 +575,8 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
   );
 
   const renderWaitingForPlayers = () => {
-    const playerCount = players.filter(p => p.name !== '').length;
-    const totalPlayers = selectedMode === '2v2' ? 4 : (
-      selectedMode === '1v1v1v1' ? 4 : (
-        selectedMode === '1v1v1' ? 3 : 2
-      )
-    );
+    const playerCount = getActivePlayerCount();
+    const totalPlayers = getTotalRequiredPlayers();
     
     return (
       <div className="w-full max-w-6xl mx-auto p-4">
@@ -646,7 +693,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                   )}
                 </div>
                 
-                {index === 1 && (
+                {selectedMode === '2v2' && index === 1 && (
                   <div className="absolute top-1/2 -right-6 transform -translate-y-1/2">
                     <div className="bg-[#0f2e3b] border border-[#00d7a3] text-[#00d7a3] rounded-full w-12 h-12 flex items-center justify-center">
                       vs
@@ -707,7 +754,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                 </div>
               </div>
 
-              <div className="min-h-[180px]">
+              <div className="min-h-[180px] border-2 border-[#1a2c4c] rounded-lg p-2">
                 <CaseSlider
                   items={sliderItems}
                   onComplete={() => {}}
@@ -721,7 +768,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                 />
               </div>
               
-              {index === 1 && (
+              {index === 1 && players.length > 2 && (
                 <div className="absolute top-1/2 -right-6 transform -translate-y-1/2">
                   <div className="bg-[#0f2e3b] border border-[#00d7a3] text-[#00d7a3] rounded-full w-12 h-12 flex items-center justify-center">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -804,7 +851,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
               
               <div className={`absolute bottom-0 left-0 right-0 h-1 ${player.result === 'WINNER' ? 'bg-[#00d7a3]' : 'bg-red-500'}`}></div>
               
-              {index === 1 && (
+              {index === 1 && players.filter(p => p.name !== '').length > 2 && (
                 <div className="absolute top-1/2 -right-6 transform -translate-y-1/2">
                   <div className="bg-[#0f2e3b] border border-[#00d7a3] text-[#00d7a3] rounded-full w-12 h-12 flex items-center justify-center">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -821,7 +868,8 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
           {battleResults?.players.map(player => {
             const playerItemsList = playerItems[player.id] || [];
             return playerItemsList.map((item, itemIdx) => (
-              <div key={`item-${player.id}-${itemIdx}`} className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 relative">
+              <div key={`item-${player.id}-${itemIdx}`} 
+                   className={`bg-[#0d1b32] border-2 rounded-lg p-4 relative ${player.result === 'WINNER' ? 'border-[#00d7a3]' : 'border-red-500'}`}>
                 <div className="absolute top-3 right-3 bg-[#0f2e3b] text-[#00d7a3] px-2 py-0.5 rounded text-sm">
                   {item.rarity === 'legendary' ? '1%' : 
                    item.rarity === 'epic' ? '5%' : 
@@ -841,6 +889,9 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                 <div className="flex items-center justify-center">
                   <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
                   <span className="text-white font-bold">{item.price.toFixed(2)}</span>
+                </div>
+                <div className="mt-2 text-xs text-center text-gray-400">
+                  Won by {player.name}
                 </div>
               </div>
             ));
@@ -915,13 +966,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                   <div className="flex justify-center mb-3">
                     <img src={caseItem.image} alt={caseItem.name} className="w-24 h-24 object-contain" />
                   </div>
-                  <button 
-                    className="w-full mt-2 text-xs text-red-400 hover:text-red-300 transition-colors"
-                    aria-label="Remove case"
-                    type="button"
-                  >
-                    Remove
-                  </button>
                 </div>
               ))}
             </div>

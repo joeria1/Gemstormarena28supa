@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -61,28 +62,49 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
   const [isSpinning, setIsSpinning] = useState(false);
   const [showLightning, setShowLightning] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [roundResults, setRoundResults] = useState<Record<string, Item>>({});
+  const [roundResults, setRoundResults] = useState<Record<string, Item[]>>({});
+  const [currentRoundResults, setCurrentRoundResults] = useState<Record<string, Item>>({});
   const [displayedUsers, setDisplayedUsers] = useState<User[]>(users);
   const [currentCase, setCurrentCase] = useState<Case>(cases[0]);
   const [gameFinished, setGameFinished] = useState(false);
+  const [countdownFinished, setCountdownFinished] = useState(false);
   
   const slotsRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { playSound } = useSoundEffect();
 
+  // Filter users based on the selected game mode
   useEffect(() => {
-    slotsRefs.current = Array(users.length).fill(null);
-  }, [users.length]);
+    const filteredUsers = users.filter(user => user.name !== '');
+    setDisplayedUsers(filteredUsers);
+    
+    // Initialize roundResults for each user
+    const initialResults: Record<string, Item[]> = {};
+    filteredUsers.forEach(user => {
+      initialResults[user.id] = [];
+    });
+    setRoundResults(initialResults);
+    
+    // Initialize slotsRefs
+    slotsRefs.current = Array(filteredUsers.length).fill(null);
+  }, [users]);
 
   useEffect(() => {
-    if (cases.length > 0 && users.length > 0) {
+    if (cases.length > 0 && displayedUsers.length > 0) {
       startCountdown();
     }
   }, []);
 
   useEffect(() => {
-    if (currentRound > 0 && currentRound < cases.length) {
+    if (countdownFinished && !isSpinning) {
+      startSpinning();
+    }
+  }, [countdownFinished]);
+
+  useEffect(() => {
+    if (currentRound > 0 && currentRound < cases.length && !gameFinished) {
       setCurrentCase(cases[currentRound]);
       const timer = setTimeout(() => {
+        setCountdownFinished(false);
         startCountdown();
       }, 2000);
       return () => clearTimeout(timer);
@@ -99,8 +121,12 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
       setCountdown(prev => {
         if (prev === 1) {
           clearInterval(countdownInterval);
-          startSpinning();
-          return null;
+          // Only set countdownFinished to true when countdown reaches 0
+          setTimeout(() => {
+            setCountdownFinished(true);
+            setCountdown(null);
+          }, 1000);
+          return 0;
         }
         return prev ? prev - 1 : null;
       });
@@ -111,7 +137,7 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
     setIsSpinning(true);
     playSound('cardShuffle');
     
-    const spinDurations = users.map(() => 3000 + Math.random() * 2000);
+    const spinDurations = displayedUsers.map(() => 3000 + Math.random() * 2000);
     const maxDuration = Math.max(...spinDurations);
     
     spinDurations.forEach((duration, index) => {
@@ -128,18 +154,27 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
     setTimeout(() => {
       setIsSpinning(false);
       setShowLightning(false);
+      setCountdownFinished(false);
       
       const newRoundResults = { ...roundResults };
+      const newCurrentRoundResults: Record<string, Item> = {};
       const updatedUsers = [...displayedUsers];
       
       updatedUsers.forEach(user => {
         const reward = getRandomItem(currentCase.items || slotMachineItems);
-        newRoundResults[user.id] = reward;
+        newCurrentRoundResults[user.id] = reward;
         
+        // Add new item to the user's items array
         user.items = [...(user.items || []), reward];
+        
+        // Add to round results history
+        newRoundResults[user.id] = [...(newRoundResults[user.id] || []), reward];
+        
+        // Update total win value
         user.totalWin = (user.totalWin || 0) + reward.price;
       });
       
+      setCurrentRoundResults(newCurrentRoundResults);
       setRoundResults(newRoundResults);
       setDisplayedUsers(updatedUsers);
       
@@ -183,7 +218,7 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
       
       {countdown !== null && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-20">
-          <div className="text-8xl font-bold text-white animate-pulse">
+          <div className="text-8xl font-bold text-[#00d7a3] animate-pulse">
             {countdown}
           </div>
         </div>
@@ -231,16 +266,16 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
                     </div>
                   ))}
                 </div>
-              ) : roundResults[user.id] ? (
+              ) : currentRoundResults[user.id] ? (
                 <div className="p-2 transition-all duration-300 transform hover:scale-105">
-                  <div className={`p-3 rounded-md ${itemRarityColors[roundResults[user.id].rarity]}`}>
+                  <div className={`p-3 rounded-md ${itemRarityColors[currentRoundResults[user.id].rarity]}`}>
                     <img
-                      src={roundResults[user.id].image || '/placeholder.svg'}
-                      alt={roundResults[user.id].name}
+                      src={currentRoundResults[user.id].image || '/placeholder.svg'}
+                      alt={currentRoundResults[user.id].name}
                       className="w-40 h-40 object-contain"
                     />
-                    <p className="text-white font-medium text-center mt-2">{roundResults[user.id].name}</p>
-                    <p className="text-center text-green-400">${roundResults[user.id].price.toFixed(2)}</p>
+                    <p className="text-white font-medium text-center mt-2">{currentRoundResults[user.id].name}</p>
+                    <p className="text-center text-green-400">${currentRoundResults[user.id].price.toFixed(2)}</p>
                   </div>
                 </div>
               ) : (
@@ -250,11 +285,11 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
               )}
             </div>
             
-            {user.items && user.items.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-300 mb-2">Rewards:</h4>
+            {roundResults[user.id] && roundResults[user.id].length > 0 && (
+              <div className="mt-4 border-t-2 border-gray-700 pt-4">
+                <h4 className="text-sm font-medium text-gray-300 mb-2">Items Won:</h4>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1">
-                  {user.items.map((item, idx) => (
+                  {roundResults[user.id].map((item, idx) => (
                     <div 
                       key={`${item.id}-${idx}`} 
                       className={`p-1 rounded-md text-xs ${itemRarityColors[item.rarity]} flex flex-col items-center`}
