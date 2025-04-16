@@ -41,6 +41,13 @@ const PlinkoGame: React.FC = () => {
   const ballsInPlay = useRef<number>(0);
   const [riskLockEnabled, setRiskLockEnabled] = useState(false);
 
+  // Set up row counts by risk level
+  const rowsByRisk = {
+    low: 8,     // Fewer rows for low risk
+    medium: 12, // Medium number of rows
+    high: 16    // More rows for high risk
+  };
+
   const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number = 10): number[] => {
     const baseValues = {
       low: { min: 0.5, mid: 0.9, max: 9 },
@@ -102,23 +109,26 @@ const PlinkoGame: React.FC = () => {
   const BALL_RADIUS = 14;
   const BOARD_WIDTH = 1000;
   const BOARD_HEIGHT = 1400;
-  const PEG_ROWS = 12;
-  const INITIAL_VELOCITY_RANGE = 0.6;
   const STUCK_DETECTION_TIME = 400;
   const STUCK_VELOCITY_THRESHOLD = 0.6;
   const PEG_REPULSION_STRENGTH = 0.15;
+  const INITIAL_VELOCITY_RANGE = 0.6;
 
   const getPegPositions = () => {
     const positions = [];
+    const PEG_ROWS = rowsByRisk[risk];
     
     for (let row = 0; row < PEG_ROWS; row++) {
       const pegsInRow = row + 1;
       const rowWidth = (pegsInRow - 1) * 100;
       const startX = (BOARD_WIDTH - rowWidth) / 2;
       
+      // Distribute pegs evenly based on row count
+      const rowHeight = BOARD_HEIGHT / (PEG_ROWS + 1);
+      
       for (let col = 0; col < pegsInRow; col++) {
         const x = startX + col * 100;
-        const y = 100 + row * 100;
+        const y = rowHeight + row * rowHeight;
         
         positions.push({ row, col, x, y });
       }

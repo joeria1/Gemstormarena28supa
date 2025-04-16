@@ -21,7 +21,15 @@ interface PlinkoBoardProps {
 }
 
 const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
-  const rows = 12;
+  // Adjust rows based on risk level
+  const rowsByRisk = {
+    low: 8,      // Fewer pegs for low risk
+    medium: 12,  // Medium number for medium risk
+    high: 16     // More pegs for high risk
+  };
+  
+  const rows = rowsByRisk[risk];
+  
   const riskColors = {
     low: 'bg-blue-500',
     medium: 'bg-purple-500',
@@ -37,15 +45,15 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
 
   // Peg and ball sizes based on risk level
   const pegSizes = {
-    low: 'w-5 h-5', // Largest pegs
+    low: 'w-6 h-6', // Largest pegs
     medium: 'w-4 h-4', // Medium pegs
-    high: 'w-3 h-3'  // Smallest pegs
+    high: 'w-2.5 h-2.5'  // Smallest pegs
   };
   
   const ballSizes = {
-    low: 'w-10 h-10', // Largest balls
-    medium: 'w-8 h-8', // Medium balls
-    high: 'w-6 h-6'  // Smallest balls
+    low: 'w-8 h-8', // Largest balls
+    medium: 'w-6 h-6', // Medium balls
+    high: 'w-4 h-4'  // Smallest balls
   };
   
   const currentPegSize = pegSizes[risk];
@@ -55,14 +63,14 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
   const pegRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
   const pocketRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
 
-  // Set up peg positions for rendering
+  // Set up peg positions for rendering - using row density based on risk
   const pegPositions = [];
   for (let row = 0; row < rows; row++) {
     const pegsInRow = row + 1;
     for (let col = 0; col < pegsInRow; col++) {
       const pegStyle = {
         left: `${50 - (pegsInRow - 1) * 5 + col * 10}%`,
-        top: `${(row + 1) * 7}%`
+        top: `${(row + 1) * (90 / rows)}%` // More evenly distribute pegs based on row count
       };
       pegPositions.push({ row, col, style: pegStyle });
     }
@@ -266,10 +274,10 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
     
     return currentMultipliers.map((multiplier, index) => {
       // Bucket size based on risk
-      const bucketHeight = risk === 'low' ? 'h-20' : risk === 'medium' ? 'h-16' : 'h-12';
+      const bucketHeight = risk === 'low' ? 'h-16' : risk === 'medium' ? 'h-12' : 'h-8';
       
       // Text size based on risk
-      const textSize = risk === 'low' ? 'text-lg' : risk === 'medium' ? 'text-base' : 'text-sm';
+      const textSize = risk === 'low' ? 'text-lg' : risk === 'medium' ? 'text-base' : 'text-xs';
       
       // Highlight the bucket if any ball is in it
       const isActive = activeBalls.some(ball => 
@@ -286,11 +294,11 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
         >
           <div 
             ref={el => pocketRefs.current[`pocket-${index}`] = el}
-            className={`w-full h-4 ${riskColors[risk]} rounded-t-md transition-all ${
-              isActive ? 'animate-pocket-bounce h-6 brightness-150' : ''
+            className={`w-full h-3 ${riskColors[risk]} rounded-t-md transition-all ${
+              isActive ? 'animate-pocket-bounce h-4 brightness-150' : ''
             }`}
           ></div>
-          <div className={`mt-2 ${textSize} ${isActive ? 'text-yellow-400 animate-bounce' : ''}`}>
+          <div className={`mt-1 ${textSize} ${isActive ? 'text-yellow-400 animate-bounce' : ''}`}>
             {multiplier}x
           </div>
         </div>
@@ -299,7 +307,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
   };
 
   return (
-    <div className="relative w-full" style={{ paddingTop: '120%' }} ref={boardRef}>
+    <div className="relative w-full" style={{ paddingTop: '85%' }} ref={boardRef}>
       <div className="absolute inset-0 bg-gray-900 overflow-hidden px-2">
         {/* Pegs */}
         {renderPegs()}
