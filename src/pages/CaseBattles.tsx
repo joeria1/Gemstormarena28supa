@@ -1,18 +1,14 @@
 
 import React from 'react';
-import { Helmet } from 'react-helmet';
-import SimplifiedCaseBattleGame from '../components/CaseBattle/SimplifiedCaseBattleGame';
+import CaseBattlesList from '@/components/CaseBattle/CaseBattlesList';
+import EnhancedCaseBattles from './EnhancedCaseBattles';
 
 const CaseBattles = () => {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <Helmet>
-        <title>Case Battles | DUMP.FUN</title>
-      </Helmet>
-      
-      <SimplifiedCaseBattleGame />
-    </div>
-  );
+  // Show the enhanced version - uncomment the following line
+  // return <EnhancedCaseBattles />;
+  
+  // For now, use the list component which has all the implementation
+  return <CaseBattlesList />;
 };
 
 export default CaseBattles;
