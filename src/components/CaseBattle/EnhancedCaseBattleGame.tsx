@@ -102,8 +102,11 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     setGameState('spinning');
     setCountdown(3);
     
-    // Reset case index
+    // Reset case index and player items
     setCurrentCaseIndex(0);
+    setPlayerItems({});
+    
+    playSound('raceStart'); // Play sound for game start
     
     // Start countdown
     const timer = setInterval(() => {
@@ -116,16 +119,20 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           
           return null;
         }
+        
+        // Play sound for each countdown number
+        playSound('caseHover');
         return prev - 1;
       });
     }, 1000);
   };
   
   const startSpinningProcess = () => {
-    // Only start spinning after countdown is complete
+    // Only start spinning after countdown is completely finished
     if (countdown === null) {
       setSliderSpinning(true);
       setProcessingMultipleCases(actualCases.length > 1);
+      playSound('caseSelect');
       
       // After spinning completes, process results or move to next case
       setTimeout(() => {
@@ -137,7 +144,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         // Check if there are more cases to process
         if (currentCaseIndex < actualCases.length - 1) {
           setCurrentCaseIndex(prev => prev + 1);
-          // Set a small delay before starting the next case
+          // Set a small delay before starting the next case with countdown
           setTimeout(() => {
             setCountdown(3);
           }, 1500);
@@ -195,11 +202,14 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         default: itemValue = caseValue * (0.1 + Math.random() * 0.3); break; // 0.1-0.4x case value
       }
       
+      // Create case-specific item imagery based on the case
+      let itemImage = currentCase.image;
+      
       // Create a new item for this player from this case
       const newItem: SliderItem = {
         id: `${player.id}-case-${currentCaseIndex}-${Date.now()}`,
-        name: `${currentCase.name} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)} Item`,
-        image: '/placeholder.svg', // Use placeholder or case image
+        name: `${currentCase.name} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`,
+        image: itemImage, // Use the current case image
         rarity: rarity,
         price: Math.round(itemValue * 100) / 100 // Round to 2 decimal places
       };
@@ -208,50 +218,78 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     });
     
     setPlayerItems(updatedPlayerItems);
+    
+    // Play sound effect for item reveal
+    playSound('cardHit');
   };
 
   const finishBattle = () => {
-    // Calculate total values per player
-    const playerTotals: Record<number, number> = {};
-    const teamTotals: Record<number, number> = { 0: 0, 1: 0 };
-    
-    // Calculate totals per player and team
-    actualPlayers.forEach(player => {
-      const playerItemsList = playerItems[player.id] || [];
-      const playerTotal = playerItemsList.reduce((sum, item) => sum + item.price, 0);
+    // Add a small delay to ensure all items are processed
+    setTimeout(() => {
+      // Calculate total values per player
+      const playerTotals: Record<number, number> = {};
+      const teamTotals: Record<number, number> = { 0: 0, 1: 0 };
       
-      playerTotals[player.id] = playerTotal;
-      teamTotals[player.team] += playerTotal;
-    });
-    
-    // Determine winning team based on total value
-    const finalWinningTeam = teamTotals[0] > teamTotals[1] ? 0 : 1;
-    setWinningTeam(finalWinningTeam);
-    
-    // Generate result data
-    const simulatedResults = actualPlayers.map(player => {
-      const isWinner = player.team === finalWinningTeam;
+      // Calculate totals per player and team
+      actualPlayers.forEach(player => {
+        const playerItemsList = playerItems[player.id] || [];
+        const playerTotal = playerItemsList.reduce((sum, item) => sum + item.price, 0);
+        
+        playerTotals[player.id] = playerTotal;
+        teamTotals[player.team] += playerTotal;
+      });
       
-      return {
-        ...player,
-        isWinner,
-        winAmount: isWinner ? Math.floor(totalValue * 0.9 / actualPlayers.filter(p => p.team === finalWinningTeam).length) : 0,
-        items: playerItems[player.id] || [],
-        balance: playerTotals[player.id] || 0
-      };
-    });
-    
-    setResults(simulatedResults);
-    setGameState('results');
+      // Determine winning team based on total value
+      const finalWinningTeam = teamTotals[0] > teamTotals[1] ? 0 : 1;
+      setWinningTeam(finalWinningTeam);
+      
+      // Play win sound
+      playSound('plinkoWin');
+      
+      // Generate result data
+      const simulatedResults = actualPlayers.map(player => {
+        const isWinner = player.team === finalWinningTeam;
+        
+        return {
+          ...player,
+          isWinner,
+          winAmount: isWinner ? Math.floor(totalValue * 0.9 / actualPlayers.filter(p => p.team === finalWinningTeam).length) : 0,
+          items: playerItems[player.id] || [],
+          balance: playerTotals[player.id] || 0
+        };
+      });
+      
+      setResults(simulatedResults);
+      setGameState('results');
+    }, 1000); // Small delay to ensure all animations complete
   };
 
   // Effect to handle countdown and spinning process
   useEffect(() => {
-    if (gameState === 'spinning' && countdown === null && !sliderSpinning && processingMultipleCases) {
-      // This handles the next case spinning after countdown
+    // Only start spinning when countdown reaches null (completed)
+    if (gameState === 'spinning' && countdown === null && !sliderSpinning) {
+      // This handles the spinning process after countdown completes
       startSpinningProcess();
     }
-  }, [gameState, countdown, sliderSpinning, currentCaseIndex, processingMultipleCases]);
+  }, [gameState, countdown, sliderSpinning, currentCaseIndex]);
+  
+  // Effect to handle the countdown timer for subsequent cases
+  useEffect(() => {
+    if (gameState === 'spinning' && countdown !== null && currentCaseIndex > 0) {
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(timer);
+            playSound('caseSelect');
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => clearInterval(timer);
+    }
+  }, [gameState, countdown, currentCaseIndex]);
 
   const renderPlayerSlot = (player: Player, index: number) => {
     const isReady = readyPlayers.includes(player.id) || player.isBot;
@@ -260,7 +298,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
 
     if (gameState === 'waiting') {
       return (
-        <div key={`player-${index}`} className={`bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 relative ${teamColor}`}>
+        <div key={`player-${index}`} className={`bg-[#0d1b32] border-4 ${teamColor} rounded-lg p-4 relative`}>
           <div className="flex items-center mb-4">
             <div className="w-10 h-10 overflow-hidden rounded-full border border-[#1a2c4c] mr-2">
               {player.avatar ? (
@@ -277,6 +315,12 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
                 <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
                 <span className="text-white">0</span>
               </div>
+            </div>
+            <div className="px-2 py-1 bg-gradient-to-r rounded text-xs text-white font-bold"
+                style={{ 
+                  background: player.team === 0 ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' : 'linear-gradient(90deg, #991b1b, #dc2626)'
+                }}>
+              {player.team === 0 ? 'TEAM BLUE' : 'TEAM RED'}
             </div>
           </div>
 
@@ -318,7 +362,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
       );
     } else if (gameState === 'spinning') {
       return (
-        <div key={`spinning-${index}`} className={`bg-[#0d1b32] border-2 ${teamColor} rounded-lg p-4 relative`}>
+        <div key={`spinning-${index}`} className={`bg-[#0d1b32] border-4 ${teamColor} rounded-lg p-4 relative`}>
           <div className="flex items-center mb-4">
             <div className="w-10 h-10 overflow-hidden rounded-full border border-[#1a2c4c] mr-2">
               <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
@@ -329,6 +373,12 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
                 <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
                 <span className="text-white">0</span>
               </div>
+            </div>
+            <div className="px-2 py-1 bg-gradient-to-r rounded text-xs text-white font-bold"
+                style={{ 
+                  background: player.team === 0 ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' : 'linear-gradient(90deg, #991b1b, #dc2626)'
+                }}>
+              {player.team === 0 ? 'TEAM BLUE' : 'TEAM RED'}
             </div>
           </div>
 
@@ -357,7 +407,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
       const totalPlayerValue = playerItemsArray.reduce((sum, item) => sum + item.price, 0);
       
       return (
-        <div key={`result-${index}`} className={`bg-[#0d1b32] border-2 ${teamColor} rounded-lg p-4 relative`}>
+        <div key={`result-${index}`} className={`bg-[#0d1b32] border-4 ${teamColor} rounded-lg p-4 relative`}>
           <div className="flex items-center mb-4">
             <div className="w-10 h-10 overflow-hidden rounded-full border border-[#1a2c4c] mr-2">
               <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
@@ -368,6 +418,12 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
                 <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
                 <span className="text-white">{totalPlayerValue.toFixed(2)}</span>
               </div>
+            </div>
+            <div className="px-2 py-1 bg-gradient-to-r rounded text-xs text-white font-bold"
+                style={{ 
+                  background: player.team === 0 ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' : 'linear-gradient(90deg, #991b1b, #dc2626)'
+                }}>
+              {player.team === 0 ? 'TEAM BLUE' : 'TEAM RED'}
             </div>
           </div>
 
@@ -402,42 +458,67 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   const renderItemResults = () => {
     if (gameState !== 'results') return null;
     
+    // Group items by player for better organization
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mt-6">
-        {Object.entries(playerItems).map(([playerId, items]) => {
-          const player = actualPlayers.find(p => p.id === parseInt(playerId));
-          if (!player) return null;
+      <div className="mt-6 space-y-6">
+        {actualPlayers.map((player) => {
+          const items = playerItems[player.id] || [];
+          if (items.length === 0) return null;
           
-          return items.map((item, itemIdx) => (
-            <div 
-              key={`item-${playerId}-${itemIdx}`} 
-              className={`bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 relative ${player.team === 0 ? 'border-l-4 border-l-blue-500' : 'border-l-4 border-l-red-500'}`}
-            >
-              <div className="absolute top-0 left-0 px-2 py-1 bg-[#0a1424] text-xs rounded-br">
-                {player.name}
+          const teamColor = player.team === 0 ? 'border-blue-500 bg-blue-500/10' : 'border-red-500 bg-red-500/10';
+          
+          return (
+            <div key={`player-items-${player.id}`} className="space-y-3">
+              <div className={`flex items-center p-2 ${teamColor} rounded-lg`}>
+                <div className="w-8 h-8 overflow-hidden rounded-full border mr-2">
+                  <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
+                </div>
+                <div className="text-white font-medium">{player.name}'s Items</div>
               </div>
-              <div className="absolute top-3 right-3 bg-[#0f2e3b] text-[#00d7a3] px-2 py-0.5 rounded text-sm">
-                {item.rarity === 'legendary' ? '1%' : 
-                 item.rarity === 'epic' ? '5%' : 
-                 item.rarity === 'rare' ? '10%' : 
-                 item.rarity === 'uncommon' ? '30%' : '54%'}
-              </div>
-              <div className="flex justify-center mb-2 mt-4">
-                <img 
-                  src={item.image} 
-                  alt={item.name} 
-                  className="w-16 h-16 object-contain" 
-                />
-              </div>
-              <div className="text-center text-white text-sm mb-1">
-                {item.name}
-              </div>
-              <div className="flex items-center justify-center">
-                <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
-                <span className="text-white font-bold">{item.price.toFixed(2)}</span>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                {items.map((item, itemIdx) => (
+                  <div 
+                    key={`item-${player.id}-${itemIdx}`} 
+                    className={`bg-[#0d1b32] border-2 rounded-lg p-4 relative ${
+                      player.team === 0 
+                        ? 'border-blue-500 hover:shadow-[0_0_10px_rgba(59,130,246,0.5)]' 
+                        : 'border-red-500 hover:shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                    }`}
+                  >
+                    <div 
+                      className="absolute top-0 left-0 px-2 py-1 text-xs font-bold text-white rounded-br"
+                      style={{ 
+                        background: player.team === 0 ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' : 'linear-gradient(90deg, #991b1b, #dc2626)'
+                      }}
+                    >
+                      {player.name}
+                    </div>
+                    <div className="absolute top-3 right-3 bg-[#0f2e3b] text-[#00d7a3] px-2 py-0.5 rounded text-sm">
+                      {item.rarity === 'legendary' ? '1%' : 
+                      item.rarity === 'epic' ? '5%' : 
+                      item.rarity === 'rare' ? '10%' : 
+                      item.rarity === 'uncommon' ? '30%' : '54%'}
+                    </div>
+                    <div className="flex justify-center mb-2 mt-4">
+                      <img 
+                        src={item.image} 
+                        alt={item.name} 
+                        className="w-16 h-16 object-contain" 
+                      />
+                    </div>
+                    <div className="text-center text-white text-sm mb-1 font-medium">
+                      {item.name}
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
+                      <span className="text-white font-bold">{item.price.toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ));
+          );
         })}
       </div>
     );
@@ -447,8 +528,13 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     <div className="w-full max-w-6xl mx-auto p-4">
       <div className="bg-[#0a1424] rounded-lg border border-[#1a2c4c] p-4 mb-6 relative">
         {countdown !== null && (
-          <div className="absolute inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
-            <div className="text-8xl font-bold text-[#00d7a3]">{countdown}</div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black bg-opacity-80">
+            <div className="text-8xl font-bold text-[#00d7a3] animate-pulse">{countdown}</div>
+            {currentCaseIndex > 0 && (
+              <div className="text-xl font-bold text-white mt-4">
+                Preparing Case {currentCaseIndex + 1}/{actualCases.length}
+              </div>
+            )}
           </div>
         )}
         
@@ -494,22 +580,40 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         <div className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 mb-6">
           <div className="flex justify-between items-center">
             <div className="bg-[#0f2e3b] text-[#00d7a3] px-4 py-1 rounded-md">{mode}</div>
-            <div className="flex items-center gap-4">
-              {actualCases.map((caseItem, idx) => (
-                <div 
-                  key={`case-preview-${idx}`} 
-                  className={`w-12 h-12 ${currentCaseIndex === idx && gameState === 'spinning' ? 'ring-2 ring-[#00d7a3]' : ''}`}
-                >
-                  <img 
-                    src={caseItem.image} 
-                    alt={caseItem.name} 
-                    className={`w-full h-full object-contain ${currentCaseIndex === idx && gameState === 'spinning' ? 'animate-pulse' : ''}`} 
-                  />
+            <div className="flex flex-col items-center">
+              {gameState === 'spinning' && (
+                <div className="text-white text-md font-bold mb-2">
+                  {currentCaseIndex + 1} / {actualCases.length}: {actualCases[currentCaseIndex]?.name}
                 </div>
-              ))}
-              {Array.from({ length: 9 - actualCases.length }).map((_, idx) => (
-                <div key={`empty-case-preview-${idx}`} className="w-12 h-12 bg-[#0d1b32] border border-[#1a2c4c] rounded"></div>
-              ))}
+              )}
+              <div className="flex items-center gap-4">
+                {actualCases.map((caseItem, idx) => (
+                  <div 
+                    key={`case-preview-${idx}`} 
+                    className={`w-12 h-12 rounded-md transition-all duration-300 ${
+                      currentCaseIndex === idx && gameState === 'spinning' 
+                        ? 'ring-4 ring-[#00d7a3] scale-110 z-10' 
+                        : idx < currentCaseIndex 
+                          ? 'opacity-50 scale-90' 
+                          : ''
+                    }`}
+                  >
+                    <img 
+                      src={caseItem.image} 
+                      alt={caseItem.name} 
+                      className={`w-full h-full object-contain ${
+                        currentCaseIndex === idx && gameState === 'spinning' ? 'animate-pulse' : ''
+                      }`} 
+                    />
+                    {idx === currentCaseIndex && gameState === 'spinning' && (
+                      <div className="absolute -bottom-1 left-0 w-full h-1 bg-[#00d7a3]"></div>
+                    )}
+                  </div>
+                ))}
+                {Array.from({ length: 9 - actualCases.length }).map((_, idx) => (
+                  <div key={`empty-case-preview-${idx}`} className="w-12 h-12 bg-[#0d1b32] border border-[#1a2c4c] rounded"></div>
+                ))}
+              </div>
             </div>
             <div className="flex items-center">
               <span className="text-gray-400 mr-2">Total Value</span>
