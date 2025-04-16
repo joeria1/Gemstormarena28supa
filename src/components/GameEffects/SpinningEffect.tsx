@@ -27,20 +27,8 @@ const SpinningEffect: React.FC<SpinningEffectProps> = ({
     }
   }, [isSpinning, duration, onComplete]);
 
-  const rotateAnimation = {
-    animate: isSpinning ? {
-      rotate: 360,
-      transition: {
-        duration,
-        ease: "linear",
-        repeat: Infinity
-      }
-    } : {}
-  };
-
   return (
-    <motion.div
-      {...rotateAnimation}
+    <div
       style={{ 
         position: 'absolute',
         width: '100%',
@@ -51,7 +39,7 @@ const SpinningEffect: React.FC<SpinningEffectProps> = ({
       }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 };
 

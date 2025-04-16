@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -688,9 +687,9 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
       </Dialog>
       
       {winner && winner.id === '1' && (
-        <SpinningEffect isSpinning={true} onComplete={() => {}}>
-          <div className="h-full w-full absolute inset-0 pointer-events-none z-50"></div>
-        </SpinningEffect>
+        <div className="fixed inset-0 pointer-events-none z-50 bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+          <div className="text-6xl animate-bounce">🎉</div>
+        </div>
       )}
     </div>
   );
