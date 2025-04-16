@@ -1,13 +1,20 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ArrowLeft, Bot, Gem, Users } from 'lucide-react';
+import { ArrowLeft, Bot, Gem, Users, Info } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
 import { Button } from '@/components/ui/button';
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
 import { SliderItem } from '@/types/slider';
 import SpinningEffect from '../GameEffects/SpinningEffect';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
 
 interface Player {
   id: string;
@@ -28,7 +35,7 @@ interface CaseItem {
   rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 }
 
-interface CaseBattleGameProps {
+interface SimplifiedCaseBattleGameProps {
   battleId: string;
   onClose: () => void;
   cursedMode?: boolean;
@@ -50,24 +57,23 @@ const rarityGradients = {
   legendary: 'from-amber-600 to-amber-500',
 };
 
-const mockItems: CaseItem[] = [
-  { id: '1', name: 'Common Item', image: '/placeholder.svg', value: 25, rarity: 'common' },
-  { id: '2', name: 'Uncommon Item', image: '/placeholder.svg', value: 75, rarity: 'uncommon' },
-  { id: '3', name: 'Rare Item', image: '/placeholder.svg', value: 150, rarity: 'rare' },
-  { id: '4', name: 'Epic Item', image: '/placeholder.svg', value: 350, rarity: 'epic' },
-  { id: '5', name: 'Legendary Item', image: '/placeholder.svg', value: 1000, rarity: 'legendary' },
+const mockItems: (CaseItem & { dropRate: number })[] = [
+  { id: '1', name: 'Common Item', image: '/placeholder.svg', value: 25, rarity: 'common', dropRate: 40 },
+  { id: '2', name: 'Uncommon Item', image: '/placeholder.svg', value: 75, rarity: 'uncommon', dropRate: 30 },
+  { id: '3', name: 'Rare Item', image: '/placeholder.svg', value: 150, rarity: 'rare', dropRate: 20 },
+  { id: '4', name: 'Epic Item', image: '/placeholder.svg', value: 350, rarity: 'epic', dropRate: 8 },
+  { id: '5', name: 'Legendary Item', image: '/placeholder.svg', value: 1000, rarity: 'legendary', dropRate: 2 },
 ];
 
-const caseItems: SliderItem[] = [
-  { id: '1', name: 'Common Knife', image: '/placeholder.svg', rarity: 'common', price: 50 },
-  { id: '2', name: 'Forest Shield', image: '/placeholder.svg', rarity: 'uncommon', price: 150 },
-  { id: '3', name: 'Ocean Blade', image: '/placeholder.svg', rarity: 'rare', price: 500 },
-  { id: '4', name: 'Thunder Axe', image: '/placeholder.svg', rarity: 'epic', price: 1000 },
-  { id: '5', name: 'Dragon Slayer', image: '/placeholder.svg', rarity: 'legendary', price: 2500 },
-  { id: '6', name: 'Void Reaver', image: '/placeholder.svg', rarity: 'mythical', price: 5000 },
-];
+const caseItems: SliderItem[] = mockItems.map(item => ({
+  id: item.id,
+  name: item.name,
+  image: item.image,
+  rarity: item.rarity,
+  price: item.value
+}));
 
-const SimplifiedCaseBattleGame: React.FC = () => {
+const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ battleId, onClose, cursedMode: initialCursedMode = false }) => {
   const { user, updateBalance } = useUser();
   const [players, setPlayers] = useState<Player[]>([]);
   const [emptySlots, setEmptySlots] = useState<number>(2);
@@ -82,8 +88,10 @@ const SimplifiedCaseBattleGame: React.FC = () => {
   const [showCaseOpening, setShowCaseOpening] = useState(false);
   const [activePlayer, setActivePlayer] = useState<string | null>(null);
   const [isPersonalCaseSpinning, setIsPersonalCaseSpinning] = useState(false);
-  const [cursedMode, setCursedMode] = useState(false);
-  const battleId = "BT" + Math.floor(Math.random() * 10000);
+  const [cursedMode, setCursedMode] = useState(initialCursedMode);
+  const [caseInfoOpen, setCaseInfoOpen] = useState(false);
+  const [currentCaseSliderSpinning, setCurrentCaseSliderSpinning] = useState(false);
+  const [currentSpinItem, setCurrentSpinItem] = useState<SliderItem | null>(null);
   
   useEffect(() => {
     if (user) {
@@ -175,29 +183,34 @@ const SimplifiedCaseBattleGame: React.FC = () => {
           : player
       ));
       
+      setCurrentCaseSliderSpinning(true);
+      
       setTimeout(() => {
-        openCase(currentPlayer.id);
+        const randomIndex = Math.floor(Math.random() * mockItems.length);
+        const selectedItem = { ...caseItems[randomIndex], playerId: currentPlayer.id };
+        setCurrentSpinItem(selectedItem);
         
         setTimeout(() => {
-          runPlayerSequence(index + 1);
-        }, 1000);
-      }, 5000);
+          setCurrentCaseSliderSpinning(false);
+          handleSpinComplete(selectedItem, currentPlayer.id);
+          
+          setTimeout(() => {
+            runPlayerSequence(index + 1);
+          }, 1000);
+        }, 5000);
+      }, 100);
     };
     
     runPlayerSequence(0);
   };
 
-  const openCase = (playerId: string) => {
-    const randomIndex = Math.floor(Math.random() * mockItems.length);
-    const newItem = { ...mockItems[randomIndex], id: `${playerId}-item-${currentRound}` };
-    
-    const sliderItem: SliderItem = {
-      id: newItem.id,
-      name: newItem.name,
-      image: newItem.image,
-      rarity: newItem.rarity,
-      price: newItem.value,
-      playerId: playerId
+  const handleSpinComplete = (item: SliderItem, playerId: string) => {
+    const newItem: CaseItem = {
+      id: item.id,
+      name: item.name,
+      image: item.image,
+      value: item.price,
+      rarity: item.rarity as any
     };
     
     setPlayers(prev => prev.map(player => {
@@ -210,7 +223,7 @@ const SimplifiedCaseBattleGame: React.FC = () => {
           items: updatedItems,
           totalValue: newTotalValue,
           isSpinning: false,
-          lastWonItem: sliderItem
+          lastWonItem: item
         };
       }
       return player;
@@ -319,8 +332,11 @@ const SimplifiedCaseBattleGame: React.FC = () => {
     }, 1000);
   };
 
+  const showCaseInfo = () => {
+    setCaseInfoOpen(true);
+  };
+
   const onClose = () => {
-    // Reset the state
     setPlayers([]);
     setBattleStarted(false);
     setWinner(null);
@@ -354,7 +370,7 @@ const SimplifiedCaseBattleGame: React.FC = () => {
             className="flex items-center text-gray-300 hover:text-white transition-colors"
           >
             <ArrowLeft className="mr-2 h-5 w-5" />
-            Reset Battle
+            Back to Lobby
           </button>
           
           <div className="flex items-center text-gray-300">
@@ -368,6 +384,16 @@ const SimplifiedCaseBattleGame: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3">
+            <Button 
+              onClick={showCaseInfo} 
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+            >
+              <Info size={14} />
+              Case Info
+            </Button>
+            
             <div className="flex items-center">
               <span className="text-gray-300 mr-2">Total Value:</span>
               <span className="text-yellow-400 font-bold">{totalValue} gems</span>
@@ -384,7 +410,13 @@ const SimplifiedCaseBattleGame: React.FC = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-            <h2 className="text-xl font-bold text-white mb-4">Open Case</h2>
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center justify-between">
+              Open Case
+              <Button variant="outline" size="sm" onClick={showCaseInfo}>
+                <Info size={14} className="mr-1" />
+                Drop Rates
+              </Button>
+            </h2>
             
             {showCaseOpening ? (
               <>
@@ -452,14 +484,15 @@ const SimplifiedCaseBattleGame: React.FC = () => {
                   {players.find(p => p.id === activePlayer)?.name}'s Case
                 </div>
                 <CaseSlider 
-                  items={caseItems.map(item => ({...item, playerId: activePlayer}))}
-                  onComplete={(item) => {/* Animation only, actual logic handled in openCase */}}
+                  items={caseItems}
+                  onComplete={(item) => {/* Animation only */}}
                   spinDuration={5000}
-                  isSpinning={true}
-                  autoSpin={true}
+                  isSpinning={currentCaseSliderSpinning}
+                  setIsSpinning={setCurrentCaseSliderSpinning}
                   playerName={players.find(p => p.id === activePlayer)?.name}
                   highlightPlayer={activePlayer === '1'}
                   caseName="Standard Case"
+                  autoSpin={false}
                 />
               </div>
             )}
@@ -612,6 +645,45 @@ const SimplifiedCaseBattleGame: React.FC = () => {
           </div>
         )}
       </div>
+      
+      <Dialog open={caseInfoOpen} onOpenChange={setCaseInfoOpen}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Standard Case Contents</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              See all possible items and their drop rates
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+            {mockItems.map(item => (
+              <div 
+                key={item.id}
+                className={`flex items-center gap-3 p-3 rounded-md bg-gradient-to-r ${rarityGradients[item.rarity]} bg-opacity-20`}
+              >
+                <div className={`border-2 ${rarityColors[item.rarity]} rounded-md p-2 w-16 h-16 flex items-center justify-center bg-gray-900`}>
+                  <img src={item.image} alt={item.name} className="max-w-full max-h-full" />
+                </div>
+                
+                <div className="flex-1">
+                  <div className="font-bold text-white">{item.name}</div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Gem className="h-3 w-3 text-yellow-400 mr-1" />
+                      <span className="text-yellow-400">{item.value}</span>
+                    </div>
+                    <div className="text-sm text-gray-300">{item.dropRate}% chance</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <DialogFooter>
+            <Button onClick={() => setCaseInfoOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {winner && winner.id === '1' && (
         <SpinningEffect isSpinning={true}>
