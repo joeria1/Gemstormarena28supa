@@ -168,31 +168,24 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
   const startPlayerCases = () => {
     if (players.length === 0) return;
     
-    // All players spin simultaneously
     setActivePlayer(null);
     
-    // Set all players to spinning state
     setPlayers(prev => prev.map(player => ({ ...player, isSpinning: true })));
     
     setCurrentCaseSliderSpinning(true);
     
-    // After the spinning animation completes, handle results for all players
     setTimeout(() => {
       setCurrentCaseSliderSpinning(false);
       
-      // Process results for all players
       const updatedPlayers = [...players];
       
-      // Generate random items for each player
       updatedPlayers.forEach(player => {
         const randomIndex = Math.floor(Math.random() * mockItems.length);
         const selectedItem = { ...caseItems[randomIndex], playerId: player.id };
         
-        // Handle completion for each player
         handleSpinComplete(selectedItem, player.id);
       });
       
-      // Finish the round after a short delay
       setTimeout(() => {
         finishRound();
       }, 1000);
@@ -308,7 +301,7 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
     
     updateBalance(item.price);
     
-    if (item.rarity === 'legendary' || item.rarity === 'mythical') {
+    if (item.rarity === 'legendary') {
       toast.success(`Incredible! You won ${item.name}!`, {
         description: `Worth ${item.price} gems!`
       });

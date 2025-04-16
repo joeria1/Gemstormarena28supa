@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { useSoundEffect } from '@/hooks/useSoundEffect';
 import LightningEffect from '../GameEffects/LightningEffect';
 import { showGameResult } from '../GameResultNotification';
+import CaseSlider from '@/components/CaseSlider/CaseSlider';
+import { SliderItem } from '@/types/slider';
 
 interface Case {
   id: string;
@@ -79,6 +81,7 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({
   const [gameFinished, setGameFinished] = useState(false);
   const [countdownFinished, setCountdownFinished] = useState(false);
   const [waitingForNextRound, setWaitingForNextRound] = useState(false);
+  const [userSpinning, setUserSpinning] = useState<Record<string, boolean>>({});
   
   const slotsRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { playSound } = useSoundEffect();
@@ -90,10 +93,13 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({
     
     // Initialize roundResults for each user
     const initialResults: Record<string, Item[]> = {};
+    const initialSpinning: Record<string, boolean> = {};
     filteredUsers.forEach(user => {
       initialResults[user.id] = [];
+      initialSpinning[user.id] = false;
     });
     setRoundResults(initialResults);
+    setUserSpinning(initialSpinning);
     
     // Initialize slotsRefs
     slotsRefs.current = Array(filteredUsers.length).fill(null);
@@ -149,6 +155,13 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({
     setIsSpinning(true);
     playSound('cardShuffle');
     
+    // Set all users to spinning state
+    const updatedSpinning = {...userSpinning};
+    displayedUsers.forEach(user => {
+      updatedSpinning[user.id] = true;
+    });
+    setUserSpinning(updatedSpinning);
+    
     const spinDurations = displayedUsers.map(() => 3000 + Math.random() * 2000);
     const maxDuration = Math.max(...spinDurations);
     
@@ -189,6 +202,13 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({
       setCurrentRoundResults(newCurrentRoundResults);
       setRoundResults(newRoundResults);
       setDisplayedUsers(updatedUsers);
+      
+      // Reset all user spinning states
+      const resetSpinning = {...userSpinning};
+      displayedUsers.forEach(user => {
+        resetSpinning[user.id] = false;
+      });
+      setUserSpinning(resetSpinning);
       
       // Set to wait for next round
       setWaitingForNextRound(true);
@@ -347,22 +367,26 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({
               ref={el => (slotsRefs.current[index] = el)}
               className="h-60 overflow-hidden relative bg-gray-900 rounded-lg flex items-center justify-center mb-4"
             >
-              {isSpinning ? (
-                <div className="animate-spin-slow">
-                  {slotMachineItems.map((item) => (
-                    <div key={item.id} className="p-2">
-                      <div className={`p-2 rounded-md ${itemRarityColors[item.rarity]}`}>
-                        <img
-                          src={item.image || '/placeholder.svg'}
-                          alt={item.name}
-                          className="w-40 h-40 object-contain"
-                        />
-                        <p className="text-white font-medium text-center mt-1">{item.name}</p>
-                        <p className="text-center text-green-400">${item.price.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {isSpinning && userSpinning[user.id] ? (
+                <CaseSlider
+                  items={currentCase?.items?.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    image: item.image,
+                    rarity: item.rarity,
+                    price: item.price,
+                    playerId: user.id,
+                    playerName: user.name,
+                    playerTeam: user.team
+                  })) || slotMachineItems}
+                  onComplete={() => {}}
+                  autoSpin={true}
+                  playerName={user.name}
+                  highlightPlayer={false}
+                  isSpinning={userSpinning[user.id]}
+                  spinDuration={5000}
+                  caseName={currentCase?.name}
+                />
               ) : currentRoundResults[user.id] ? (
                 <div className="p-2 transition-all duration-300 transform hover:scale-105">
                   <div className={`p-3 rounded-md ${itemRarityColors[currentRoundResults[user.id].rarity]}`}>
