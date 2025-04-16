@@ -165,7 +165,7 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4 bg-gradient-to-b from-gray-900 to-black rounded-lg shadow-xl relative">
-      {showLightning && <LightningEffect />}
+      {showLightning && <LightningEffect isVisible={true} />}
       
       <div className="mb-6 text-center">
         <h2 className="text-2xl font-bold text-white mb-2">
