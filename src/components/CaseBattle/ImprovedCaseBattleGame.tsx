@@ -77,41 +77,45 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
   
   const openCase = () => {
     setIsSpinning(true);
+    
+    // After spinning is complete (5 seconds), handle results for all players
+    setTimeout(() => {
+      // For each player, generate a random result
+      const updatedPlayers = [...players];
+      
+      players.forEach((player, index) => {
+        // Select a random item for this player
+        const randomItemIndex = Math.floor(Math.random() * caseItems.length);
+        const selectedItem = caseItems[randomItemIndex];
+        
+        // Add playerId to the item
+        const itemWithPlayerId = { ...selectedItem, playerId: player.id };
+        
+        // Add to player's items and update total value
+        updatedPlayers[index].items.push(itemWithPlayerId);
+        updatedPlayers[index].totalValue += selectedItem.price;
+        
+        // Show toast with result
+        toast(`${player.name} won: ${selectedItem.name}`, {
+          description: `Worth ${selectedItem.price} gems!`
+        });
+      });
+      
+      setPlayers(updatedPlayers);
+      
+      // Move to next case
+      setTimeout(() => {
+        moveToNextCase();
+      }, 1000);
+    }, 5000);
   };
   
   const handleSpinComplete = (item: SliderItem) => {
-    // Add the item to the current player
-    const updatedPlayers = [...players];
-    const player = updatedPlayers[currentPlayer];
-    
-    // Add playerId to the item
-    const itemWithPlayerId = { ...item, playerId: player.id };
-    
-    player.items.push(itemWithPlayerId);
-    player.totalValue += item.price;
-    
-    setPlayers(updatedPlayers);
-    
-    // Show toast with result
-    toast(`${player.name} won: ${item.name}`, {
-      description: `Worth ${item.price} gems!`
-    });
-    
-    // Move to next player or case
-    setTimeout(() => {
-      moveToNextTurn();
-    }, 1000);
+    // This is handled in openCase() now with simultaneous results
   };
   
-  const moveToNextTurn = () => {
-    let nextPlayer = currentPlayer + 1;
-    let nextCase = currentCase;
-    
-    // If all players have opened this case, move to next case
-    if (nextPlayer >= players.length) {
-      nextPlayer = 0;
-      nextCase += 1;
-    }
+  const moveToNextCase = () => {
+    const nextCase = currentCase + 1;
     
     // If all cases have been opened, end game
     if (nextCase >= 3) {
@@ -119,12 +123,12 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
       return;
     }
     
-    setCurrentPlayer(nextPlayer);
+    setCurrentPlayer(0);
     setCurrentCase(nextCase);
     setIsSpinning(false);
     
     // Auto-open for bots
-    if (players[nextPlayer].isBot) {
+    if (players.length > 0 && players[0].isBot) {
       setTimeout(() => {
         openCase();
       }, 1000);
@@ -211,21 +215,25 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
                 </h2>
                 <p className="text-blue-400">
                   {isSpinning ? 
-                    `${getCurrentPlayerName()} is opening the case...` : 
-                    `${getCurrentPlayerName()}'s turn to open`}
+                    "All players are opening cases..." : 
+                    "Ready to open cases"}
                 </p>
               </div>
               
-              <div className="mb-6">
-                <CaseSlider
-                  items={caseItems}
-                  onComplete={handleSpinComplete}
-                  isSpinning={isSpinning}
-                  setIsSpinning={setIsSpinning}
-                  playerName={getCurrentPlayerName()}
-                  highlightPlayer={currentPlayer === 0}
-                  caseName={getCurrentCaseName()}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {players.map((player, index) => (
+                  <div key={`player-slider-${player.id}`} className="mb-4">
+                    <CaseSlider
+                      items={caseItems}
+                      onComplete={() => {}} // Handled in openCase function
+                      isSpinning={isSpinning}
+                      setIsSpinning={index === 0 ? setIsSpinning : undefined}
+                      playerName={player.name}
+                      highlightPlayer={player.id === user?.id}
+                      caseName={getCurrentCaseName()}
+                    />
+                  </div>
+                ))}
               </div>
               
               {!isSpinning && currentPlayer === 0 && (
@@ -234,7 +242,7 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
                     onClick={openCase}
                     className="bg-green-600 hover:bg-green-700"
                   >
-                    Open Case
+                    Open Cases
                   </Button>
                 </div>
               )}

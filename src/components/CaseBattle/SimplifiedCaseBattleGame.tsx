@@ -168,41 +168,35 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
   const startPlayerCases = () => {
     if (players.length === 0) return;
     
-    const runPlayerSequence = (index: number) => {
-      if (index >= players.length) {
-        finishRound();
-        return;
-      }
-      
-      const currentPlayer = players[index];
-      setActivePlayer(currentPlayer.id);
-      
-      setPlayers(prev => prev.map(player => 
-        player.id === currentPlayer.id 
-          ? { ...player, isSpinning: true } 
-          : player
-      ));
-      
-      setCurrentCaseSliderSpinning(true);
-      
-      // Use random item selection logic and add a delay to simulate spinning
-      setTimeout(() => {
-        const randomIndex = Math.floor(Math.random() * mockItems.length);
-        const selectedItem = { ...caseItems[randomIndex], playerId: currentPlayer.id };
-        setCurrentSpinItem(selectedItem);
-        
-        setTimeout(() => {
-          setCurrentCaseSliderSpinning(false);
-          handleSpinComplete(selectedItem, currentPlayer.id);
-          
-          setTimeout(() => {
-            runPlayerSequence(index + 1);
-          }, 1000);
-        }, 5000);
-      }, 100);
-    };
+    // All players spin simultaneously
+    setActivePlayer(null);
     
-    runPlayerSequence(0);
+    // Set all players to spinning state
+    setPlayers(prev => prev.map(player => ({ ...player, isSpinning: true })));
+    
+    setCurrentCaseSliderSpinning(true);
+    
+    // After the spinning animation completes, handle results for all players
+    setTimeout(() => {
+      setCurrentCaseSliderSpinning(false);
+      
+      // Process results for all players
+      const updatedPlayers = [...players];
+      
+      // Generate random items for each player
+      updatedPlayers.forEach(player => {
+        const randomIndex = Math.floor(Math.random() * mockItems.length);
+        const selectedItem = { ...caseItems[randomIndex], playerId: player.id };
+        
+        // Handle completion for each player
+        handleSpinComplete(selectedItem, player.id);
+      });
+      
+      // Finish the round after a short delay
+      setTimeout(() => {
+        finishRound();
+      }, 1000);
+    }, 5000);
   };
 
   const handleSpinComplete = (item: SliderItem, playerId: string) => {
@@ -479,22 +473,28 @@ const SimplifiedCaseBattleGame: React.FC<SimplifiedCaseBattleGameProps> = ({ bat
               )}
             </div>
             
-            {activePlayer && spinning && (
+            {spinning && (
               <div className="mb-6">
                 <div className="text-center mb-2 text-blue-300 font-bold">
-                  {players.find(p => p.id === activePlayer)?.name}'s Case
+                  All Players Opening Cases
                 </div>
-                <CaseSlider 
-                  items={caseItems}
-                  onComplete={(item) => {/* Animation only */}}
-                  spinDuration={5000}
-                  isSpinning={currentCaseSliderSpinning}
-                  setIsSpinning={setCurrentCaseSliderSpinning}
-                  playerName={players.find(p => p.id === activePlayer)?.name}
-                  highlightPlayer={activePlayer === '1'}
-                  caseName="Standard Case"
-                  autoSpin={true}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {players.map((player, index) => (
+                    <div key={`player-slider-${player.id}`} className="mb-2">
+                      <CaseSlider 
+                        items={caseItems}
+                        onComplete={(item) => {/* Animation only */}}
+                        spinDuration={5000}
+                        isSpinning={currentCaseSliderSpinning}
+                        setIsSpinning={index === 0 ? setCurrentCaseSliderSpinning : undefined}
+                        playerName={player.name}
+                        highlightPlayer={player.id === '1'}
+                        caseName="Standard Case"
+                        autoSpin={true}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             

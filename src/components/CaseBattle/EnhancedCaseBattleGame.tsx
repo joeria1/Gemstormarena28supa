@@ -118,62 +118,48 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   };
   
   const startSpinningProcess = () => {
-    // Process players one by one
-    const processPlayers = (index: number) => {
-      if (index >= actualPlayers.length) {
-        // All players processed, show results
-        setTimeout(() => {
-          setGameState('results');
-          const winTeam = Math.random() > 0.5 ? 0 : 1;
-          setWinningTeam(winTeam);
-          
-          const simulatedResults = actualPlayers.map(player => ({
-            ...player,
-            isWinner: player.team === winTeam,
-            winAmount: player.team === winTeam ? Math.floor(totalValue * 0.9 / actualPlayers.filter(p => p.team === winTeam).length) : 0,
-            items: player.team === winTeam ? [
-              { 
-                id: 1, 
-                name: 'Catrina Día de Muertos Mask', 
-                price: 138, 
-                image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png', 
-                rarity: 'rare',
-                dropChance: '5%'
-              }
-            ] : [
-              { 
-                id: 2, 
-                name: 'Bozo', 
-                price: 10, 
-                image: '', 
-                rarity: 'common',
-                dropChance: '95%'
-              }
-            ]
-          }));
-          
-          setResults(simulatedResults);
-        }, 1000);
-        return;
-      }
-      
-      // Start spinning for current player
-      setActivePlayerIndex(index);
-      setSliderSpinning(true);
-      
-      // After spinning completes, process the next player
-      setTimeout(() => {
-        setSliderSpinning(false);
-        
-        // Small delay before moving to the next player
-        setTimeout(() => {
-          processPlayers(index + 1);
-        }, 500);
-      }, 5000); // 5 seconds per player
-    };
+    // Set all players to spin simultaneously
+    setActivePlayerIndex(null); // No single active player since all spin together
+    setSliderSpinning(true);
     
-    // Start with the first player
-    processPlayers(0);
+    // After spinning completes (same duration for all), show results
+    setTimeout(() => {
+      setSliderSpinning(false);
+      
+      // Short delay before showing results
+      setTimeout(() => {
+        setGameState('results');
+        const winTeam = Math.random() > 0.5 ? 0 : 1;
+        setWinningTeam(winTeam);
+        
+        const simulatedResults = actualPlayers.map(player => ({
+          ...player,
+          isWinner: player.team === winTeam,
+          winAmount: player.team === winTeam ? Math.floor(totalValue * 0.9 / actualPlayers.filter(p => p.team === winTeam).length) : 0,
+          items: player.team === winTeam ? [
+            { 
+              id: 1, 
+              name: 'Catrina Día de Muertos Mask', 
+              price: 138, 
+              image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png', 
+              rarity: 'rare',
+              dropChance: '5%'
+            }
+          ] : [
+            { 
+              id: 2, 
+              name: 'Bozo', 
+              price: 10, 
+              image: '', 
+              rarity: 'common',
+              dropChance: '95%'
+            }
+          ]
+        }));
+        
+        setResults(simulatedResults);
+      }, 1000);
+    }, 5000); // 5 seconds for all players
   };
 
   const renderPlayerSlot = (player: Player, index: number) => {
@@ -257,7 +243,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           </div>
 
           <div className="min-h-[180px] flex items-center justify-center">
-            {isActivePlayer ? (
+            {gameState === 'spinning' ? (
               <div className="w-full">
                 <div className="text-center text-blue-400 mb-2 font-semibold">
                   Opening case...
@@ -276,15 +262,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
               </div>
             ) : (
               <div className="relative">
-                {activePlayerIndex !== null && activePlayerIndex < index && (
-                  <div className="text-center text-gray-400">Waiting turn...</div>
-                )}
-                {activePlayerIndex !== null && activePlayerIndex > index && (
-                  <div className="text-center text-green-400">Turn completed</div>
-                )}
-                {activePlayerIndex === null && (
-                  <div className="text-center text-blue-400">Preparing...</div>
-                )}
+                <div className="text-center text-blue-400">Preparing...</div>
               </div>
             )}
           </div>
