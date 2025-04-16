@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Award, RefreshCw, ChevronLeft, AlertTriangle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -63,7 +62,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     { id: 2, name: 'Eggtastic Bomb', price: 66.15, image: '/lovable-uploads/bb236c40-d9ac-4887-8448-f955d662b8bc.png' },
   ];
 
-  // Get players based on selected mode
   const getPlayerSlotsForMode = () => {
     let playerCount = 0;
     switch(selectedMode) {
@@ -83,7 +81,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         playerCount = 4;
     }
     
-    // Create array of players based on count
     const modePlayers = [];
     const basePlayers = players.length > 0 ? players : defaultPlayers;
     
@@ -95,7 +92,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           team
         });
       } else {
-        // Empty slot
         modePlayers.push({
           id: i + 100,
           name: '',
@@ -114,7 +110,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
 
   const totalValue = actualCases.reduce((sum, caseItem) => sum + caseItem.price, 0);
   
-  // Create slider items from cases
   const sliderItems: SliderItem[] = [
     { id: '1', name: 'Catrina Mask', image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png', rarity: 'rare', price: 138 },
     { id: '2', name: 'Common Item', image: '/placeholder.svg', rarity: 'common', price: 25 },
@@ -149,102 +144,85 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     setGameState('spinning');
     setCountdown(3);
     
-    // Reset case index and player items
     setCurrentCaseIndex(0);
     setPlayerItems({});
     setSliderSpinning(false);
     
-    playSound('raceStart'); // Play sound for game start
+    playSound('raceStart');
   };
   
   const startSpinningProcess = () => {
-    // Only start spinning when countdown reaches null (completely finished)
     if (countdown === null) {
       setSliderSpinning(true);
       setProcessingMultipleCases(actualCases.length > 1);
       playSound('caseSelect');
       
-      // After spinning completes, process results or move to next case
       setTimeout(() => {
         setSliderSpinning(false);
         
-        // Generate random items for current case
         processCurrentCaseResults();
         
-        // Check if there are more cases to process
         if (currentCaseIndex < actualCases.length - 1) {
           setCurrentCaseIndex(prev => prev + 1);
-          // Set a small delay before starting the next case with countdown
           setTimeout(() => {
             setCountdown(3);
           }, 1500);
         } else {
-          // All cases processed, show final results
           finishBattle();
         }
-      }, 5000); // 5 seconds spin duration
+      }, 5000);
     }
   };
-  
-  // Process results for the current case
+
   const processCurrentCaseResults = () => {
     const currentCase = actualCases[currentCaseIndex];
     const caseValue = currentCase.price;
     
-    // Generate random items for each player based on case value
     const updatedPlayerItems = { ...playerItems };
     
-    // Determine winning team randomly if not already set
     if (winningTeam === null) {
       const winTeam = Math.random() > 0.5 ? 0 : 1;
       setWinningTeam(winTeam);
     }
     
-    // Generate unique items for each player for this case
     actualPlayers.forEach(player => {
       if (!updatedPlayerItems[player.id]) {
         updatedPlayerItems[player.id] = [];
       }
       
-      // Create item rarity based on team and case value
       const isWinner = player.team === winningTeam;
       let rarity = 'common';
       
       if (isWinner) {
-        // Winners get better items
         const rarityRoll = Math.random();
         if (rarityRoll > 0.9) rarity = 'legendary';
         else if (rarityRoll > 0.7) rarity = 'epic';
         else if (rarityRoll > 0.4) rarity = 'rare';
         else rarity = 'uncommon';
       } else {
-        // Losers get common or uncommon
         rarity = Math.random() > 0.7 ? 'uncommon' : 'common';
       }
       
-      // Calculate item value based on rarity and case value
       let itemValue = 0;
       switch (rarity) {
-        case 'legendary': itemValue = caseValue * (2 + Math.random() * 2); break; // 2-4x case value
-        case 'epic': itemValue = caseValue * (1.5 + Math.random()); break; // 1.5-2.5x case value
-        case 'rare': itemValue = caseValue * (0.8 + Math.random() * 0.7); break; // 0.8-1.5x case value
-        case 'uncommon': itemValue = caseValue * (0.4 + Math.random() * 0.4); break; // 0.4-0.8x case value
-        default: itemValue = caseValue * (0.1 + Math.random() * 0.3); break; // 0.1-0.4x case value
+        case 'legendary': itemValue = caseValue * (2 + Math.random() * 2); break;
+        case 'epic': itemValue = caseValue * (1.5 + Math.random()); break;
+        case 'rare': itemValue = caseValue * (0.8 + Math.random() * 0.7); break;
+        case 'uncommon': itemValue = caseValue * (0.4 + Math.random() * 0.4); break;
+        default: itemValue = caseValue * (0.1 + Math.random() * 0.3); break;
       }
       
-      // Create case-specific item imagery based on the case
       let itemImage = currentCase.image;
       
-      // Create a new item for this player from this case
       const newItem: SliderItem = {
         id: `${player.id}-case-${currentCaseIndex}-${Date.now()}`,
         name: `${currentCase.name} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`,
-        image: itemImage, // Use the current case image
+        image: itemImage,
         rarity: rarity,
-        price: Math.round(itemValue * 100) / 100, // Round to 2 decimal places
-        playerId: player.id, // Add playerId to track who got the item
-        playerName: player.name, // Add playerName for display
-        playerTeam: player.team // Add team for styling
+        price: Math.round(itemValue * 100) / 100,
+        playerId: String(player.id),
+        playerName: player.name,
+        playerTeam: player.team
       };
       
       updatedPlayerItems[player.id].push(newItem);
@@ -252,18 +230,14 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     
     setPlayerItems(updatedPlayerItems);
     
-    // Play sound effect for item reveal
     playSound('cardHit');
   };
 
   const finishBattle = () => {
-    // Add a small delay to ensure all items are processed
     setTimeout(() => {
-      // Calculate total values per player
       const playerTotals: Record<number, number> = {};
       const teamTotals: Record<number, number> = { 0: 0, 1: 0 };
       
-      // Calculate totals per player and team
       actualPlayers.forEach(player => {
         const playerItemsList = playerItems[player.id] || [];
         const playerTotal = playerItemsList.reduce((sum, item) => sum + item.price, 0);
@@ -272,14 +246,11 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         teamTotals[player.team] += playerTotal;
       });
       
-      // Determine winning team based on total value
       const finalWinningTeam = teamTotals[0] > teamTotals[1] ? 0 : 1;
       setWinningTeam(finalWinningTeam);
       
-      // Play win sound
       playSound('plinkoWin');
       
-      // Generate result data
       const simulatedResults = actualPlayers.map(player => {
         const isWinner = player.team === finalWinningTeam;
         
@@ -294,18 +265,15 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
       
       setResults(simulatedResults);
       setGameState('results');
-    }, 1000); // Small delay to ensure all animations complete
+    }, 1000);
   };
 
-  // Effect to handle countdown and spinning process
   useEffect(() => {
     if (countdown === null && gameState === 'spinning' && !sliderSpinning) {
-      // This handles the spinning process after countdown completes
       startSpinningProcess();
     }
   }, [countdown, gameState, sliderSpinning]);
   
-  // Effect to handle the countdown timer
   useEffect(() => {
     if (gameState === 'spinning' && countdown !== null) {
       const timer = setInterval(() => {
@@ -316,7 +284,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
             return null;
           }
           
-          // Play sound for each countdown number
           playSound('caseHover');
           return prev - 1;
         });
@@ -328,28 +295,27 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
 
   const getTeamColor = (team: number) => {
     const teamColors = [
-      'border-blue-500 bg-blue-500/10', // Team 0: Blue
-      'border-red-500 bg-red-500/10',   // Team 1: Red
-      'border-green-500 bg-green-500/10', // Team 2: Green
-      'border-purple-500 bg-purple-500/10' // Team 3: Purple
+      'border-blue-500 bg-blue-500/10',
+      'border-red-500 bg-red-500/10',
+      'border-green-500 bg-green-500/10',
+      'border-purple-500 bg-purple-500/10'
     ];
     
     return teamColors[team % teamColors.length];
   };
-  
+
   const getTeamGradient = (team: number) => {
     const gradients = [
-      'from-blue-700 to-blue-500', // Team 0: Blue
-      'from-red-700 to-red-500',   // Team 1: Red
-      'from-green-700 to-green-500', // Team 2: Green
-      'from-purple-700 to-purple-500' // Team 3: Purple
+      'from-blue-700 to-blue-500',
+      'from-red-700 to-red-500',
+      'from-green-700 to-green-500',
+      'from-purple-700 to-purple-500'
     ];
     
     return gradients[team % gradients.length];
   };
 
   const renderVSButton = (showBetween: number[] = [0, 2]) => {
-    // For 2v2 mode - big VS in the middle
     if (selectedMode === '2v2') {
       return (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
@@ -360,7 +326,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
       );
     }
     
-    // For other modes - smaller VS between players
     return (
       <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-20">
         <div className="bg-gradient-to-r from-blue-700 to-purple-700 rounded-full w-10 h-10 flex items-center justify-center shadow-lg border-2 border-white/50">
@@ -376,7 +341,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     const teamColor = getTeamColor(player.team);
     const teamGradient = getTeamGradient(player.team);
     
-    // Position VS elements
     const showVSAfter = selectedMode === '2v2' ? [1, 3] : [0, 1, 2];
     const needsVS = index < actualPlayers.length - 1 && showVSAfter.includes(index);
 
@@ -563,7 +527,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   const renderItemResults = () => {
     if (gameState !== 'results') return null;
     
-    // Group items by player for better organization
     return (
       <div className="mt-6 space-y-6">
         {actualPlayers.map((player) => {
@@ -783,7 +746,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {actualPlayers.map((player, index) => renderPlayerSlot(player, index))}
           
-          {/* For 2v2 mode, add the VS button in the center */}
           {selectedMode === '2v2' && gameState !== 'results' && (
             renderVSButton([])
           )}
@@ -796,4 +758,3 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
 };
 
 export default CaseBattleGame;
-

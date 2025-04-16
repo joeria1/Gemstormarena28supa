@@ -7,6 +7,8 @@ export interface SliderItem {
   price: number;
   playerId?: string; // Added playerId as an optional property
   isReroll?: boolean;
+  playerName?: string; // Added for displaying player name with items
+  playerTeam?: number; // Added for styling based on team
 }
 
 export interface SliderProps {
