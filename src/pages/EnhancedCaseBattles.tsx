@@ -6,6 +6,8 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import CaseBattleGame from '@/components/CaseBattle/EnhancedCaseBattleGame';
 import useSoundEffect from '@/hooks/useSoundEffect';
 import { toast } from 'sonner';
+import CaseSlider from '@/components/CaseSlider/CaseSlider';
+import { SliderItem } from '@/types/slider';
 
 // Mock case data
 const casesData = [
