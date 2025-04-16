@@ -7,6 +7,7 @@ import useSoundEffect from '@/hooks/useSoundEffect';
 import { toast } from 'sonner';
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
 import { SliderItem } from '@/types/slider';
+import SpinningEffect from '@/components/GameEffects/SpinningEffect';
 
 interface Player {
   id: number;
@@ -148,16 +149,18 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     setCurrentCaseIndex(0);
     setPlayerItems({});
     setSliderSpinning(false);
+    setWinningTeam(null);
     
     playSound('raceStart');
   };
   
   const startSpinningProcess = () => {
-    if (countdown === null && !sliderSpinning) {
+    if (!sliderSpinning) {
       setSliderSpinning(true);
       setProcessingMultipleCases(actualCases.length > 1);
       playSound('caseSelect');
       
+      // Wait for the spinner animation to complete
       setTimeout(() => {
         setSliderSpinning(false);
         
@@ -171,7 +174,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         } else {
           finishBattle();
         }
-      }, 5000);
+      }, 8000); // Longer animation time
     }
   };
 
@@ -269,12 +272,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     }, 1000);
   };
 
-  useEffect(() => {
-    if (countdown === null && gameState === 'spinning' && !sliderSpinning) {
-      startSpinningProcess();
-    }
-  }, [countdown, gameState, sliderSpinning]);
-  
+  // This effect handles countdown timer
   useEffect(() => {
     if (gameState === 'spinning' && countdown !== null) {
       const timer = setInterval(() => {
@@ -292,7 +290,14 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
       
       return () => clearInterval(timer);
     }
-  }, [gameState, countdown]);
+  }, [gameState, countdown, playSound]);
+
+  // This effect starts spinning process after countdown reaches zero
+  useEffect(() => {
+    if (gameState === 'spinning' && countdown === null && !sliderSpinning) {
+      startSpinningProcess();
+    }
+  }, [countdown, gameState, sliderSpinning]);
 
   const getTeamColor = (team: number) => {
     const teamColors = [
@@ -316,6 +321,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     return gradients[team % gradients.length];
   };
 
+  // Enhanced VS button render function for different modes
   const renderVSButton = (showBetween: number[] = [0, 2]) => {
     if (selectedMode === '2v2') {
       return (
@@ -462,10 +468,11 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
                 isSpinning={sliderSpinning}
                 playerName={player.name}
                 highlightPlayer={player.team === winningTeam}
-                options={{ duration: 5000, itemSize: 'small' }}
+                options={{ duration: 8000, itemSize: 'small' }}
                 isCompact={true}
                 caseName={actualCases[currentCaseIndex]?.name || `Case ${currentCaseIndex + 1}`}
-                spinDuration={5000}
+                spinDuration={8000}
+                setIsSpinning={setSliderSpinning}
               />
             </div>
           </div>
@@ -545,7 +552,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           if (items.length === 0) return null;
           
           const teamColor = getTeamColor(player.team);
-          const teamGradient = getTeamGradient(player.team);
           
           return (
             <div key={`player-items-${player.id}`} className="space-y-3">
@@ -741,7 +747,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
                     )}
                   </div>
                 ))}
-                {Array.from({ length: 9 - actualCases.length }).map((_, idx) => (
+                {Array.from({ length: Math.max(0, 9 - actualCases.length) }).map((_, idx) => (
                   <div key={`empty-case-preview-${idx}`} className="w-12 h-12 bg-[#0d1b32] border border-[#1a2c4c] rounded"></div>
                 ))}
               </div>
@@ -769,4 +775,3 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
 };
 
 export default CaseBattleGame;
-
