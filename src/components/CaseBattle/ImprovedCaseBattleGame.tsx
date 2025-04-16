@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/context/UserContext';
@@ -25,7 +24,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
   const { user, updateBalance } = useUser();
   const [players, setPlayers] = useState<CaseBattlePlayer[]>([]);
   const [currentCase, setCurrentCase] = useState(0);
-  const [currentPlayer, setCurrentPlayer] = useState(0);
   const [gameState, setGameState] = useState<'waiting' | 'playing' | 'finished'>('waiting');
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState<CaseBattlePlayer | null>(null);
@@ -110,10 +108,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
     }, 5000);
   };
   
-  const handleSpinComplete = (item: SliderItem) => {
-    // This is handled in openCase() now with simultaneous results
-  };
-  
   const moveToNextCase = () => {
     const nextCase = currentCase + 1;
     
@@ -123,16 +117,13 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
       return;
     }
     
-    setCurrentPlayer(0);
     setCurrentCase(nextCase);
     setIsSpinning(false);
     
-    // Auto-open for bots
-    if (players.length > 0 && players[0].isBot) {
-      setTimeout(() => {
-        openCase();
-      }, 1000);
-    }
+    // Auto-open for bots after a short delay
+    setTimeout(() => {
+      openCase();
+    }, 1000);
   };
   
   const finishGame = () => {
@@ -161,14 +152,9 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
   const resetGame = () => {
     setPlayers(prev => prev.map(player => ({...player, items: [], totalValue: 0})));
     setCurrentCase(0);
-    setCurrentPlayer(0);
     setGameState('waiting');
     setIsSpinning(false);
     setWinner(null);
-  };
-  
-  const getCurrentPlayerName = () => {
-    return players[currentPlayer]?.name || 'Player';
   };
   
   const getCurrentCaseName = () => {
@@ -221,13 +207,20 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {players.map((player, index) => (
+                {players.map((player) => (
                   <div key={`player-slider-${player.id}`} className="mb-4">
+                    <div className="flex items-center mb-2">
+                      <img 
+                        src={player.avatar}
+                        alt={player.name}
+                        className="w-8 h-8 rounded-full mr-2"
+                      />
+                      <div className="font-medium text-white">{player.name}</div>
+                    </div>
                     <CaseSlider
                       items={caseItems}
-                      onComplete={() => {}} // Handled in openCase function
+                      onComplete={() => {}}
                       isSpinning={isSpinning}
-                      setIsSpinning={index === 0 ? setIsSpinning : undefined}
                       playerName={player.name}
                       highlightPlayer={player.id === user?.id}
                       caseName={getCurrentCaseName()}
@@ -236,7 +229,7 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
                 ))}
               </div>
               
-              {!isSpinning && currentPlayer === 0 && (
+              {!isSpinning && (
                 <div className="text-center mb-4">
                   <Button
                     onClick={openCase}
@@ -248,10 +241,10 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
               )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                {players.map((player, index) => (
+                {players.map((player) => (
                   <div 
                     key={player.id}
-                    className={`bg-gray-900 border ${currentPlayer === index && gameState === 'playing' ? 'border-blue-500' : 'border-gray-700'} rounded-lg overflow-hidden`}
+                    className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden"
                   >
                     <div className="flex items-center justify-between p-3 border-b border-gray-700">
                       <div className="flex items-center">

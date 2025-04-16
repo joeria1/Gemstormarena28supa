@@ -5,7 +5,7 @@ import EnhancedCaseBattles from './EnhancedCaseBattles';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import SimplifiedCaseBattleGame from '@/components/CaseBattle/SimplifiedCaseBattleGame';
+import ImprovedCaseBattleGame from '@/components/CaseBattle/ImprovedCaseBattleGame';
 
 const CaseBattles = () => {
   const [isCreating, setIsCreating] = useState(false);
@@ -17,7 +17,7 @@ const CaseBattles = () => {
   }
 
   if (isPlaying && battleId) {
-    return <SimplifiedCaseBattleGame battleId={battleId} onClose={() => setIsPlaying(false)} />;
+    return <ImprovedCaseBattleGame battleId={battleId} onClose={() => setIsPlaying(false)} />;
   }
 
   const handleJoinBattle = (id: string) => {

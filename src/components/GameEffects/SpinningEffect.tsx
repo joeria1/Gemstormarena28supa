@@ -1,6 +1,5 @@
 
 import React, { ReactNode, useEffect } from 'react';
-import { motion } from 'framer-motion';
 
 interface SpinningEffectProps {
   isSpinning: boolean;
@@ -33,9 +32,9 @@ const SpinningEffect: React.FC<SpinningEffectProps> = ({
         position: 'absolute',
         width: '100%',
         height: '100%',
-        pointerEvents: 'none',
+        pointerEvents: isSpinning ? 'none' : 'auto',
         zIndex: 100,
-        opacity: isSpinning ? 0.8 : 0
+        opacity: isSpinning ? 1 : 0
       }}
     >
       {children}

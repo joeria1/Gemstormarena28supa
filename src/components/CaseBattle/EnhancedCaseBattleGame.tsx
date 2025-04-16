@@ -1,13 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Award, RefreshCw, ChevronLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import useSoundEffect from '@/hooks/useSoundEffect';
 import { toast } from 'sonner';
-import SpinningEffect from '../GameEffects/SpinningEffect';
-import LightningEffect from '../GameEffects/LightningEffect';
-import ItemGlowEffect from '../GameEffects/ItemGlowEffect';
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
 import { SliderItem } from '@/types/slider';
 
@@ -49,7 +45,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   const [winningTeam, setWinningTeam] = useState<number | null>(null);
   const { playSound } = useSoundEffect();
   const [sliderSpinning, setSliderSpinning] = useState(false);
-  const [activePlayerIndex, setActivePlayerIndex] = useState<number | null>(null);
   
   const defaultPlayers: Player[] = [
     { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', balance: 0, team: 0 },
@@ -119,7 +114,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   
   const startSpinningProcess = () => {
     // Set all players to spin simultaneously
-    setActivePlayerIndex(null); // No single active player since all spin together
     setSliderSpinning(true);
     
     // After spinning completes (same duration for all), show results
@@ -225,8 +219,6 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         </div>
       );
     } else if (gameState === 'spinning') {
-      const isActivePlayer = activePlayerIndex === index;
-      
       return (
         <div key={`spinning-${index}`} className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 relative">
           <div className="flex items-center mb-4">
@@ -243,28 +235,19 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           </div>
 
           <div className="min-h-[180px] flex items-center justify-center">
-            {gameState === 'spinning' ? (
-              <div className="w-full">
-                <div className="text-center text-blue-400 mb-2 font-semibold">
-                  Opening case...
-                </div>
-                <CaseSlider
-                  items={sliderItems}
-                  onComplete={() => {}}
-                  autoSpin={true}
-                  isSpinning={sliderSpinning}
-                  setIsSpinning={setSliderSpinning}
-                  playerName={player.name}
-                  highlightPlayer={player.team === 0}
-                  options={{ duration: 5000, itemSize: 'small' }}
-                  isCompact={true}
-                />
-              </div>
-            ) : (
-              <div className="relative">
-                <div className="text-center text-blue-400">Preparing...</div>
-              </div>
-            )}
+            <div className="w-full">
+              <CaseSlider
+                items={sliderItems}
+                onComplete={() => {}}
+                autoSpin={false}
+                isSpinning={sliderSpinning}
+                playerName={player.name}
+                highlightPlayer={player.team === 0}
+                options={{ duration: 5000, itemSize: 'small' }}
+                isCompact={true}
+                caseName={`Case ${index + 1}`}
+              />
+            </div>
           </div>
         </div>
       );
