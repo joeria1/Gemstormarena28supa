@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, Plus, X, ChevronDown, Search, Filter, User, Users, Bot } from 'lucide-react';
@@ -729,7 +730,13 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
             name: caseItem.name,
             price: caseItem.price,
             image: caseItem.image,
-            items: itemsData
+            items: sliderItems.map(item => ({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              image: item.image,
+              rarity: item.rarity as 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+            }))
           }))} 
           users={players.filter(p => p.name !== '').map(player => ({
             id: String(player.id),

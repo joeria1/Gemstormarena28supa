@@ -3,7 +3,7 @@ export interface SliderItem {
   id: string;
   name: string;
   image: string;
-  rarity: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   price: number;
   playerId?: string; // Added playerId as an optional property
   isReroll?: boolean;
