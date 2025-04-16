@@ -35,6 +35,22 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
   const boardWidth = 1000; // Normalized board width to match Game component
   const boardHeight = 1400; // Normalized board height to match Game component
 
+  // Peg and ball sizes based on risk level
+  const pegSizes = {
+    low: 'w-5 h-5', // Largest pegs
+    medium: 'w-4 h-4', // Medium pegs
+    high: 'w-3 h-3'  // Smallest pegs
+  };
+  
+  const ballSizes = {
+    low: 'w-10 h-10', // Largest balls
+    medium: 'w-8 h-8', // Medium balls
+    high: 'w-6 h-6'  // Smallest balls
+  };
+  
+  const currentPegSize = pegSizes[risk];
+  const currentBallSize = ballSizes[risk];
+
   // Peg collision animation refs
   const pegRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
   const pocketRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
@@ -89,10 +105,17 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
     return result;
   };
 
+  // Number of buckets should match risk level - more for high risk, fewer for low
+  const bucketCounts = {
+    low: 8,  // fewer buckets for low risk
+    medium: 10, // medium number for medium risk
+    high: 14   // more buckets for high risk
+  };
+
   const multipliers = {
-    low: generateMultipliers('low'),
-    medium: generateMultipliers('medium'),
-    high: generateMultipliers('high')
+    low: generateMultipliers('low', bucketCounts.low),
+    medium: generateMultipliers('medium', bucketCounts.medium),
+    high: generateMultipliers('high', bucketCounts.high)
   };
 
   // Animate peg when ball hits it
@@ -194,7 +217,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
           key={pegKey}
           data-row={row}
           data-col={col}
-          className={`absolute w-4 h-4 rounded-full ${pegColor} transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150`} 
+          className={`absolute ${currentPegSize} rounded-full ${pegColor} transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150`} 
           style={style}
         />
       );
@@ -223,8 +246,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
       };
       
       // Apply special effects for balls that have entered a pocket
-      // Restore original ball size (8x8 instead of 5x5)
-      const ballClasses = `absolute w-8 h-8 rounded-full ${ballColor} shadow-lg z-10 ${
+      const ballClasses = `absolute ${currentBallSize} rounded-full ${ballColor} shadow-lg z-10 ${
         ball.inPocket ? 'animate-pocket-entry' : ''
       }`;
       
@@ -243,6 +265,12 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
     const currentMultipliers = multipliers[risk];
     
     return currentMultipliers.map((multiplier, index) => {
+      // Bucket size based on risk
+      const bucketHeight = risk === 'low' ? 'h-20' : risk === 'medium' ? 'h-16' : 'h-12';
+      
+      // Text size based on risk
+      const textSize = risk === 'low' ? 'text-lg' : risk === 'medium' ? 'text-base' : 'text-sm';
+      
       // Highlight the bucket if any ball is in it
       const isActive = activeBalls.some(ball => 
         ball.inPocket && ball.pocketIndex === index
@@ -251,7 +279,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
       return (
         <div 
           key={`bucket-${index}`} 
-          className={`flex flex-col items-center justify-center h-16 text-white font-bold transition-all ${
+          className={`flex flex-col items-center justify-center ${bucketHeight} text-white font-bold transition-all ${
             isActive ? 'scale-y-110' : ''
           }`}
           style={{ width: `${100 / currentMultipliers.length}%` }}
@@ -262,7 +290,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
               isActive ? 'animate-pocket-bounce h-6 brightness-150' : ''
             }`}
           ></div>
-          <div className={`mt-2 ${isActive ? 'text-yellow-400 animate-bounce text-xl' : ''}`}>
+          <div className={`mt-2 ${textSize} ${isActive ? 'text-yellow-400 animate-bounce' : ''}`}>
             {multiplier}x
           </div>
         </div>
@@ -271,7 +299,7 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
   };
 
   return (
-    <div className="relative w-full" style={{ paddingTop: '130%' }} ref={boardRef}>
+    <div className="relative w-full" style={{ paddingTop: '120%' }} ref={boardRef}>
       <div className="absolute inset-0 bg-gray-900 overflow-hidden px-2">
         {/* Pegs */}
         {renderPegs()}

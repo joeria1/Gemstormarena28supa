@@ -11,7 +11,7 @@ const Plinko: React.FC = () => {
   }, []);
 
   return (
-    <div className="container max-w-7xl mx-auto py-8 px-4">
+    <div className="container max-w-full mx-auto py-8 px-4">
       <PlinkoGame />
     </div>
   );

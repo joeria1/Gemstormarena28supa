@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import PlinkoBoard from './PlinkoBoard';
 import PlinkoControls from './PlinkoControls';
@@ -466,14 +467,15 @@ const PlinkoGame: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-900 p-4 rounded-lg shadow-lg w-full max-w-7xl mx-auto">
+    <div className="bg-gray-900 p-4 rounded-lg shadow-lg w-full max-w-full mx-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-white">Plinko</h2>
+        <div className="text-xl text-yellow-400">Balance: ${balance.toFixed(2)}</div>
+      </div>
+      
       <div className="flex flex-col lg:flex-row gap-4">
-        <div className="lg:w-3/4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-white">Plinko</h2>
-            <div className="text-xl text-yellow-400">Balance: ${balance.toFixed(2)}</div>
-          </div>
-          
+        <div className="lg:w-1/4">
+          {/* Controls section - left side */}
           <PlinkoControls 
             betAmount={betAmount}
             setBetAmount={setBetAmount}
@@ -484,13 +486,17 @@ const PlinkoGame: React.FC = () => {
             riskLocked={riskLockEnabled}
           />
           
-          <div className="mt-4 bg-gray-800 rounded-lg overflow-hidden">
-            <PlinkoBoard activeBalls={activeBalls} risk={risk} />
+          {/* Results section moved to left side below controls */}
+          <div className="mt-4 bg-gray-800 p-4 rounded-lg">
+            <PlinkoResults results={results} />
           </div>
         </div>
         
-        <div className="lg:w-1/4 bg-gray-800 p-4 rounded-lg">
-          <PlinkoResults results={results} />
+        <div className="lg:w-3/4">
+          {/* Game board - right side */}
+          <div className="bg-gray-800 rounded-lg overflow-hidden h-full">
+            <PlinkoBoard activeBalls={activeBalls} risk={risk} />
+          </div>
         </div>
       </div>
     </div>
