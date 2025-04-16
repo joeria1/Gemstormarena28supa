@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Award, RefreshCw, ChevronLeft, AlertTriangle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -125,7 +126,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
       setReadyPlayers([...readyPlayers, playerId]);
       playSound('caseSelect');
 
-      if (readyPlayers.length + 1 === actualPlayers.filter(p => !p.isBot).length) {
+      if (readyPlayers.length + 1 === actualPlayers.filter(p => p.name !== '').length) {
         startGame();
       }
     }
@@ -135,7 +136,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     toast.success("Bot added to the game");
     playSound('caseSelect');
     
-    if (readyPlayers.length === actualPlayers.filter(p => !p.isBot).length - 1) {
+    if (readyPlayers.length === actualPlayers.filter(p => p.name !== '').length - 1) {
       startGame();
     }
   };
@@ -152,7 +153,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   };
   
   const startSpinningProcess = () => {
-    if (countdown === null) {
+    if (countdown === null && !sliderSpinning) {
       setSliderSpinning(true);
       setProcessingMultipleCases(actualCases.length > 1);
       playSound('caseSelect');
@@ -166,7 +167,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           setCurrentCaseIndex(prev => prev + 1);
           setTimeout(() => {
             setCountdown(3);
-          }, 1500);
+          }, 2000);
         } else {
           finishBattle();
         }
@@ -341,8 +342,18 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     const teamColor = getTeamColor(player.team);
     const teamGradient = getTeamGradient(player.team);
     
-    const showVSAfter = selectedMode === '2v2' ? [1, 3] : [0, 1, 2];
-    const needsVS = index < actualPlayers.length - 1 && showVSAfter.includes(index);
+    // Determine when to show VS buttons based on the selected mode
+    let showVS = false;
+    
+    if (selectedMode === '1v1') {
+      showVS = index === 0;
+    } else if (selectedMode === '1v1v1') {
+      showVS = index < actualPlayers.length - 1;
+    } else if (selectedMode === '1v1v1v1') {
+      showVS = index < actualPlayers.length - 1;
+    } else if (selectedMode === '2v2') {
+      showVS = index === 1; // For 2v2, we'll show a central VS button instead
+    }
 
     if (gameState === 'waiting') {
       return (
@@ -412,7 +423,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
             )}
           </div>
           
-          {needsVS && renderVSButton()}
+          {showVS && renderVSButton()}
         </div>
       );
     } else if (gameState === 'spinning') {
@@ -450,7 +461,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
                 autoSpin={true}
                 isSpinning={sliderSpinning}
                 playerName={player.name}
-                highlightPlayer={player.team === 0}
+                highlightPlayer={player.team === winningTeam}
                 options={{ duration: 5000, itemSize: 'small' }}
                 isCompact={true}
                 caseName={actualCases[currentCaseIndex]?.name || `Case ${currentCaseIndex + 1}`}
@@ -459,7 +470,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
             </div>
           </div>
           
-          {needsVS && renderVSButton()}
+          {showVS && renderVSButton()}
         </div>
       );
     } else {
@@ -518,7 +529,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           
           <div className={`absolute bottom-0 left-0 right-0 h-1 ${isWinner ? 'bg-[#00d7a3]' : 'bg-red-500'}`}></div>
           
-          {needsVS && renderVSButton()}
+          {showVS && renderVSButton()}
         </div>
       );
     }
@@ -667,7 +678,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           
           {gameState === 'waiting' && (
             <div className="flex items-center text-xl font-bold text-white">
-              Waiting For Players ({readyPlayers.length}/{actualPlayers.filter(p => !p.isBot).length})
+              Waiting For Players ({readyPlayers.length}/{actualPlayers.filter(p => p.name !== '').length})
               <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-5 h-5 ml-2" />
               <span className="text-white font-bold">...</span>
             </div>
@@ -758,3 +769,4 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
 };
 
 export default CaseBattleGame;
+
