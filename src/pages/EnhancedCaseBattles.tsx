@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, Plus, X, ChevronDown, Search, Filter, User, Users, Bot } from 'lucide-react';
@@ -511,7 +510,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                       <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-[#1a2c4c] flex items-center justify-center">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
                           <circle cx="12" cy="7" r="4"></circle>
                         </svg>
@@ -592,7 +591,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
             <div className="flex items-center gap-4">
               {selectedCases.map((caseItem, idx) => (
                 <div key={`case-preview-${idx}`} className="w-12 h-12">
-                  <img src={caseItem.image} alt={caseItem.name} className="w-full h-full object-contain animate-bounce" />
+                  <img src={caseItem.image} alt={caseItem.name} className="w-full h-full object-contain" />
                 </div>
               ))}
               {Array.from({ length: 9 - selectedCases.length }).map((_, idx) => (
@@ -623,25 +622,16 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                 </div>
               </div>
 
-              <div className="min-h-[180px] flex items-center justify-center">
-                <div className="relative">
-                  <img 
-                    src={itemsData[0].image} 
-                    alt="Skull Mask" 
-                    className={`w-16 h-16 object-contain ${countdown === null ? 'animate-pulse' : ''}`} 
-                  />
-                  {index % 2 === 0 && (
-                    <div className="absolute -left-10 top-1/2 transform -translate-y-1/2 text-red-500 text-3xl font-bold">👹</div>
-                  )}
-                  {index === 1 && (
-                    <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
-                      <img src="/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png" alt="Animated coin" className="w-12 h-12 animate-spin" />
-                    </div>
-                  )}
-                  {index % 2 === 1 && (
-                    <div className="absolute -right-10 top-1/2 transform -translate-y-1/2 text-red-500 text-3xl font-bold">👹</div>
-                  )}
-                </div>
+              <div className="min-h-[180px]">
+                <CaseSlider
+                  items={itemsData}
+                  onComplete={(item) => {}}
+                  isSpinning={countdown === null}
+                  spinDuration={5000}
+                  caseName="Standard Case"
+                  playerName={player.name}
+                  highlightPlayer={index === 0}
+                />
               </div>
               
               {index === 1 && (

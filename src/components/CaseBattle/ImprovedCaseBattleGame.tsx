@@ -28,7 +28,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState<CaseBattlePlayer | null>(null);
   
-  // Sample case items
   const caseItems: SliderItem[] = [
     { id: '1', name: 'Common Item', image: '/placeholder.svg', rarity: 'common', price: 50 },
     { id: '2', name: 'Uncommon Item', image: '/placeholder.svg', rarity: 'uncommon', price: 100 },
@@ -38,7 +37,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
   ];
   
   useEffect(() => {
-    // Initialize players
     if (user) {
       const initialPlayers: CaseBattlePlayer[] = [
         {
@@ -76,24 +74,18 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
   const openCase = () => {
     setIsSpinning(true);
     
-    // After spinning is complete (5 seconds), handle results for all players
     setTimeout(() => {
-      // For each player, generate a random result
       const updatedPlayers = [...players];
       
       players.forEach((player, index) => {
-        // Select a random item for this player
         const randomItemIndex = Math.floor(Math.random() * caseItems.length);
         const selectedItem = caseItems[randomItemIndex];
         
-        // Add playerId to the item
         const itemWithPlayerId = { ...selectedItem, playerId: player.id };
         
-        // Add to player's items and update total value
         updatedPlayers[index].items.push(itemWithPlayerId);
         updatedPlayers[index].totalValue += selectedItem.price;
         
-        // Show toast with result
         toast(`${player.name} won: ${selectedItem.name}`, {
           description: `Worth ${selectedItem.price} gems!`
         });
@@ -101,7 +93,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
       
       setPlayers(updatedPlayers);
       
-      // Move to next case
       setTimeout(() => {
         moveToNextCase();
       }, 1000);
@@ -111,7 +102,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
   const moveToNextCase = () => {
     const nextCase = currentCase + 1;
     
-    // If all cases have been opened, end game
     if (nextCase >= 3) {
       finishGame();
       return;
@@ -120,23 +110,20 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
     setCurrentCase(nextCase);
     setIsSpinning(false);
     
-    // Auto-open for bots after a short delay
     setTimeout(() => {
       openCase();
     }, 1000);
   };
   
   const finishGame = () => {
-    // Determine winner
     const sortedPlayers = [...players].sort((a, b) => b.totalValue - a.totalValue);
     const battleWinner = sortedPlayers[0];
     
     setWinner(battleWinner);
     setGameState('finished');
     
-    // If user won, award them
     if (battleWinner.id === user?.id) {
-      const winAmount = 500; // Example amount
+      const winAmount = 500;
       updateBalance(winAmount);
       
       toast.success('You won the battle!', {
@@ -280,7 +267,6 @@ const ImprovedCaseBattleGame: React.FC<ImprovedCaseBattleGameProps> = ({ battleI
                           </div>
                         ))}
                         
-                        {/* Empty slots */}
                         {Array(3 - player.items.length).fill(0).map((_, i) => (
                           <div 
                             key={`empty-${i}`}

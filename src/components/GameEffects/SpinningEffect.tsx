@@ -1,5 +1,7 @@
 
 import React, { ReactNode, useEffect } from 'react';
+import CaseSlider from '@/components/CaseSlider/CaseSlider';
+import { SliderItem } from '@/types/slider';
 
 interface SpinningEffectProps {
   isSpinning: boolean;
@@ -8,6 +10,15 @@ interface SpinningEffectProps {
   intensity?: number;
   onComplete?: () => void;
 }
+
+// Default case items if needed
+const defaultItems: SliderItem[] = [
+  { id: '1', name: 'Common Item', image: '/placeholder.svg', rarity: 'common', price: 50 },
+  { id: '2', name: 'Uncommon Item', image: '/placeholder.svg', rarity: 'uncommon', price: 100 },
+  { id: '3', name: 'Rare Item', image: '/placeholder.svg', rarity: 'rare', price: 250 },
+  { id: '4', name: 'Epic Item', image: '/placeholder.svg', rarity: 'epic', price: 500 },
+  { id: '5', name: 'Legendary Item', image: '/placeholder.svg', rarity: 'legendary', price: 1000 }
+];
 
 const SpinningEffect: React.FC<SpinningEffectProps> = ({ 
   isSpinning, 
@@ -37,7 +48,18 @@ const SpinningEffect: React.FC<SpinningEffectProps> = ({
         opacity: isSpinning ? 1 : 0
       }}
     >
-      {children}
+      {/* Use CaseSlider instead of the original spinning animation */}
+      {isSpinning ? (
+        <CaseSlider
+          items={defaultItems}
+          onComplete={onComplete || (() => {})}
+          isSpinning={isSpinning}
+          spinDuration={duration * 1000}
+          caseName="Standard Case"
+        />
+      ) : (
+        children
+      )}
     </div>
   );
 };
