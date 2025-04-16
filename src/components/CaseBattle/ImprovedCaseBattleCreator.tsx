@@ -19,6 +19,7 @@ interface Case {
   price: number;
   image: string;
   rarity: string;
+  quantity?: number;
   dropRates?: {
     common: number;
     uncommon: number;
@@ -72,12 +73,12 @@ const ImprovedCaseBattleCreator: React.FC<ImprovedCaseBattleCreatorProps> = ({ o
       return;
     }
     
-    setSelectedCases(prev => [...prev, caseItem]);
+    setSelectedCases(prev => [...prev, {...caseItem, quantity: 1}]);
   };
   
   const handleQuantityChange = (index: number, change: number) => {
     setSelectedCases(prev => {
-      if (prev[index].quantity === 1 && change === -1) {
+      if ((prev[index].quantity || 1) === 1 && change === -1) {
         return prev.filter((_, i) => i !== index);
       }
       

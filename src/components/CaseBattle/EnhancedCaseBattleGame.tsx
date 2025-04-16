@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useSoundEffect } from '@/hooks/useSoundEffect';
-import { LightningEffect } from '../GameEffects/LightningEffect';
+import LightningEffect from '../GameEffects/LightningEffect';
 
 interface Case {
   id: string;
@@ -70,23 +69,19 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
   const slotsRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { playSound } = useSoundEffect();
 
-  // Initialize slot references
   useEffect(() => {
     slotsRefs.current = Array(users.length).fill(null);
   }, [users.length]);
 
-  // Start the game when component mounts
   useEffect(() => {
     if (cases.length > 0 && users.length > 0) {
       startCountdown();
     }
   }, []);
 
-  // Handle round transitions
   useEffect(() => {
     if (currentRound > 0 && currentRound < cases.length) {
       setCurrentCase(cases[currentRound]);
-      // Add short delay before starting next round
       const timer = setTimeout(() => {
         startCountdown();
       }, 2000);
@@ -116,38 +111,31 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
     setIsSpinning(true);
     playSound('cardShuffle');
     
-    // Start the slot machine spinning for each user
     const spinDurations = users.map(() => 3000 + Math.random() * 2000);
     const maxDuration = Math.max(...spinDurations);
     
-    // Stop each slot machine after its duration
     spinDurations.forEach((duration, index) => {
       setTimeout(() => {
         stopSlot(index);
       }, duration);
     });
     
-    // Show lightning effect when spinning is about to finish
     setTimeout(() => {
       setShowLightning(true);
       playSound('lightning');
     }, maxDuration - 1000);
     
-    // End round after all slots have stopped
     setTimeout(() => {
       setIsSpinning(false);
       setShowLightning(false);
       
-      // Process the results
       const newRoundResults = { ...roundResults };
       const updatedUsers = [...displayedUsers];
       
       updatedUsers.forEach(user => {
-        // Choose a random item from the current case as the reward
         const reward = getRandomItem(currentCase.items || slotMachineItems);
         newRoundResults[user.id] = reward;
         
-        // Add the item to the user's inventory
         user.items = [...(user.items || []), reward];
         user.totalWin = (user.totalWin || 0) + reward.price;
       });
@@ -155,7 +143,6 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
       setRoundResults(newRoundResults);
       setDisplayedUsers(updatedUsers);
       
-      // Move to next round or end game
       setTimeout(() => {
         setCurrentRound(prev => prev + 1);
       }, 2000);
@@ -180,7 +167,6 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
     <div className="w-full max-w-6xl mx-auto p-4 bg-gradient-to-b from-gray-900 to-black rounded-lg shadow-xl relative">
       {showLightning && <LightningEffect />}
       
-      {/* Current case info and round progress */}
       <div className="mb-6 text-center">
         <h2 className="text-2xl font-bold text-white mb-2">
           {currentCase?.name || 'Case Battle'} 
@@ -195,7 +181,6 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
         )}
       </div>
       
-      {/* Countdown display */}
       {countdown !== null && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-20">
           <div className="text-8xl font-bold text-white animate-pulse">
@@ -204,7 +189,6 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
         </div>
       )}
       
-      {/* Battle arena */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
         {displayedUsers.map((user, index) => (
           <div 
@@ -215,7 +199,6 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
                 : 'border-gray-700 bg-gray-800/50'
             }`}
           >
-            {/* User info */}
             <div className="flex items-center gap-3 mb-4">
               <img
                 src={user.avatar || '/placeholder.svg'}
@@ -228,13 +211,11 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
               </div>
             </div>
             
-            {/* Slot machine */}
             <div
               ref={el => (slotsRefs.current[index] = el)}
               className="h-60 overflow-hidden relative bg-gray-900 rounded-lg flex items-center justify-center mb-4"
             >
               {isSpinning ? (
-                // Spinning animation
                 <div className="animate-spin-slow">
                   {slotMachineItems.map((item) => (
                     <div key={item.id} className="p-2">
@@ -251,7 +232,6 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
                   ))}
                 </div>
               ) : roundResults[user.id] ? (
-                // Show result
                 <div className="p-2 transition-all duration-300 transform hover:scale-105">
                   <div className={`p-3 rounded-md ${itemRarityColors[roundResults[user.id].rarity]}`}>
                     <img
@@ -264,14 +244,12 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
                   </div>
                 </div>
               ) : (
-                // Initial state
                 <div className="text-gray-500 text-center">
                   Waiting to spin...
                 </div>
               )}
             </div>
             
-            {/* User's items/rewards */}
             {user.items && user.items.length > 0 && (
               <div className="mt-4">
                 <h4 className="text-sm font-medium text-gray-300 mb-2">Rewards:</h4>
@@ -297,7 +275,6 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
         ))}
       </div>
       
-      {/* Game controls */}
       {gameFinished && (
         <div className="flex justify-center mt-4">
           <Button 
@@ -313,7 +290,6 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({ cases, 
   );
 };
 
-// Sample data for previewing the component
 const mockCases: Case[] = [
   {
     id: '1',
