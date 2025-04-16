@@ -341,7 +341,7 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
         {displayedUsers.map((user, index) => (
           <div 
             key={user.id} 
@@ -418,11 +418,15 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({
             {roundResults[user.id] && roundResults[user.id].length > 0 && (
               <div className="mt-4 border-t-2 border-gray-700 pt-4">
                 <h4 className="text-sm font-medium text-gray-300 mb-2">Items Won:</h4>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1">
+                <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1">
                   {roundResults[user.id].map((item, idx) => (
                     <div 
                       key={`${item.id}-${idx}`} 
-                      className={`p-1 rounded-md text-xs ${itemRarityColors[item.rarity]} flex flex-col items-center`}
+                      className={`p-1 rounded-md text-xs ${itemRarityColors[item.rarity]} flex flex-col items-center border-2 ${
+                        gameFinished && user.totalWin === Math.max(...displayedUsers.map(u => u.totalWin || 0))
+                          ? 'border-yellow-400'
+                          : 'border-gray-700'
+                      }`}
                     >
                       <img
                         src={item.image || '/placeholder.svg'}
@@ -431,6 +435,9 @@ const EnhancedCaseBattleGame: React.FC<EnhancedCaseBattleGameProps> = ({
                       />
                       <p className="truncate w-full text-center text-white">{item.name}</p>
                       <p className="text-green-400">${item.price.toFixed(2)}</p>
+                      <div className="w-full text-center mt-1">
+                        <span className="text-[10px] text-gray-400">{user.name}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
