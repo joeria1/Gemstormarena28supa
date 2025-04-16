@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Award, RefreshCw, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { User, Award, RefreshCw, ChevronLeft, AlertTriangle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import useSoundEffect from '@/hooks/useSoundEffect';
@@ -49,6 +49,7 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
   const [playerItems, setPlayerItems] = useState<Record<number, SliderItem[]>>({});
   const [currentCaseIndex, setCurrentCaseIndex] = useState(0);
   const [processingMultipleCases, setProcessingMultipleCases] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<'1v1' | '1v1v1' | '1v1v1v1' | '2v2'>(mode as any || '2v2');
   
   const defaultPlayers: Player[] = [
     { id: 1, name: 'Truster8845', avatar: '/lovable-uploads/8dac7154-820f-4299-a28e-7c2a37d4e863.png', balance: 0, team: 0 },
@@ -62,7 +63,53 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     { id: 2, name: 'Eggtastic Bomb', price: 66.15, image: '/lovable-uploads/bb236c40-d9ac-4887-8448-f955d662b8bc.png' },
   ];
 
-  const actualPlayers = players.length > 0 ? players : defaultPlayers;
+  // Get players based on selected mode
+  const getPlayerSlotsForMode = () => {
+    let playerCount = 0;
+    switch(selectedMode) {
+      case '1v1':
+        playerCount = 2;
+        break;
+      case '1v1v1':
+        playerCount = 3;
+        break;
+      case '1v1v1v1':
+        playerCount = 4;
+        break;
+      case '2v2':
+        playerCount = 4;
+        break;
+      default:
+        playerCount = 4;
+    }
+    
+    // Create array of players based on count
+    const modePlayers = [];
+    const basePlayers = players.length > 0 ? players : defaultPlayers;
+    
+    for (let i = 0; i < playerCount; i++) {
+      if (basePlayers[i]) {
+        const team = selectedMode === '2v2' ? (i < 2 ? 0 : 1) : i;
+        modePlayers.push({
+          ...basePlayers[i],
+          team
+        });
+      } else {
+        // Empty slot
+        modePlayers.push({
+          id: i + 100,
+          name: '',
+          avatar: '',
+          balance: 0,
+          team: selectedMode === '2v2' ? (i < 2 ? 0 : 1) : i
+        });
+      }
+    }
+    
+    return modePlayers;
+  };
+
+  const actualPlayers = getPlayerSlotsForMode();
   const actualCases = cases.length > 0 ? cases : defaultCases;
 
   const totalValue = actualCases.reduce((sum, caseItem) => sum + caseItem.price, 0);
@@ -105,30 +152,13 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
     // Reset case index and player items
     setCurrentCaseIndex(0);
     setPlayerItems({});
+    setSliderSpinning(false);
     
     playSound('raceStart'); // Play sound for game start
-    
-    // Start countdown
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === null || prev <= 1) {
-          clearInterval(timer);
-          playSound('caseSelect');
-          
-          startSpinningProcess();
-          
-          return null;
-        }
-        
-        // Play sound for each countdown number
-        playSound('caseHover');
-        return prev - 1;
-      });
-    }, 1000);
   };
   
   const startSpinningProcess = () => {
-    // Only start spinning after countdown is completely finished
+    // Only start spinning when countdown reaches null (completely finished)
     if (countdown === null) {
       setSliderSpinning(true);
       setProcessingMultipleCases(actualCases.length > 1);
@@ -211,7 +241,10 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
         name: `${currentCase.name} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`,
         image: itemImage, // Use the current case image
         rarity: rarity,
-        price: Math.round(itemValue * 100) / 100 // Round to 2 decimal places
+        price: Math.round(itemValue * 100) / 100, // Round to 2 decimal places
+        playerId: player.id, // Add playerId to track who got the item
+        playerName: player.name, // Add playerName for display
+        playerTeam: player.team // Add team for styling
       };
       
       updatedPlayerItems[player.id].push(newItem);
@@ -266,16 +299,15 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
 
   // Effect to handle countdown and spinning process
   useEffect(() => {
-    // Only start spinning when countdown reaches null (completed)
-    if (gameState === 'spinning' && countdown === null && !sliderSpinning) {
+    if (countdown === null && gameState === 'spinning' && !sliderSpinning) {
       // This handles the spinning process after countdown completes
       startSpinningProcess();
     }
-  }, [gameState, countdown, sliderSpinning, currentCaseIndex]);
+  }, [countdown, gameState, sliderSpinning]);
   
-  // Effect to handle the countdown timer for subsequent cases
+  // Effect to handle the countdown timer
   useEffect(() => {
-    if (gameState === 'spinning' && countdown !== null && currentCaseIndex > 0) {
+    if (gameState === 'spinning' && countdown !== null) {
       const timer = setInterval(() => {
         setCountdown(prev => {
           if (prev === null || prev <= 1) {
@@ -283,18 +315,70 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
             playSound('caseSelect');
             return null;
           }
+          
+          // Play sound for each countdown number
+          playSound('caseHover');
           return prev - 1;
         });
       }, 1000);
       
       return () => clearInterval(timer);
     }
-  }, [gameState, countdown, currentCaseIndex]);
+  }, [gameState, countdown]);
+
+  const getTeamColor = (team: number) => {
+    const teamColors = [
+      'border-blue-500 bg-blue-500/10', // Team 0: Blue
+      'border-red-500 bg-red-500/10',   // Team 1: Red
+      'border-green-500 bg-green-500/10', // Team 2: Green
+      'border-purple-500 bg-purple-500/10' // Team 3: Purple
+    ];
+    
+    return teamColors[team % teamColors.length];
+  };
+  
+  const getTeamGradient = (team: number) => {
+    const gradients = [
+      'from-blue-700 to-blue-500', // Team 0: Blue
+      'from-red-700 to-red-500',   // Team 1: Red
+      'from-green-700 to-green-500', // Team 2: Green
+      'from-purple-700 to-purple-500' // Team 3: Purple
+    ];
+    
+    return gradients[team % gradients.length];
+  };
+
+  const renderVSButton = (showBetween: number[] = [0, 2]) => {
+    // For 2v2 mode - big VS in the middle
+    if (selectedMode === '2v2') {
+      return (
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+          <div className="bg-gradient-to-r from-blue-600 to-red-600 rounded-full w-16 h-16 flex items-center justify-center shadow-lg border-2 border-white">
+            <span className="text-2xl font-bold text-white">VS</span>
+          </div>
+        </div>
+      );
+    }
+    
+    // For other modes - smaller VS between players
+    return (
+      <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-20">
+        <div className="bg-gradient-to-r from-blue-700 to-purple-700 rounded-full w-10 h-10 flex items-center justify-center shadow-lg border-2 border-white/50">
+          <span className="text-lg font-bold text-white">VS</span>
+        </div>
+      </div>
+    );
+  };
 
   const renderPlayerSlot = (player: Player, index: number) => {
     const isReady = readyPlayers.includes(player.id) || player.isBot;
     const isCurrentUser = player.name === 'Truster8845';
-    const teamColor = player.team === 0 ? 'border-blue-500' : 'border-red-500';
+    const teamColor = getTeamColor(player.team);
+    const teamGradient = getTeamGradient(player.team);
+    
+    // Position VS elements
+    const showVSAfter = selectedMode === '2v2' ? [1, 3] : [0, 1, 2];
+    const needsVS = index < actualPlayers.length - 1 && showVSAfter.includes(index);
 
     if (gameState === 'waiting') {
       return (
@@ -318,9 +402,14 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
             </div>
             <div className="px-2 py-1 bg-gradient-to-r rounded text-xs text-white font-bold"
                 style={{ 
-                  background: player.team === 0 ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' : 'linear-gradient(90deg, #991b1b, #dc2626)'
+                  background: `linear-gradient(90deg, ${player.team === 0 ? '#1e3a8a, #2563eb' : 
+                                                    player.team === 1 ? '#991b1b, #dc2626' :
+                                                    player.team === 2 ? '#166534, #22c55e' : 
+                                                    '#6b21a8, #a855f7'})`
                 }}>
-              {player.team === 0 ? 'TEAM BLUE' : 'TEAM RED'}
+              TEAM {player.team === 0 ? 'BLUE' : 
+                    player.team === 1 ? 'RED' : 
+                    player.team === 2 ? 'GREEN' : 'PURPLE'}
             </div>
           </div>
 
@@ -358,6 +447,8 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
               </div>
             )}
           </div>
+          
+          {needsVS && renderVSButton()}
         </div>
       );
     } else if (gameState === 'spinning') {
@@ -376,9 +467,14 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
             </div>
             <div className="px-2 py-1 bg-gradient-to-r rounded text-xs text-white font-bold"
                 style={{ 
-                  background: player.team === 0 ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' : 'linear-gradient(90deg, #991b1b, #dc2626)'
+                  background: `linear-gradient(90deg, ${player.team === 0 ? '#1e3a8a, #2563eb' : 
+                                                    player.team === 1 ? '#991b1b, #dc2626' :
+                                                    player.team === 2 ? '#166534, #22c55e' : 
+                                                    '#6b21a8, #a855f7'})`
                 }}>
-              {player.team === 0 ? 'TEAM BLUE' : 'TEAM RED'}
+              TEAM {player.team === 0 ? 'BLUE' : 
+                    player.team === 1 ? 'RED' : 
+                    player.team === 2 ? 'GREEN' : 'PURPLE'}
             </div>
           </div>
 
@@ -398,6 +494,8 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
               />
             </div>
           </div>
+          
+          {needsVS && renderVSButton()}
         </div>
       );
     } else {
@@ -421,9 +519,14 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
             </div>
             <div className="px-2 py-1 bg-gradient-to-r rounded text-xs text-white font-bold"
                 style={{ 
-                  background: player.team === 0 ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' : 'linear-gradient(90deg, #991b1b, #dc2626)'
+                  background: `linear-gradient(90deg, ${player.team === 0 ? '#1e3a8a, #2563eb' : 
+                                                    player.team === 1 ? '#991b1b, #dc2626' :
+                                                    player.team === 2 ? '#166534, #22c55e' : 
+                                                    '#6b21a8, #a855f7'})`
                 }}>
-              {player.team === 0 ? 'TEAM BLUE' : 'TEAM RED'}
+              TEAM {player.team === 0 ? 'BLUE' : 
+                    player.team === 1 ? 'RED' : 
+                    player.team === 2 ? 'GREEN' : 'PURPLE'}
             </div>
           </div>
 
@@ -450,6 +553,8 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           )}
           
           <div className={`absolute bottom-0 left-0 right-0 h-1 ${isWinner ? 'bg-[#00d7a3]' : 'bg-red-500'}`}></div>
+          
+          {needsVS && renderVSButton()}
         </div>
       );
     }
@@ -465,7 +570,8 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           const items = playerItems[player.id] || [];
           if (items.length === 0) return null;
           
-          const teamColor = player.team === 0 ? 'border-blue-500 bg-blue-500/10' : 'border-red-500 bg-red-500/10';
+          const teamColor = getTeamColor(player.team);
+          const teamGradient = getTeamGradient(player.team);
           
           return (
             <div key={`player-items-${player.id}`} className="space-y-3">
@@ -483,13 +589,23 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
                     className={`bg-[#0d1b32] border-2 rounded-lg p-4 relative ${
                       player.team === 0 
                         ? 'border-blue-500 hover:shadow-[0_0_10px_rgba(59,130,246,0.5)]' 
-                        : 'border-red-500 hover:shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                        : player.team === 1 
+                          ? 'border-red-500 hover:shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                          : player.team === 2
+                            ? 'border-green-500 hover:shadow-[0_0_10px_rgba(34,197,94,0.5)]'
+                            : 'border-purple-500 hover:shadow-[0_0_10px_rgba(168,85,247,0.5)]'
                     }`}
                   >
                     <div 
                       className="absolute top-0 left-0 px-2 py-1 text-xs font-bold text-white rounded-br"
                       style={{ 
-                        background: player.team === 0 ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' : 'linear-gradient(90deg, #991b1b, #dc2626)'
+                        background: player.team === 0 
+                          ? 'linear-gradient(90deg, #1e3a8a, #2563eb)' 
+                          : player.team === 1
+                            ? 'linear-gradient(90deg, #991b1b, #dc2626)'
+                            : player.team === 2
+                              ? 'linear-gradient(90deg, #166534, #22c55e)'
+                              : 'linear-gradient(90deg, #6b21a8, #a855f7)'
                       }}
                     >
                       {player.name}
@@ -520,6 +636,45 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  const renderModeSelector = () => {
+    return (
+      <div className="flex items-center justify-center gap-2 mb-6">
+        <Button 
+          variant={selectedMode === '1v1' ? "default" : "outline"} 
+          onClick={() => setSelectedMode('1v1')}
+          className="bg-gradient-to-r from-blue-600 to-blue-800 text-white"
+        >
+          <Users className="w-4 h-4 mr-2" />
+          1v1
+        </Button>
+        <Button 
+          variant={selectedMode === '1v1v1' ? "default" : "outline"} 
+          onClick={() => setSelectedMode('1v1v1')}
+          className="bg-gradient-to-r from-blue-600 to-blue-800 text-white"
+        >
+          <Users className="w-4 h-4 mr-2" />
+          1v1v1
+        </Button>
+        <Button 
+          variant={selectedMode === '1v1v1v1' ? "default" : "outline"} 
+          onClick={() => setSelectedMode('1v1v1v1')}
+          className="bg-gradient-to-r from-blue-600 to-blue-800 text-white"
+        >
+          <Users className="w-4 h-4 mr-2" />
+          1v1v1v1
+        </Button>
+        <Button 
+          variant={selectedMode === '2v2' ? "default" : "outline"} 
+          onClick={() => setSelectedMode('2v2')}
+          className="bg-gradient-to-r from-blue-600 to-blue-800 text-white"
+        >
+          <Users className="w-4 h-4 mr-2" />
+          2v2
+        </Button>
       </div>
     );
   };
@@ -577,9 +732,11 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           </div>
         </div>
 
+        {gameState === 'waiting' && renderModeSelector()}
+
         <div className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg p-4 mb-6">
           <div className="flex justify-between items-center">
-            <div className="bg-[#0f2e3b] text-[#00d7a3] px-4 py-1 rounded-md">{mode}</div>
+            <div className="bg-[#0f2e3b] text-[#00d7a3] px-4 py-1 rounded-md">{selectedMode}</div>
             <div className="flex flex-col items-center">
               {gameState === 'spinning' && (
                 <div className="text-white text-md font-bold mb-2">
@@ -623,8 +780,13 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {actualPlayers.map((player, index) => renderPlayerSlot(player, index))}
+          
+          {/* For 2v2 mode, add the VS button in the center */}
+          {selectedMode === '2v2' && gameState !== 'results' && (
+            renderVSButton([])
+          )}
         </div>
         
         {renderItemResults()}
@@ -634,3 +796,4 @@ const CaseBattleGame: React.FC<CaseBattleGameProps> = ({
 };
 
 export default CaseBattleGame;
+
