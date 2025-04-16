@@ -132,9 +132,11 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
 
   const handleQuantityChange = (index: number, change: number) => {
     const updatedCases = [...selectedCases];
-    const newQuantity = Math.max(1, updatedCases[index].quantity + change);
-    updatedCases[index].quantity = newQuantity;
-    setSelectedCases(updatedCases);
+    if (index >= 0 && index < updatedCases.length) {
+      const newQuantity = Math.max(1, updatedCases[index].quantity + change);
+      updatedCases[index].quantity = newQuantity;
+      setSelectedCases([...updatedCases]);
+    }
     playSound('caseSelect');
   };
 
@@ -414,6 +416,8 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                       <button 
                         onClick={() => handleQuantityChange(index, -1)}
                         className="w-8 h-8 flex items-center justify-center bg-[#1a2c4c] rounded text-white hover:bg-[#253e64] transition-colors"
+                        aria-label="Decrease quantity"
+                        type="button"
                       >
                         -
                       </button>
@@ -421,10 +425,20 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                       <button 
                         onClick={() => handleQuantityChange(index, 1)}
                         className="w-8 h-8 flex items-center justify-center bg-[#1a2c4c] rounded text-white hover:bg-[#253e64] transition-colors"
+                        aria-label="Increase quantity"
+                        type="button"
                       >
                         +
                       </button>
                     </div>
+                    <button
+                      onClick={() => handleRemoveCase(index)}
+                      className="w-full mt-2 text-xs text-red-400 hover:text-red-300 transition-colors"
+                      aria-label="Remove case"
+                      type="button"
+                    >
+                      Remove
+                    </button>
                   </div>
                 );
               }
@@ -902,9 +916,11 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                     <img src={caseItem.image} alt={caseItem.name} className="w-24 h-24 object-contain" />
                   </div>
                   <button 
-                    className="w-full h-8 flex items-center justify-center bg-[#1a2c4c] rounded text-white hover:bg-[#253e64] transition-colors"
+                    className="w-full mt-2 text-xs text-red-400 hover:text-red-300 transition-colors"
+                    aria-label="Remove case"
+                    type="button"
                   >
-                    <Plus className="w-4 h-4" />
+                    Remove
                   </button>
                 </div>
               ))}

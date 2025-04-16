@@ -1,5 +1,5 @@
 
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 import CaseSlider from '@/components/CaseSlider/CaseSlider';
 import { SliderItem } from '@/types/slider';
 
@@ -9,6 +9,7 @@ interface SpinningEffectProps {
   duration?: number;
   intensity?: number;
   onComplete?: () => void;
+  countdown?: number | null;
 }
 
 // Default case items if needed
@@ -25,17 +26,46 @@ const SpinningEffect: React.FC<SpinningEffectProps> = ({
   children,
   duration = 8,
   intensity = 1,
-  onComplete
+  onComplete,
+  countdown
 }) => {
+  const [showCountdown, setShowCountdown] = useState<boolean>(!!countdown);
+  const [countdownValue, setCountdownValue] = useState<number | null>(countdown || null);
+  const [startSpinning, setStartSpinning] = useState<boolean>(false);
+
   useEffect(() => {
-    if (isSpinning && onComplete) {
+    if (isSpinning && countdown && countdownValue) {
+      // Start countdown
+      const timer = setInterval(() => {
+        setCountdownValue(prev => {
+          if (prev && prev > 1) {
+            return prev - 1;
+          } else {
+            clearInterval(timer);
+            setShowCountdown(false);
+            setStartSpinning(true);
+            return null;
+          }
+        });
+      }, 1000);
+      
+      return () => clearInterval(timer);
+    } else if (isSpinning && !countdown) {
+      // Start spinning immediately if no countdown
+      setStartSpinning(true);
+    }
+  }, [isSpinning, countdown]);
+
+  useEffect(() => {
+    if (startSpinning && onComplete) {
       const timer = setTimeout(() => {
         onComplete();
+        setStartSpinning(false);
       }, duration * 1000);
       
       return () => clearTimeout(timer);
     }
-  }, [isSpinning, duration, onComplete]);
+  }, [startSpinning, duration, onComplete]);
 
   return (
     <div
@@ -48,12 +78,18 @@ const SpinningEffect: React.FC<SpinningEffectProps> = ({
         opacity: isSpinning ? 1 : 0
       }}
     >
-      {/* Use CaseSlider instead of the original spinning animation */}
+      {showCountdown && countdownValue && (
+        <div className="absolute inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
+          <div className="text-8xl font-bold text-[#00d7a3]">{countdownValue}</div>
+        </div>
+      )}
+      
+      {/* Use CaseSlider for the spinning animation */}
       {isSpinning ? (
         <CaseSlider
           items={defaultItems}
           onComplete={onComplete || (() => {})}
-          isSpinning={isSpinning}
+          isSpinning={startSpinning}
           spinDuration={duration * 1000}
           autoSpin={true}
           caseName="Standard Case"
