@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
+import NavbarUpdated from './components/NavbarUpdated';
 import Home from './pages/Home';
 import EnhancedHome from './pages/EnhancedHome';
 import Blackjack from './pages/Blackjack';
@@ -52,7 +52,7 @@ const App = () => {
       <UserProvider>
         <ChatProvider>
           <SoundProvider>
-            <Navbar />
+            <NavbarUpdated />
             
             <Routes>
               <Route path="/" element={<EnhancedHome />} />
