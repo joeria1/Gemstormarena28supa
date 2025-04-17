@@ -5,6 +5,7 @@ import { useUser } from '../context/UserContext';
 import { 
   Menu, 
   X, 
+  ChevronDown,
   CreditCard, 
   UserCircle, 
   Gift, 
@@ -21,6 +22,12 @@ import { Button } from './ui/button';
 import DepositButton from './DepositButton';
 import { RocketLogo } from './RocketLogo';
 import { useSound } from './ui/sound-context';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const NavbarUpdated: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,8 +43,7 @@ const NavbarUpdated: React.FC = () => {
     setIsOpen(false);
   };
 
-  const navLinks = [
-    { to: '/', label: 'Home', icon: <Home className="w-5 h-5" /> },
+  const gameLinks = [
     { to: '/mines', label: 'Mines', icon: <Bomb className="w-5 h-5" /> },
     { to: '/crash', label: 'Crash', icon: <Rocket className="w-5 h-5" /> },
     { to: '/horse-racing', label: 'Horse Racing', icon: <Gamepad2 className="w-5 h-5" /> },
@@ -67,18 +73,27 @@ const NavbarUpdated: React.FC = () => {
           </button>
         </div>
 
-        <div className={`lg:flex items-center space-x-6 ${isOpen ? 'block' : 'hidden'} lg:block`}>
-          {navLinks.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`hover:text-gray-300 flex items-center ${location.pathname === link.to ? 'text-white' : 'text-gray-400'}`}
-              onClick={closeMenu}
-            >
-              {link.icon}
-              <span className="ml-2">{link.label}</span>
-            </Link>
-          ))}
+        <div className="hidden lg:flex items-center space-x-6">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="text-gray-400 hover:text-white">
+                Games <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-gray-800 border-gray-700">
+              {gameLinks.map((link) => (
+                <DropdownMenuItem key={link.to} asChild>
+                  <Link 
+                    to={link.to} 
+                    className={`flex items-center text-gray-200 hover:text-white hover:bg-gray-700 cursor-pointer ${location.pathname === link.to ? 'bg-gray-700' : ''}`}
+                  >
+                    {link.icon}
+                    <span className="ml-2">{link.label}</span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="hidden lg:flex items-center space-x-4">
@@ -107,6 +122,28 @@ const NavbarUpdated: React.FC = () => {
         {user && (
           <div className={`lg:hidden ${isOpen ? 'block' : 'none'}`}>
             <div className="mt-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-start">
+                    Games <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                  {gameLinks.map((link) => (
+                    <DropdownMenuItem key={link.to} asChild>
+                      <Link 
+                        to={link.to} 
+                        onClick={closeMenu}
+                        className={`flex items-center text-gray-200 hover:text-white hover:bg-gray-700 cursor-pointer ${location.pathname === link.to ? 'bg-gray-700' : ''}`}
+                      >
+                        {link.icon}
+                        <span className="ml-2">{link.label}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {userNavLinks.map((link) => (
                 <Link
                   key={link.to}
