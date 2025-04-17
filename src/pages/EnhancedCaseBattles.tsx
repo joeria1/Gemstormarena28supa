@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, Plus, X, ChevronDown, Search, Filter, User, Users, Bot } from 'lucide-react';
+import { ChevronLeft, Plus, X, ChevronDown, Search, Filter, User, Users, Bot, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import CaseBattleGame from '@/components/CaseBattle/EnhancedCaseBattleGame';
 import useSoundEffect from '@/hooks/useSoundEffect';
 import { toast } from 'sonner';
@@ -23,6 +22,81 @@ const casesData = [
   { id: 9, name: 'Rainbow Heaven', price: 618.83, image: '/lovable-uploads/bb236c40-d9ac-4887-8448-f955d662b8bc.png' },
   { id: 10, name: 'Shining Galaxy', price: 961.22, image: '/lovable-uploads/bb236c40-d9ac-4887-8448-f955d662b8bc.png' },
 ];
+
+// Mock case items drop rates for each case
+const caseDropRates = {
+  1: [
+    { id: '1', name: 'Common Item', rarity: 'common', chance: 60, price: 10 },
+    { id: '2', name: 'Uncommon Item', rarity: 'uncommon', chance: 25, price: 25 },
+    { id: '3', name: 'Rare Item', rarity: 'rare', chance: 10, price: 60 },
+    { id: '4', name: 'Epic Item', rarity: 'epic', chance: 4, price: 120 },
+    { id: '5', name: 'Legendary Item', rarity: 'legendary', chance: 1, price: 250 },
+  ],
+  2: [
+    { id: '1', name: 'Catrina Mask', rarity: 'rare', chance: 15, price: 138, image: '/lovable-uploads/608591e5-21e8-41f6-bdbc-9955b90772f1.png' },
+    { id: '2', name: 'Skull Candle', rarity: 'common', chance: 55, price: 12 },
+    { id: '3', name: 'Marigold Crown', rarity: 'uncommon', chance: 22, price: 45 },
+    { id: '4', name: 'Golden Altar', rarity: 'epic', chance: 7, price: 180 },
+    { id: '5', name: 'Spirit Guide', rarity: 'legendary', chance: 1, price: 350 },
+  ],
+  // Add drop rates for all cases
+  3: [
+    { id: '1', name: 'Egg Shell', rarity: 'common', chance: 50, price: 20 },
+    { id: '2', name: 'Colorful Egg', rarity: 'uncommon', chance: 30, price: 50 },
+    { id: '3', name: 'Golden Egg', rarity: 'rare', chance: 15, price: 150 },
+    { id: '4', name: 'Diamond Egg', rarity: 'epic', chance: 4, price: 300 },
+    { id: '5', name: 'Cosmic Egg', rarity: 'legendary', chance: 1, price: 600 },
+  ],
+  4: [
+    { id: '1', name: 'Glass Shard', rarity: 'common', chance: 50, price: 25 },
+    { id: '2', name: 'Glass Figurine', rarity: 'uncommon', chance: 30, price: 75 },
+    { id: '3', name: 'Crystal Vase', rarity: 'rare', chance: 15, price: 200 },
+    { id: '4', name: 'Diamond Glass', rarity: 'epic', chance: 4, price: 400 },
+    { id: '5', name: 'Glass Crown', rarity: 'legendary', chance: 1, price: 950 },
+  ],
+  5: [
+    { id: '1', name: 'Mystery Box', rarity: 'common', chance: 50, price: 35 },
+    { id: '2', name: 'Secret Scroll', rarity: 'uncommon', chance: 30, price: 100 },
+    { id: '3', name: 'Ancient Relic', rarity: 'rare', chance: 15, price: 250 },
+    { id: '4', name: 'Mystic Orb', rarity: 'epic', chance: 4, price: 500 },
+    { id: '5', name: 'Cosmic Artifact', rarity: 'legendary', chance: 1, price: 1200 },
+  ],
+  6: [
+    { id: '1', name: 'Magic Wand', rarity: 'common', chance: 50, price: 40 },
+    { id: '2', name: 'Spell Book', rarity: 'uncommon', chance: 30, price: 110 },
+    { id: '3', name: 'Wizard Hat', rarity: 'rare', chance: 15, price: 280 },
+    { id: '4', name: 'Magic Staff', rarity: 'epic', chance: 4, price: 550 },
+    { id: '5', name: 'Arcane Robe', rarity: 'legendary', chance: 1, price: 1500 },
+  ],
+  7: [
+    { id: '1', name: 'Penny', rarity: 'common', chance: 50, price: 50 },
+    { id: '2', name: 'Silver Coin', rarity: 'uncommon', chance: 30, price: 150 },
+    { id: '3', name: 'Gold Coin', rarity: 'rare', chance: 15, price: 400 },
+    { id: '4', name: 'Diamond', rarity: 'epic', chance: 4, price: 800 },
+    { id: '5', name: 'Ruby', rarity: 'legendary', chance: 1, price: 2000 },
+  ],
+  8: [
+    { id: '1', name: 'Gucci Keychain', rarity: 'common', chance: 50, price: 80 },
+    { id: '2', name: 'Gucci Cap', rarity: 'uncommon', chance: 30, price: 200 },
+    { id: '3', name: 'Gucci Belt', rarity: 'rare', chance: 15, price: 500 },
+    { id: '4', name: 'Gucci Bag', rarity: 'epic', chance: 4, price: 1000 },
+    { id: '5', name: 'Gucci Watch', rarity: 'legendary', chance: 1, price: 3000 },
+  ],
+  9: [
+    { id: '1', name: 'Rainbow Dust', rarity: 'common', chance: 50, price: 150 },
+    { id: '2', name: 'Rainbow Gem', rarity: 'uncommon', chance: 30, price: 350 },
+    { id: '3', name: 'Rainbow Crystal', rarity: 'rare', chance: 15, price: 850 },
+    { id: '4', name: 'Rainbow Crown', rarity: 'epic', chance: 4, price: 2000 },
+    { id: '5', name: 'Rainbow Treasure', rarity: 'legendary', chance: 1, price: 6000 },
+  ],
+  10: [
+    { id: '1', name: 'Star Dust', rarity: 'common', chance: 50, price: 250 },
+    { id: '2', name: 'Meteor Fragment', rarity: 'uncommon', chance: 30, price: 500 },
+    { id: '3', name: 'Galaxy Stone', rarity: 'rare', chance: 15, price: 1500 },
+    { id: '4', name: 'Black Hole', rarity: 'epic', chance: 4, price: 3500 },
+    { id: '5', name: 'Supernova', rarity: 'legendary', chance: 1, price: 9500 },
+  ],
+};
 
 // Convert items data to match SliderItem type
 const itemsData: SliderItem[] = [
@@ -76,6 +150,10 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
   ]);
   const [sliderSpinning, setSliderSpinning] = useState(false);
   const [playerItems, setPlayerItems] = useState<Record<number, SliderItem[]>>({});
+  
+  // New states for case details dialog
+  const [caseDetailsOpen, setCaseDetailsOpen] = useState(false);
+  const [selectedCaseDetails, setSelectedCaseDetails] = useState<any>(null);
 
   const { playSound } = useSoundEffect();
 
@@ -151,6 +229,17 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     playSound('caseSelect');
   };
 
+  // Function to show case details dialog
+  const handleShowCaseDetails = (caseItem: any) => {
+    setSelectedCaseDetails({
+      ...caseItem,
+      items: caseDropRates[caseItem.id as keyof typeof caseDropRates] || []
+    });
+    setCaseDetailsOpen(true);
+    playSound('caseSelect');
+  };
+
+  // Modified function to add case to battle from case select dialog
   const handleSelectCase = (caseItem: any) => {
     const existingIndex = selectedCases.findIndex(c => c.id === caseItem.id);
     
@@ -163,6 +252,14 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     }
     
     playSound('caseSelect');
+  };
+
+  // Add case from the details dialog
+  const handleAddCaseFromDetails = () => {
+    if (selectedCaseDetails) {
+      handleSelectCase(selectedCaseDetails);
+      setCaseDetailsOpen(false);
+    }
   };
 
   const handleRemoveCase = (index: number) => {
@@ -351,6 +448,18 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
     }
   };
 
+  // Helper function to determine rarity color
+  const getRarityColor = (rarity: string) => {
+    switch(rarity) {
+      case 'common': return 'text-gray-300';
+      case 'uncommon': return 'text-green-300';
+      case 'rare': return 'text-blue-400';
+      case 'epic': return 'text-purple-400';
+      case 'legendary': return 'text-yellow-400';
+      default: return 'text-white';
+    }
+  };
+
   const renderBattleCreation = () => (
     <div className="w-full max-w-6xl mx-auto p-4">
       <div className="bg-[#0a1424] rounded-lg border border-[#1a2c4c] p-4 mb-6">
@@ -454,8 +563,14 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                         <span className="text-white font-bold">{caseData.price.toFixed(2)}</span>
                       </div>
                     </div>
-                    <div className="flex justify-center mb-3">
+                    <div 
+                      className="flex justify-center mb-3 cursor-pointer relative group"
+                      onClick={() => handleShowCaseDetails(caseData)}
+                    >
                       <img src={caseData.image} alt={caseData.name} className="w-24 h-24 object-contain" />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100">
+                        <Info className="text-white w-6 h-6" />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <button 
@@ -603,7 +718,11 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
               <div className="bg-[#0f2e3b] text-[#00d7a3] px-4 py-1 rounded-md">{selectedMode}</div>
               <div className="flex items-center gap-4">
                 {selectedCases.map((caseItem, idx) => (
-                  <div key={`case-preview-${idx}`} className="w-12 h-12">
+                  <div 
+                    key={`case-preview-${idx}`} 
+                    className="w-12 h-12 cursor-pointer"
+                    onClick={() => handleShowCaseDetails(caseItem)}
+                  >
                     <img src={caseItem.image} alt={caseItem.name} className="w-full h-full object-contain" />
                   </div>
                 ))}
@@ -708,7 +827,11 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
             <div className="bg-[#0f2e3b] text-[#00d7a3] px-4 py-1 rounded-md">{selectedMode}</div>
             <div className="flex items-center gap-4">
               {selectedCases.map((caseItem, idx) => (
-                <div key={`case-preview-${idx}`} className="w-12 h-12">
+                <div 
+                  key={`case-preview-${idx}`} 
+                  className="w-12 h-12 cursor-pointer"
+                  onClick={() => handleShowCaseDetails(caseItem)}
+                >
                   <img src={caseItem.image} alt={caseItem.name} className="w-full h-full object-contain" />
                 </div>
               ))}
@@ -769,7 +892,11 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
             <div className="bg-[#0f2e3b] text-[#00d7a3] px-4 py-1 rounded-md">{selectedMode}</div>
             <div className="flex items-center gap-4">
               {selectedCases.map((caseItem, idx) => (
-                <div key={`case-result-${idx}`} className="w-12 h-12">
+                <div 
+                  key={`case-result-${idx}`} 
+                  className="w-12 h-12 cursor-pointer"
+                  onClick={() => handleShowCaseDetails(caseItem)}
+                >
                   <img src={caseItem.image} alt={caseItem.name} className="w-full h-full object-contain" />
                 </div>
               ))}
@@ -885,6 +1012,7 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
       {gamePhase === 'playing' && renderBattlePlay()}
       {gamePhase === 'results' && renderBattleResults()}
       
+      {/* Case selection dialog */}
       <Dialog 
         open={isCaseSelectOpen} 
         onOpenChange={setIsCaseSelectOpen}
@@ -931,7 +1059,6 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                 <div 
                   key={`selectable-case-${caseItem.id}`} 
                   className="bg-[#0d1b32] border border-[#1a2c4c] rounded-lg overflow-hidden p-4 hover:border-[#253e64] transition-colors cursor-pointer"
-                  onClick={() => handleSelectCase(caseItem)}
                 >
                   <div className="text-center text-white font-medium mb-2">{caseItem.name}</div>
                   <div className="flex justify-center mb-2">
@@ -940,9 +1067,22 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
                       <span className="text-white font-bold">{caseItem.price.toFixed(2)}</span>
                     </div>
                   </div>
-                  <div className="flex justify-center mb-3">
+                  <div 
+                    className="flex justify-center mb-3 cursor-pointer"
+                    onClick={() => handleShowCaseDetails(caseItem)}
+                  >
                     <img src={caseItem.image} alt={caseItem.name} className="w-24 h-24 object-contain" />
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectCase(caseItem);
+                    }}
+                    className="w-full flex items-center justify-center bg-[#1a2c4c] hover:bg-[#253e64] text-white py-2 rounded transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add to Battle
+                  </button>
                 </div>
               ))}
             </div>
@@ -967,6 +1107,87 @@ const EnhancedCaseBattles: React.FC<EnhancedCaseBattlesProps> = ({ onBack }) => 
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Case details dialog */}
+      <Dialog 
+        open={caseDetailsOpen} 
+        onOpenChange={setCaseDetailsOpen}
+      >
+        <DialogContent className="bg-[#0a1424] border border-[#1a2c4c] text-white max-w-lg p-0 rounded-lg">
+          <DialogHeader className="p-4 border-b border-[#1a2c4c]">
+            <DialogTitle className="text-xl font-bold flex items-center">
+              <img 
+                src={selectedCaseDetails?.image} 
+                alt={selectedCaseDetails?.name} 
+                className="w-10 h-10 mr-3 object-contain" 
+              />
+              {selectedCaseDetails?.name}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400 flex items-center">
+              <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-4 h-4 mr-1" />
+              {selectedCaseDetails?.price.toFixed(2)}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="p-4">
+            <h3 className="text-lg font-medium mb-3">Possible Items</h3>
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-2">
+              {selectedCaseDetails?.items.map((item: any) => (
+                <div 
+                  key={`drop-${item.id}`}
+                  className="bg-[#0d1b32] p-3 rounded-lg flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-[#1a2c4c] rounded-md flex items-center justify-center mr-2">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-6 h-6 object-contain" />
+                      ) : (
+                        <div className={`w-3 h-3 rounded-full ${
+                          item.rarity === 'common' ? 'bg-gray-400' :
+                          item.rarity === 'uncommon' ? 'bg-green-400' :
+                          item.rarity === 'rare' ? 'bg-blue-400' :
+                          item.rarity === 'epic' ? 'bg-purple-400' :
+                          'bg-yellow-400'
+                        }`}></div>
+                      )}
+                    </div>
+                    <div>
+                      <div className={`font-medium ${getRarityColor(item.rarity)}`}>
+                        {item.name}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="text-white font-semibold">{item.chance}%</div>
+                    <div className="flex items-center text-yellow-400">
+                      <img src="/lovable-uploads/4e40aed5-2e3d-4f03-ab31-3c8f5e9b1604.png" alt="Coin" className="w-3 h-3 mr-1" />
+                      <span>{item.price}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <DialogFooter className="p-4 border-t border-[#1a2c4c]">
+            <Button
+              onClick={handleAddCaseFromDetails}
+              className="bg-[#00d7a3] hover:bg-[#00bf8f] text-white rounded-md transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add to Battle
+            </Button>
+            <Button
+              onClick={() => setCaseDetailsOpen(false)}
+              variant="outline"
+              className="border-[#1a2c4c] text-white hover:bg-[#1a2c4c]"
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

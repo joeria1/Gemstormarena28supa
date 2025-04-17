@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -36,6 +37,45 @@ const availableCases: Case[] = [
   { id: '4', name: 'Epic Case', price: 500, image: '/placeholder.svg', rarity: 'epic' },
   { id: '5', name: 'Legendary Case', price: 1000, image: '/placeholder.svg', rarity: 'legendary' }
 ];
+
+// Mock case drop rates
+const caseDropRates = {
+  '1': [
+    { id: '1', name: 'Common Item', rarity: 'common', chance: 60, price: 10 },
+    { id: '2', name: 'Uncommon Item', rarity: 'uncommon', chance: 25, price: 25 },
+    { id: '3', name: 'Rare Item', rarity: 'rare', chance: 10, price: 60 },
+    { id: '4', name: 'Epic Item', rarity: 'epic', chance: 4, price: 120 },
+    { id: '5', name: 'Legendary Item', rarity: 'legendary', chance: 1, price: 250 },
+  ],
+  '2': [
+    { id: '1', name: 'Enhanced Item', rarity: 'uncommon', chance: 50, price: 50 },
+    { id: '2', name: 'Shiny Item', rarity: 'uncommon', chance: 30, price: 75 },
+    { id: '3', name: 'Special Item', rarity: 'rare', chance: 15, price: 150 },
+    { id: '4', name: 'Unique Item', rarity: 'epic', chance: 4, price: 300 },
+    { id: '5', name: 'Mythic Item', rarity: 'legendary', chance: 1, price: 600 },
+  ],
+  '3': [
+    { id: '1', name: 'Rare Fragment', rarity: 'rare', chance: 40, price: 125 },
+    { id: '2', name: 'Rare Crystal', rarity: 'rare', chance: 30, price: 150 },
+    { id: '3', name: 'Rare Gem', rarity: 'rare', chance: 20, price: 200 },
+    { id: '4', name: 'Epic Artifact', rarity: 'epic', chance: 9, price: 500 },
+    { id: '5', name: 'Legendary Relic', rarity: 'legendary', chance: 1, price: 1000 },
+  ],
+  '4': [
+    { id: '1', name: 'Epic Shard', rarity: 'epic', chance: 50, price: 250 },
+    { id: '2', name: 'Epic Crystal', rarity: 'epic', chance: 30, price: 350 },
+    { id: '3', name: 'Epic Gem', rarity: 'epic', chance: 15, price: 450 },
+    { id: '4', name: 'Epic Core', rarity: 'epic', chance: 4, price: 600 },
+    { id: '5', name: 'Legendary Artifact', rarity: 'legendary', chance: 1, price: 1500 },
+  ],
+  '5': [
+    { id: '1', name: 'Legendary Fragment', rarity: 'legendary', chance: 40, price: 500 },
+    { id: '2', name: 'Legendary Crystal', rarity: 'legendary', chance: 30, price: 750 },
+    { id: '3', name: 'Legendary Gem', rarity: 'legendary', chance: 20, price: 1000 },
+    { id: '4', name: 'Legendary Core', rarity: 'legendary', chance: 9, price: 1500 },
+    { id: '5', name: 'Ancient Artifact', rarity: 'legendary', chance: 1, price: 3000 },
+  ],
+};
 
 interface ImprovedCaseBattleCreatorProps {
   onCreateBattle: (battleSettings: any) => void;
@@ -124,6 +164,18 @@ const ImprovedCaseBattleCreator: React.FC<ImprovedCaseBattleCreatorProps> = ({ o
     setDropRatesDialogOpen(true);
   };
   
+  // Helper function to determine rarity color
+  const getRarityColor = (rarity: string) => {
+    switch(rarity) {
+      case 'common': return 'text-gray-300';
+      case 'uncommon': return 'text-green-300';
+      case 'rare': return 'text-blue-400';
+      case 'epic': return 'text-purple-400';
+      case 'legendary': return 'text-yellow-400';
+      default: return 'text-white';
+    }
+  };
+  
   return (
     <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
       <h2 className="text-2xl font-bold text-white mb-4">Create a Case Battle</h2>
@@ -157,7 +209,12 @@ const ImprovedCaseBattleCreator: React.FC<ImprovedCaseBattleCreatorProps> = ({ o
             >
               <div className="text-center">
                 <div className="relative">
-                  <img src={caseItem.image} alt={caseItem.name} className="w-full h-20 object-contain mb-2" />
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => showDropRates(caseItem)}
+                  >
+                    <img src={caseItem.image} alt={caseItem.name} className="w-full h-20 object-contain mb-2" />
+                  </div>
                   <button
                     onClick={() => showDropRates(caseItem)}
                     className="absolute top-0 right-0 p-1 bg-gray-800 rounded-bl-lg"
@@ -172,8 +229,9 @@ const ImprovedCaseBattleCreator: React.FC<ImprovedCaseBattleCreatorProps> = ({ o
                 </div>
                 <button
                   onClick={() => handleAddCase(caseItem)}
-                  className="mt-2 w-full px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                  className="mt-2 w-full px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm flex items-center justify-center"
                 >
+                  <Plus className="w-4 h-4 mr-1" />
                   Add to Battle
                 </button>
               </div>
@@ -191,7 +249,12 @@ const ImprovedCaseBattleCreator: React.FC<ImprovedCaseBattleCreatorProps> = ({ o
               {selectedCases.map((caseItem, index) => (
                 <div key={index} className="relative">
                   <div className="bg-gray-800 border border-gray-700 rounded p-2">
-                    <img src={caseItem.image} alt={caseItem.name} className="w-full h-12 object-contain mb-1" />
+                    <div 
+                      className="cursor-pointer"
+                      onClick={() => showDropRates(caseItem)}
+                    >
+                      <img src={caseItem.image} alt={caseItem.name} className="w-full h-12 object-contain mb-1" />
+                    </div>
                     <div className="text-xs text-center text-white">{caseItem.name}</div>
                     <div className="flex justify-center items-center mt-1">
                       <Gem className="h-3 w-3 text-yellow-400 mr-1" />
@@ -264,41 +327,88 @@ const ImprovedCaseBattleCreator: React.FC<ImprovedCaseBattleCreatorProps> = ({ o
       <Dialog open={dropRatesDialogOpen} onOpenChange={setDropRatesDialogOpen}>
         <DialogContent className="bg-gray-900 border-gray-800 text-white">
           <DialogHeader>
-            <DialogTitle>Drop Rates - {selectedCaseForRates?.name}</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              View possible items and their drop rates
+            <DialogTitle className="flex items-center">
+              <img 
+                src={selectedCaseForRates?.image || '/placeholder.svg'} 
+                alt={selectedCaseForRates?.name} 
+                className="w-8 h-8 mr-2 object-contain" 
+              />
+              {selectedCaseForRates?.name}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400 flex items-center">
+              <Gem className="h-3 w-3 text-yellow-400 mr-1" />
+              <span className="text-yellow-400">{selectedCaseForRates?.price}</span>
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div className="bg-gray-800 p-4 rounded-lg">
               <h4 className="text-lg font-medium mb-3">Possible Items</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Common</span>
-                  <span className="text-blue-400">40%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-green-300">Uncommon</span>
-                  <span className="text-blue-400">30%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-purple-300">Rare</span>
-                  <span className="text-blue-400">20%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-pink-300">Epic</span>
-                  <span className="text-blue-400">8%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-yellow-300">Legendary</span>
-                  <span className="text-blue-400">2%</span>
-                </div>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {selectedCaseForRates && caseDropRates[selectedCaseForRates.id as keyof typeof caseDropRates] ? (
+                  caseDropRates[selectedCaseForRates.id as keyof typeof caseDropRates].map((item: any) => (
+                    <div 
+                      key={`case-item-${item.id}`}
+                      className="flex justify-between items-center bg-gray-700 p-2 rounded"
+                    >
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full mr-2 ${
+                          item.rarity === 'common' ? 'bg-gray-400' :
+                          item.rarity === 'uncommon' ? 'bg-green-400' :
+                          item.rarity === 'rare' ? 'bg-blue-400' :
+                          item.rarity === 'epic' ? 'bg-purple-400' :
+                          'bg-yellow-400'
+                        }`}></div>
+                        <span className={getRarityColor(item.rarity)}>{item.name}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-blue-400 mr-3">{item.chance}%</span>
+                        <div className="flex items-center">
+                          <Gem className="h-3 w-3 text-yellow-400 mr-1" />
+                          <span className="text-yellow-400">{item.price}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-300">Common</span>
+                      <span className="text-blue-400">40%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-green-300">Uncommon</span>
+                      <span className="text-blue-400">30%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-purple-300">Rare</span>
+                      <span className="text-blue-400">20%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-pink-300">Epic</span>
+                      <span className="text-blue-400">8%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-yellow-300">Legendary</span>
+                      <span className="text-blue-400">2%</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
           
-          <DialogFooter>
+          <DialogFooter className="flex justify-between">
+            <Button 
+              onClick={() => {
+                if (selectedCaseForRates) handleAddCase(selectedCaseForRates);
+                setDropRatesDialogOpen(false);
+              }}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add to Battle
+            </Button>
             <Button onClick={() => setDropRatesDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
