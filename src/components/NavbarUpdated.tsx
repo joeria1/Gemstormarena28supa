@@ -10,7 +10,6 @@ import {
   UserCircle, 
   Gift, 
   Users, 
-  Home,
   Bomb,
   Rocket,
   Gamepad2,
@@ -67,17 +66,11 @@ const NavbarUpdated: React.FC = () => {
           DUMP.FUN
         </Link>
 
-        <div className="lg:hidden">
-          <button onClick={toggleMenu} className="text-gray-300 hover:text-white focus:outline-none focus:text-white">
-            {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
-        </div>
-
-        <div className="hidden lg:flex items-center space-x-6">
+        <div className="flex items-center space-x-6">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="text-gray-400 hover:text-white">
-                Games <ChevronDown className="ml-2 h-4 w-4" />
+                Play <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="bg-gray-800 border-gray-700">
@@ -94,29 +87,35 @@ const NavbarUpdated: React.FC = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <div className="hidden lg:flex items-center space-x-4">
+            {user ? (
+              <>
+                {userNavLinks.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`hover:text-gray-300 flex items-center ${location.pathname === link.to ? 'text-white' : 'text-gray-400'}`}
+                  >
+                    {link.icon}
+                    <span className="ml-2">{link.label}</span>
+                  </Link>
+                ))}
+                <DepositButton />
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="hover:text-gray-300">Login</Link>
+                <Link to="/register" className="hover:text-gray-300">Register</Link>
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="hidden lg:flex items-center space-x-4">
-          {user ? (
-            <>
-              {userNavLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`hover:text-gray-300 flex items-center ${location.pathname === link.to ? 'text-white' : 'text-gray-400'}`}
-                >
-                  {link.icon}
-                  <span className="ml-2">{link.label}</span>
-                </Link>
-              ))}
-              <DepositButton />
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="hover:text-gray-300">Login</Link>
-              <Link to="/register" className="hover:text-gray-300">Register</Link>
-            </>
-          )}
+        <div className="lg:hidden">
+          <button onClick={toggleMenu} className="text-gray-300 hover:text-white focus:outline-none focus:text-white">
+            {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
 
         {user && (
@@ -125,7 +124,7 @@ const NavbarUpdated: React.FC = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="w-full justify-start">
-                    Games <ChevronDown className="ml-2 h-4 w-4" />
+                    Play <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-gray-800 border-gray-700">
