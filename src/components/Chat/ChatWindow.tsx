@@ -1,15 +1,14 @@
-
 import React from 'react';
-import EnhancedChatContainer from './EnhancedChatContainer';
+import ChatContainer from './ChatContainer';
 
 interface ChatWindowProps {
   className?: string;
 }
 
-// This is a wrapper around EnhancedChatContainer to maintain compatibility
+// This is a wrapper around ChatContainer to maintain compatibility
 // with existing code that imports ChatWindow
 const ChatWindow: React.FC<ChatWindowProps> = ({ className }) => {
-  return <EnhancedChatContainer className={className} />;
+  return <ChatContainer />;
 };
 
 export default ChatWindow;

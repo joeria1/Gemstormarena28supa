@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import PlinkoBoard from './PlinkoBoard';
 import PlinkoControls from './PlinkoControls';
@@ -40,6 +39,11 @@ const PlinkoGame: React.FC = () => {
   const physicsInterval = useRef<number | null>(null);
   const ballsInPlay = useRef<number>(0);
   const [riskLockEnabled, setRiskLockEnabled] = useState(false);
+  const [lastHitMultiplier, setLastHitMultiplier] = useState<number | null>(null);
+  const gameState = {
+    isRunning: true,
+    isPaused: false
+  };
 
   // Set up row counts by risk level
   const rowsByRisk = {
@@ -48,51 +52,104 @@ const PlinkoGame: React.FC = () => {
     high: 16    // More rows for high risk
   };
 
-  const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number = 10): number[] => {
+  // Set up pockets/goals by risk level
+  const pocketCountsByRisk = {
+    low: 8,     // 8 goals for low risk
+    medium: 12, // 12 goals for medium risk
+    high: 16    // 16 goals for high risk
+  };
+
+  const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number): number[] => {
+    // Multiplier ranges to ensure house edge
     const baseValues = {
-      low: { min: 0.5, mid: 0.9, max: 9 },
-      medium: { min: 0.3, mid: 0.8, max: 100 },
-      high: { min: 0.1, mid: 0.5, max: 1000 }
+      low: { min: 0.3, mid: 0.9, max: 9 },
+      medium: { min: 0.2, mid: 0.8, max: 50 },
+      high: { min: 0.1, mid: 0.3, max: 1000 }
     };
     
     const { min, mid, max } = baseValues[risk];
     const result: number[] = [];
     
     for (let i = 0; i < count; i++) {
+      // Calculate position relative to center (0 = middle, 1 = edge)
       const positionFactor = Math.abs((i - (count - 1) / 2) / ((count - 1) / 2));
       
       let value;
-      if (positionFactor < 0.3) {
-        value = min + (mid - min) * (positionFactor / 0.3);
+      if (risk === 'high') {
+        // For high risk, make it extremely rare to hit high multipliers
+        if (positionFactor > 0.96) {
+          // Extreme edges (2 positions) get the max values (very rare)
+          value = max;
+        } else if (positionFactor > 0.9) {
+          // Near edges get high values but not max (rare)
+          value = max / 8; // ~125x range
+        } else if (positionFactor > 0.8) {
+          // Medium-far positions
+          value = max / 40; // ~25x range
+        } else if (positionFactor > 0.6) {
+          // Medium positions
+          value = max / 100; // ~10x range
+        } else if (positionFactor > 0.4) {
+          // Mid-center positions
+          value = max / 250; // ~4x range
+        } else if (positionFactor > 0.2) {
+          // Near center
+          value = max / 1000; // ~1x range
+        } else {
+          // Center positions (more common landing spots)
+          value = min; // Lowest multiplier
+        }
+      } else if (risk === 'medium') {
+        if (positionFactor > 0.9) {
+          value = max; // 50x
+        } else if (positionFactor > 0.75) {
+          value = max / 5; // 10x
+        } else if (positionFactor > 0.5) {
+          value = 2;
+        } else if (positionFactor > 0.25) {
+          value = 0.8;
+        } else {
+          value = min; // 0.2x
+        }
       } else {
-        const expFactor = (positionFactor - 0.3) / 0.7;
-        value = mid + (max - mid) * Math.pow(expFactor, 2.5);
+        // Low risk
+        if (positionFactor > 0.85) {
+          value = max; // 9x
+        } else if (positionFactor > 0.6) {
+          value = 4;
+        } else if (positionFactor > 0.4) {
+          value = 2;
+        } else if (positionFactor > 0.2) {
+          value = 0.8;
+        } else {
+          value = min; // 0.3x
+        }
       }
       
-      result.push(Math.round(value * 10) / 10);
+      // Round to 1 decimal place for cleaner display
+      const roundedValue = Math.round(value * 10) / 10;
+      result.push(roundedValue);
     }
     
     return result;
   };
 
+  const getMultipliersForRisk = (risk: 'low' | 'medium' | 'high'): number[] => {
+    const count = pocketCountsByRisk[risk];
+    return generateMultipliers(risk, count);
+  };
+
   const riskMultipliers = {
-    low: generateMultipliers('low'),
-    medium: generateMultipliers('medium'),
-    high: generateMultipliers('high')
+    low: getMultipliersForRisk('low'),
+    medium: getMultipliersForRisk('medium'),
+    high: getMultipliersForRisk('high')
   };
 
   useEffect(() => {
-    if (physicsInterval.current === null) {
-      physicsInterval.current = window.setInterval(() => {
-        updatePhysics();
-      }, 16);
-    }
-    
+    // We no longer need this separate interval, as we have integrated the physics
+    // inside the game state useEffect
     return () => {
-      if (physicsInterval.current !== null) {
-        window.clearInterval(physicsInterval.current);
-        physicsInterval.current = null;
-      }
+      // Clean up function
     };
   }, []);
 
@@ -101,34 +158,47 @@ const PlinkoGame: React.FC = () => {
     setRiskLockEnabled(hasBalls);
   }, [activeBalls]);
 
-  const GRAVITY = 0.32;
-  const BOUNCE_FACTOR = 0.55;
-  const FRICTION = 0.97;
-  const MAX_VELOCITY = 14;
-  const PEG_RADIUS = 15;
-  const BALL_RADIUS = 14;
-  const BOARD_WIDTH = 1000;
-  const BOARD_HEIGHT = 1400;
-  const STUCK_DETECTION_TIME = 400;
-  const STUCK_VELOCITY_THRESHOLD = 0.6;
-  const PEG_REPULSION_STRENGTH = 0.15;
-  const INITIAL_VELOCITY_RANGE = 0.6;
+  // Ball sizes by risk level - keep the same
+  const BALL_RADIUS_BY_RISK = {
+    low: 12,     // Same on easy
+    medium: 9,   // Same on medium
+    high: 6      // Same on high
+  };
+
+  // Constants for ball physics - same across all risk levels
+  const GRAVITY = 0.5;  // Fast gravity
+  const BOUNCE_FACTOR = 0.65;  // Same bounce factor on all levels
+  const FRICTION = 0.98;  // Same friction on all levels
+  const MIN_VELOCITY = 0.2;  // Same minimum velocity
+  const PEG_RADIUS = {
+    low: 10,      // Standard size for low risk
+    medium: 8,    // Smaller pegs for medium risk
+    high: 6       // Even smaller pegs for high risk
+  };
+
+  // Revert back to original board dimensions
+  const BOARD_WIDTH = 800;
+  const BOARD_HEIGHT = 1000;
+  const STUCK_DETECTION_TIME = 250;
+  const STUCK_VELOCITY_THRESHOLD = 0.3;
+  const INITIAL_VELOCITY_RANGE = 0.2;
 
   const getPegPositions = () => {
     const positions = [];
     const PEG_ROWS = rowsByRisk[risk];
     
-    for (let row = 0; row < PEG_ROWS; row++) {
+    // Position pegs in triangle pattern, completely removing the first row
+    for (let row = 1; row < PEG_ROWS; row++) {
+      // Skip the first row entirely (index 0)
       const pegsInRow = row + 1;
-      const rowWidth = (pegsInRow - 1) * 100;
+      const rowWidth = (pegsInRow - 1) * 80;
       const startX = (BOARD_WIDTH - rowWidth) / 2;
       
-      // Distribute pegs evenly based on row count
-      const rowHeight = BOARD_HEIGHT / (PEG_ROWS + 1);
+      const rowHeight = BOARD_HEIGHT / (PEG_ROWS + 2);
       
       for (let col = 0; col < pegsInRow; col++) {
-        const x = startX + col * 100;
-        const y = rowHeight + row * rowHeight;
+        const x = startX + col * 80;
+        const y = 80 + row * rowHeight;
         
         positions.push({ row, col, x, y });
       }
@@ -152,237 +222,214 @@ const PlinkoGame: React.FC = () => {
     });
   };
 
-  const checkPegCollision = (ball: typeof activeBalls[0], pegPositions: ReturnType<typeof getPegPositions>) => {
-    let closestCollision = null;
-    let closestDistance = Infinity;
-    let hitPeg = null;
-    
-    for (const peg of pegPositions) {
-      if (peg.row < ball.currentRow - 2) continue;
-      if (Math.abs(ball.x - peg.x) > BALL_RADIUS + PEG_RADIUS + 8) continue;
-      
-      const dx = ball.x - peg.x;
-      const dy = ball.y - peg.y;
+  // Handle ball physics
+  useEffect(() => {
+    if (!gameState.isRunning || gameState.isPaused) return;
+
+    const updateInterval = setInterval(() => {
+      setActiveBalls(prevBalls => {
+        const newBalls = [...prevBalls];
+        
+        for (let i = 0; i < newBalls.length; i++) {
+          const ball = newBalls[i];
+          
+          // Skip balls already in pockets
+          if (ball.inPocket) continue;
+          
+          // Get ball radius based on risk level
+          const ballRadius = BALL_RADIUS_BY_RISK[risk];
+          // Get peg radius based on risk level
+          const pegRadius = PEG_RADIUS[risk];
+          
+          // Apply stronger gravity
+          ball.vy += GRAVITY;
+          
+          // Apply stronger middle-biasing force
+          const distanceFromCenter = ball.x - BOARD_WIDTH / 2;
+          // Apply central force - stronger now to keep balls more centered
+          ball.vx -= distanceFromCenter * 0.0003;
+          
+          // Apply friction
+          ball.vx *= FRICTION;
+          ball.vy *= 0.997; // Less air resistance for faster falling
+          
+          // Store previous position for collision detection
+          const prevX = ball.x;
+          const prevY = ball.y;
+          
+          // Update position with smaller steps to prevent tunneling
+          const steps = 3; // Fewer steps for speed
+          const stepVx = ball.vx / steps;
+          const stepVy = ball.vy / steps;
+          
+          let finalX = ball.x;
+          let finalY = ball.y;
+          let collisionOccurred = false;
+          
+          // Get peg positions for collision detection
+          const pegPositions = getPegPositions();
+          
+          // Process movement in smaller steps to catch all collisions
+          for (let step = 0; step < steps && !collisionOccurred; step++) {
+            const testX = ball.x + stepVx;
+            const testY = ball.y + stepVy;
+            
+            // Check for collisions at this step
+            for (const peg of pegPositions) {
+              const pegX = peg.x;
+              const pegY = peg.y;
+              
+              const dx = testX - pegX;
+              const dy = testY - pegY;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      if (distance < BALL_RADIUS + PEG_RADIUS && distance < closestDistance) {
-        closestDistance = distance;
-        hitPeg = { row: peg.row, col: peg.col };
-        
-        const nx = dx / distance;
-        const ny = dy / distance;
-        const dotProduct = ball.vx * nx + ball.vy * ny;
-        
-        const newVx = ball.vx - (1 + BOUNCE_FACTOR) * dotProduct * nx;
-        const newVy = ball.vy - (1 + BOUNCE_FACTOR) * dotProduct * ny;
-        
-        const impactIntensity = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-        
-        const xVariance = (Math.random() - 0.5) * 0.2;
-        const yVariance = Math.random() * 0.15;
-        
-        const newRow = peg.row >= ball.currentRow ? peg.row + 1 : ball.currentRow;
-        
-        closestCollision = {
-          vx: newVx + xVariance,
-          vy: newVy + yVariance,
-          row: newRow,
-          pegRow: peg.row,
-          pegCol: peg.col,
-          impactIntensity
-        };
-      }
-    }
-    
-    if (closestCollision) {
-      let extraRandomness = 1.0;
-      let repulsionFactor = 0;
-      
-      if (ball.lastHitPeg && 
-          ball.lastHitPeg.row === hitPeg?.row && 
-          ball.lastHitPeg.col === hitPeg?.col) {
-        extraRandomness = 1.1 + Math.random() * 0.2;
-        repulsionFactor = PEG_REPULSION_STRENGTH;
-        
-        if (Math.abs(closestCollision.vx) + Math.abs(closestCollision.vy) < STUCK_VELOCITY_THRESHOLD * 2) {
-          closestCollision.vy = Math.max(closestCollision.vy, GRAVITY * 5);
-          closestCollision.vx += (Math.random() > 0.5 ? 1 : -1) * GRAVITY * 3;
-        }
-      }
-      
-      if (!isMuted) {
-        const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-        const volume = Math.min(0.3 + (impactSpeed / MAX_VELOCITY) * 0.7, 1.0);
-        playGameSound('plinkoPeg', volume * 0.5);
-      }
-      
-      ball.currentRow = closestCollision.row;
-      ball.lastHitPeg = hitPeg;
-      
-      const dx = ball.x - (hitPeg ? pegPositions.find(p => p.row === hitPeg.row && p.col === hitPeg.col)?.x || ball.x : ball.x);
-      const dy = ball.y - (hitPeg ? pegPositions.find(p => p.row === hitPeg.row && p.col === hitPeg.col)?.y || ball.y : ball.y);
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      let repulsionVx = 0;
-      let repulsionVy = 0;
-      
-      if (distance > 0) {
-        repulsionVx = (dx / distance) * repulsionFactor * MAX_VELOCITY;
-        repulsionVy = (dy / distance) * repulsionFactor * MAX_VELOCITY;
-        repulsionVy = Math.max(repulsionVy, 0);
-      }
-      
-      const vx = Math.min(Math.max((closestCollision.vx * extraRandomness) + repulsionVx, -MAX_VELOCITY), MAX_VELOCITY);
-      const vy = Math.min(Math.max(closestCollision.vy + repulsionVy, -MAX_VELOCITY / 2), MAX_VELOCITY);
-      
-      return { vx, vy };
-    }
-    
-    return null;
-  };
-
-  const checkPocketEntry = (ball: typeof activeBalls[0], pocketPositions: ReturnType<typeof getPocketPositions>) => {
-    if (ball.y >= BOARD_HEIGHT - 100) {
-      const pocket = pocketPositions.find(p => ball.x >= p.left && ball.x <= p.right);
-      if (pocket && !ball.inPocket) {
-        return pocket.index;
-      }
-    }
-    return null;
-  };
-
-  const handleStuckBalls = (ball: typeof activeBalls[0]) => {
-    const currentTime = Date.now();
-    const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-    
-    const isMovingTooSlow = speed < STUCK_VELOCITY_THRESHOLD;
-    const hasStoppedVertically = ball.vy < GRAVITY / 2;
-    const isSpinningHorizontally = Math.abs(ball.vx) > Math.abs(ball.vy) * 2;
-    
-    if (isMovingTooSlow || hasStoppedVertically || isSpinningHorizontally) {
+              if (distance < ballRadius + pegRadius) {
+                // Collision detected!
+                collisionOccurred = true;
+                
+                // Record last hit peg for animations
+                ball.lastHitPeg = { row: peg.row, col: peg.col };
+                
+                // Calculate collision response
+                const angle = Math.atan2(dy, dx);
+                
+                // Move ball completely outside the peg with strong repulsion
+                const overlapDist = (ballRadius + pegRadius) - distance;
+                finalX = testX + overlapDist * Math.cos(angle) * 1.5;
+                finalY = testY + overlapDist * Math.sin(angle) * 1.5;
+                
+                // Reflect velocity with proper physics
+                const normalX = dx / distance;
+                const normalY = dy / distance;
+                
+                const dotProduct = ball.vx * normalX + ball.vy * normalY;
+                
+                // Apply bounce with center bias
+                const centerBias = (BOARD_WIDTH / 2 - finalX) * 0.0005;
+                ball.vx = ball.vx - 2 * dotProduct * normalX * BOUNCE_FACTOR + centerBias;
+                ball.vy = ball.vy - 2 * dotProduct * normalY * BOUNCE_FACTOR;
+                
+                // Add randomness (but less than before)
+                ball.vx += (Math.random() - 0.5) * 0.4;
+                
+                // Play collision sound
+                playSound('plinkoPeg');
+                break;
+              }
+            }
+            
+            if (!collisionOccurred) {
+              // No collision, accept this position
+              finalX = testX;
+              finalY = testY;
+            } else {
+              // Collision happened, stop stepping
+              break;
+            }
+          }
+          
+          // Apply final position
+          ball.x = finalX;
+          ball.y = finalY;
+          
+          // Ensure balls move out of stuck positions with stronger anti-stuck measures
+          if (Math.abs(ball.vx) < MIN_VELOCITY && Math.abs(ball.vy) < MIN_VELOCITY * 2) {
+            // If ball is moving too slowly, give it a stronger push
       if (!ball.stuckTime) {
-        ball.stuckTime = currentTime;
-      } else if (currentTime - ball.stuckTime > STUCK_DETECTION_TIME) {
-        ball.stuckTime = 0;
-        return true;
+              ball.stuckTime = Date.now();
+            } else if (Date.now() - ball.stuckTime > 100) { // Faster detection
+              // After being stuck, apply a much stronger force downward with central bias
+              ball.vy += 4.0; // Stronger downward push
+              // Add horizontal force biased toward center
+              ball.vx += (BOARD_WIDTH / 2 - ball.x) * 0.02;
+              ball.stuckTime = undefined;
       }
     } else {
-      ball.stuckTime = 0;
-    }
-    
-    if (Math.abs(ball.vx) > Math.abs(ball.vy) * 1.5 && ball.vy < GRAVITY * 3) {
-      ball.vy += GRAVITY * 0.5;
-    }
-    
-    return false;
-  };
-
-  const updatePhysics = () => {
-    setActiveBalls(prevBalls => {
-      if (prevBalls.length === 0) return prevBalls;
-      
-      const pegPositions = getPegPositions();
-      const pocketPositions = getPocketPositions();
-      
-      const updatedBalls = prevBalls.map(ball => {
-        if (ball.inPocket) return ball;
-        
-        const wasUnstuck = handleStuckBalls(ball);
-        
-        let newVy = ball.vy + GRAVITY + (Math.random() * 0.02);
-        let newVx = ball.vx * FRICTION;
-        
-        newVx += (Math.random() - 0.5) * 0.04;
-        
-        const collision = checkPegCollision(ball, pegPositions);
-        if (collision) {
-          newVx = collision.vx;
-          newVy = collision.vy;
-        }
-        
-        let newX = ball.x + newVx + (Math.random() - 0.5) * 0.2;
-        let newY = ball.y + newVy;
-        
-        if (newX < BALL_RADIUS) {
-          newX = BALL_RADIUS + (BALL_RADIUS - newX) * 0.3;
-          newVx = -newVx * 0.7;
-          newVy = Math.max(newVy, GRAVITY * 3);
-          newVx += 0.3;
-        } else if (newX > BOARD_WIDTH - BALL_RADIUS) {
-          newX = BOARD_WIDTH - BALL_RADIUS - (newX - (BOARD_WIDTH - BALL_RADIUS)) * 0.3;
-          newVx = -newVx * 0.7;
-          newVy = Math.max(newVy, GRAVITY * 3);
-          newVx -= 0.3;
-        }
-        
-        const distanceFromCenter = (newX - BOARD_WIDTH / 2) / (BOARD_WIDTH / 2);
-        if (Math.abs(distanceFromCenter) > 0.2) {
-          newVx -= distanceFromCenter * 0.02;
-        }
-        
-        newVx = Math.min(Math.max(newVx, -MAX_VELOCITY), MAX_VELOCITY);
-        newVy = Math.min(Math.max(newVy, -MAX_VELOCITY / 1.5), MAX_VELOCITY * 1.2);
-        
-        const pocketIndex = checkPocketEntry(
-          { ...ball, x: newX, y: newY },
-          pocketPositions
-        );
-        
-        let inPocket = ball.inPocket;
-        if (pocketIndex !== null) {
-          inPocket = true;
+            ball.stuckTime = undefined;
+          }
           
-          handleBallInPocket(ball.id, pocketIndex);
+          // Prevent balls from going off the left or right sides
+          if (ball.x < ballRadius) {
+            ball.x = ballRadius;
+            ball.vx = -ball.vx * 0.5 + 0.5; // Add inward force
+          } else if (ball.x > BOARD_WIDTH - ballRadius) {
+            ball.x = BOARD_WIDTH - ballRadius;
+            ball.vx = -ball.vx * 0.5 - 0.5; // Add inward force
+          }
+          
+          // Check if ball has reached the bottom or is about to reach the bottom
+          // Using a smaller detection margin so the ball is more visibly in the pocket
+          if (ball.y > BOARD_HEIGHT - 20 && !ball.inPocket) {
+            const pocketWidth = BOARD_WIDTH / pocketCountsByRisk[risk];
+            const pocketIndex = Math.min(
+              pocketCountsByRisk[risk] - 1,
+              Math.max(0, Math.floor(ball.x / pocketWidth))
+            );
+            
+            // Ball has fallen into a pocket - make sure it disappears immediately
+            ball.inPocket = true;
+            ball.pocketIndex = pocketIndex;
+            
+            // Update the multiplier based on which pocket the ball fell into
+            const multiplier = riskMultipliers[risk][pocketIndex];
+            setLastHitMultiplier(multiplier);
+            
+            // Calculate winnings and update balance
+            const winnings = betAmount * multiplier;
+            handleBallInPocket(ball.id, pocketIndex);
+            
+            // Play win sound
+            playSound('plinkoWin');
+            
+            // Add to game history
+            const timestamp = new Date().toISOString();
+            setResults(prev => [
+              ...prev,
+              {
+                id: nextBallId.current,
+                timestamp: new Date(),
+                amount: betAmount,
+                outcome: winnings,
+                multiplier
+              }
+            ].slice(0, 50));
+            
+            // Let the ball continue to animate visually into the goal
+            // before removing it after a longer delay
+            setTimeout(() => {
+              setActiveBalls(prevBalls => prevBalls.filter(b => b.id !== ball.id));
+            }, 800);
+            
+            // Keep the ball in the active balls array for visual purposes
+            // but mark it as in a pocket so it won't trigger this again
+          }
         }
         
-        return {
-          ...ball,
-          x: newX,
-          y: newY,
-          vx: newVx,
-          vy: newVy,
-          inPocket,
-          pocketIndex: inPocket ? (pocketIndex ?? ball.pocketIndex) : undefined
-        };
+        return newBalls;
       });
-      
-      const ballsToKeep = updatedBalls.filter(ball => 
-        (!ball.inPocket && ball.y < BOARD_HEIGHT + BALL_RADIUS * 2) ||
-        (ball.inPocket && Date.now() - (ball as any).pocketTime < 1000)
-      );
-      
-      ballsInPlay.current = ballsToKeep.filter(ball => !ball.inPocket).length;
-      
-      return ballsToKeep;
-    });
-  };
+    }, 1000 / 60); // 60 FPS
+
+    return () => clearInterval(updateInterval);
+  }, [risk, betAmount, playSound, gameState.isRunning, gameState.isPaused]);
 
   const handleBallInPocket = (ballId: number, pocketIndex: number) => {
     const multipliers = riskMultipliers[risk];
     const multiplier = multipliers[pocketIndex] || 1; 
     const winAmount = betAmount * multiplier;
     
-    setActiveBalls(prev => 
-      prev.map(ball => 
-        ball.id === ballId 
-          ? { ...ball, inPocket: true, pocketIndex, pocketTime: Date.now() } 
-          : ball
-      )
-    );
-    
-    setTimeout(() => {
+    // Play sounds
       if (!isMuted) {
         playGameSound('plinkoWin', volume * 0.8);
         
         if (multiplier >= 10) {
           setTimeout(() => playGameSound('win', volume * 0.7), 200);
           setTimeout(() => playGameSound('win', volume * 0.9), 500);
-          setTimeout(() => playGameSound('win', volume), 800);
         } else if (multiplier >= 3) {
           setTimeout(() => playGameSound('win', volume * 0.8), 300);
         }
       }
       
+    // Create result and update balance
       const newResult: BallResult = {
         id: ballId,
         multiplier,
@@ -393,31 +440,15 @@ const PlinkoGame: React.FC = () => {
       setResults(prev => [newResult, ...prev].slice(0, 50));
       setBalance(prev => prev + winAmount);
       
+    // Show small toast for significant wins
       if (multiplier >= 10) {
-        toast.success(`AMAZING WIN! ${multiplier}x - $${winAmount.toFixed(2)}!`, {
-          position: 'top-center',
-          duration: 4000,
-          style: { background: '#ffd700', color: '#000' }
-        });
-      } else if (multiplier >= 3) {
-        toast.success(`Great win! ${multiplier}x - $${winAmount.toFixed(2)}`, {
-          position: 'top-center',
-          duration: 3000,
-        });
-      } else if (multiplier >= 1) {
-        toast.success(`You won ${multiplier}x - $${winAmount.toFixed(2)}`, {
-          position: 'top-center',
-          duration: 2000,
-        });
-      } else {
-        toast(`Payout: ${multiplier}x - $${winAmount.toFixed(2)}`, {
+      toast.success(`${multiplier}x - $${winAmount.toFixed(2)}!`, {
           position: 'top-center',
           duration: 2000,
         });
       }
       
       ballsInPlay.current--;
-    }, 100);
   };
 
   const dropBall = () => {
@@ -429,51 +460,30 @@ const PlinkoGame: React.FC = () => {
     
     if (!isMuted) {
       playGameSound('caseSelect', volume * 0.3);
-      setTimeout(() => {
-        playGameSound('plinkoPeg', volume * 0.6);
-      }, 200);
     }
     
-    const centerBias = Math.random() > 0.4 ? 0.6 : 1.0;
-    const dropPosition = BOARD_WIDTH / 2 + (Math.random() * 50 - 25) * centerBias;
+    // More centered drop position
+    const ballRadius = BALL_RADIUS_BY_RISK[risk];
+    // Less variance to keep balls more in center
+    const dropPosition = BOARD_WIDTH / 2 + (Math.random() * 20 - 10);
     
-    const initialVx = (Math.random() * INITIAL_VELOCITY_RANGE - INITIAL_VELOCITY_RANGE/2) * 0.8;
-    const initialVy = 0.3 + Math.random() * 0.4;
+    // Faster initial velocity
+    const initialVx = (Math.random() * 0.2 - 0.1); // Less horizontal, more centered
+    const initialVy = 0.5; // Much faster initial drop
     
     const newBall = {
       id: ballId,
-      x: Math.max(BALL_RADIUS * 2, Math.min(BOARD_WIDTH - BALL_RADIUS * 2, dropPosition)),
-      y: 25 + (Math.random() * 15),
+      x: dropPosition,
+      y: 20, // Start higher
       vx: initialVx,
       vy: initialVy,
       currentRow: 0,
       inPocket: false,
-      scale: 0.2,
-      growing: true
+      scale: 1, // Start at full size
+      growing: false
     };
     
     setActiveBalls(prev => [...prev, newBall]);
-    
-    const animateBallEntry = () => {
-      setActiveBalls(prev => 
-        prev.map(ball => 
-          ball.id === ballId && ball.scale < 1
-            ? { 
-                ...ball, 
-                scale: Math.min(ball.scale + 0.2, 1),
-                growing: ball.scale < 0.8
-              }
-            : ball
-        )
-      );
-      
-      const currentBall = activeBalls.find(b => b.id === ballId);
-      if (currentBall && currentBall.scale < 1) {
-        requestAnimationFrame(animateBallEntry);
-      }
-    };
-    
-    requestAnimationFrame(animateBallEntry);
   };
 
   return (
@@ -483,9 +493,10 @@ const PlinkoGame: React.FC = () => {
         <div className="text-xl text-yellow-400">Balance: ${balance.toFixed(2)}</div>
       </div>
       
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="lg:w-1/4">
+      <div className="flex flex-col lg:flex-row gap-4 h-[75vh]">
+        <div className="lg:w-1/4 flex flex-col h-full">
           {/* Controls section - left side */}
+          <div className="mb-4">
           <PlinkoControls 
             betAmount={betAmount}
             setBetAmount={setBetAmount}
@@ -495,17 +506,40 @@ const PlinkoGame: React.FC = () => {
             balance={balance}
             riskLocked={riskLockEnabled}
           />
+          </div>
           
           {/* Results section moved to left side below controls */}
-          <div className="mt-4 bg-gray-800 p-4 rounded-lg">
+          <div className="flex-grow overflow-hidden bg-gray-800 p-4 rounded-lg">
             <PlinkoResults results={results} />
           </div>
         </div>
         
-        <div className="lg:w-3/4">
-          {/* Game board - right side */}
-          <div className="bg-gray-800 rounded-lg overflow-hidden h-full">
-            <PlinkoBoard activeBalls={activeBalls} risk={risk} />
+        <div className="lg:w-3/4 h-full">
+          {/* Game board - right side with last hit multiplier display */}
+          <div className="bg-gray-800 rounded-lg overflow-hidden h-full flex items-center justify-center relative">
+            <PlinkoBoard 
+              activeBalls={activeBalls} 
+              risk={risk} 
+              lastHitMultiplier={lastHitMultiplier}
+              ballRadius={BALL_RADIUS_BY_RISK[risk]}
+              boardWidth={BOARD_WIDTH}
+              boardHeight={BOARD_HEIGHT}
+            />
+            
+            {/* Last hit multiplier display */}
+            {lastHitMultiplier !== null && (
+              <div className="absolute right-4 top-1/3 bg-gray-700 px-3 py-2 rounded-lg flex flex-col items-center justify-center">
+                <div className="text-white text-sm mb-1">Last Hit</div>
+                <div className={`text-2xl font-bold ${
+                  lastHitMultiplier >= 10 ? 'text-yellow-400' :
+                  lastHitMultiplier >= 5 ? 'text-green-400' :
+                  lastHitMultiplier >= 1 ? 'text-blue-400' :
+                  'text-orange-400'
+                }`}>
+                  {lastHitMultiplier}x
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

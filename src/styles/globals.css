@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Chat layout adjustments */
+@layer base {
+  body {
+    @apply overflow-x-hidden;
+  }
+  
+  /* Default state for the chat wrapper - off screen */
+  #chat-wrapper {
+    transform: translateX(100%);
+  }
+  
+  /* When chat is open, position it on screen */
+  body.chat-open #chat-wrapper {
+    transform: translateX(0);
+  }
+  
+  /* Move the page content when chat is open */
+  body.chat-open #page-content {
+    /* Move content to the left by the width of the chat */
+    @apply lg:ml-[-384px];
+    @apply md:ml-[-384px];
+    @apply sm:ml-[-384px];
+  }
+  
+  /* On mobile, make chat take full width */
+  @media (max-width: 640px) {
+    body.chat-open #page-content {
+      @apply ml-[-90vw];
+    }
+  }
+}
+
+/* Custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-blue-900/40 rounded-full;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  @apply bg-blue-800/60;
+} 

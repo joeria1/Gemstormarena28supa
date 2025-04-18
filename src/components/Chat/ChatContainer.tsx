@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@/context/ChatContext';
 import { useUser } from '@/context/UserContext';
 import { Input } from '@/components/ui/input';
-import { Gem, CloudRain, Clock, X, MessageSquare } from 'lucide-react';
+import { Gem, CloudRain, Clock, X, MessageSquare, Timer, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -15,6 +14,8 @@ const formatTime = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
 };
 
+const CHAT_WIDTH = 384; // 24rem/384px - consistent width for all screen sizes above mobile
+
 const ChatContainer = () => {
   const { 
     isChatOpen, 
@@ -25,20 +26,48 @@ const ChatContainer = () => {
     rainTimeRemaining,
     rainStatus,
     rainAmount,
-    claimRain,
-    setRainActive
+    joinRain,
+    hasJoinedRain,
+    setRainActive,
+    nextRainTimeRemaining,
+    rainParticipants,
+    distributeRainRewards
   } = useChat();
   const { user, updateBalance, isUserEligibleForRain } = useUser();
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [userScrolled, setUserScrolled] = useState(false);
-  const [hasClaimed, setHasClaimed] = useState(false);
+  const [lastRainStatus, setLastRainStatus] = useState<'inactive' | 'active' | 'countdown'>('inactive');
   
   // Prevent automatic scrolling
   useEffect(() => {
     preventAutoScroll();
   }, []);
+
+  // Effect to handle rain reward distribution when rain ends
+  useEffect(() => {
+    // If rain was active but now it's not, distribute rewards
+    if (lastRainStatus === 'active' && rainStatus === 'inactive') {
+      const rewardInfo = distributeRainRewards();
+      
+      if (rewardInfo && user) {
+        // Check if current user was a participant
+        const isParticipant = rewardInfo.participants.some(p => p.userId === user.id);
+        
+        if (isParticipant) {
+          // Add the reward to user's balance
+          updateBalance(rewardInfo.rewardPerParticipant);
+          
+          // Notify the user
+          toast.success(`You received ${rewardInfo.rewardPerParticipant} gems from the rain!`);
+        }
+      }
+    }
+    
+    // Update the last rain status
+    setLastRainStatus(rainStatus);
+  }, [rainStatus, user, distributeRainRewards, updateBalance]);
 
   // Handle message submission
   const handleSendMessage = (e: React.FormEvent) => {
@@ -99,44 +128,42 @@ const ChatContainer = () => {
     setMessageInput('');
   };
 
-  // Handle claiming rain
-  const handleClaimRain = () => {
+  // Handle joining rain
+  const handleJoinRain = () => {
     if (!user) {
-      toast.error('Please log in to claim rain gems');
+      toast.error('Please log in to join rain');
       return;
     }
     
-    if (hasClaimed) {
-      toast.error('You have already claimed rain gems');
+    if (hasJoinedRain(user.id)) {
+      toast.error('You have already joined this rain');
       return;
     }
     
     // Check if user is eligible (at least level 3)
     if (!isUserEligibleForRain()) {
-      toast.error('You must be at least level 3 to claim rain gems');
+      toast.error('You must be at least level 3 to join rain');
       return;
     }
     
-    // Add gems to user balance
-    updateBalance(rainAmount);
-    setHasClaimed(true);
+    // Join the rain event
+    const joined = joinRain(user.id, user.username);
     
-    // Use the actual claimRain function from context
-    claimRain();
-    
-    toast.success(`You claimed ${rainAmount} gems from the rain!`);
-    
-    // Send system message
-    sendMessage({
-      id: Date.now().toString(),
-      text: `${user.username} claimed ${rainAmount} gems from the rain! ☔`,
-      user: {
-        id: 'system',
-        name: 'System',
-        avatar: '/placeholder.svg'
-      },
-      timestamp: new Date().toISOString(),
-    });
+    if (joined) {
+      toast.success('You joined the rain successfully!');
+      
+      // Send system message
+      sendMessage({
+        id: Date.now().toString(),
+        text: `${user.username} joined the rain! 🌧️`,
+        user: {
+          id: 'system',
+          name: 'System',
+          avatar: '/placeholder.svg'
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
   };
 
   // Handle scrolling
@@ -153,19 +180,15 @@ const ChatContainer = () => {
     }
   }, [messages, userScrolled]);
 
-  // Reset claim status when a new rain event starts
-  useEffect(() => {
-    if (isRainActive) {
-      setHasClaimed(false);
-    }
-  }, [isRainActive]);
-
   if (!isChatOpen) {
     return null; // Don't render anything when chat is closed
   }
 
+  // Check if current user has joined the rain
+  const userHasJoined = user ? hasJoinedRain(user.id) : false;
+
   return (
-    <div className="fixed right-0 top-0 w-80 md:w-96 h-full z-40 bg-black/90 border-l border-blue-900/50 backdrop-blur flex flex-col overflow-hidden">
+    <div className="h-full bg-black/90 border-l border-blue-900/50 backdrop-blur flex flex-col overflow-hidden shadow-xl">
       <div className="p-3 border-b border-blue-900/40 flex justify-between items-center bg-blue-950/80">
         <div className="flex items-center">
           <MessageSquare className="h-4 w-4 text-blue-400 mr-2" />
@@ -189,6 +212,23 @@ const ChatContainer = () => {
         </div>
       </div>
       
+      {/* Next Rain Countdown - Always visible */}
+      {rainStatus !== 'active' && (
+        <div className="bg-blue-950/30 p-2 border-b border-blue-900/30">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <CloudRain className="h-4 w-4 text-blue-300 mr-1" />
+              <span className="text-sm font-medium text-blue-200">Next Rain</span>
+            </div>
+            <div className="flex items-center text-xs text-blue-200">
+              <Clock className="h-3 w-3 mr-1" />
+              <span>{formatTime(nextRainTimeRemaining)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Active Rain Event */}
       {rainStatus === 'active' && (
         <div className="bg-blue-900/40 p-2 border-b border-blue-900/40">
           <div className="flex justify-between items-center mb-1">
@@ -202,22 +242,33 @@ const ChatContainer = () => {
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-blue-300">
-              {rainAmount} gems up for grabs!
-            </span>
+            <div>
+              <span className="text-xs text-blue-300">
+                {rainAmount} gems will be split among participants
+              </span>
+              <div className="flex items-center mt-1 text-xs text-blue-200">
+                <Users className="h-3 w-3 mr-1" />
+                <span>{rainParticipants.length} joined</span>
+              </div>
+            </div>
             <Button 
               size="sm" 
               className="bg-green-600 hover:bg-green-700 text-xs h-7 px-2"
-              onClick={handleClaimRain}
-              disabled={hasClaimed || !isUserEligibleForRain()}
+              onClick={handleJoinRain}
+              disabled={userHasJoined || !isUserEligibleForRain()}
               title={!isUserEligibleForRain() ? "You must be at least level 3" : ""}
             >
-              {hasClaimed ? 'Claimed' : 'Claim Gems'}
+              {userHasJoined ? 'Joined' : 'Join Rain'}
             </Button>
           </div>
           {!isUserEligibleForRain() && (
             <p className="text-xs text-yellow-300 mt-1">
-              Must be at least level 3 to claim
+              Must be at least level 3 to join
+            </p>
+          )}
+          {userHasJoined && (
+            <p className="text-xs text-green-300 mt-1">
+              You joined! Rewards will be distributed when rain ends.
             </p>
           )}
         </div>

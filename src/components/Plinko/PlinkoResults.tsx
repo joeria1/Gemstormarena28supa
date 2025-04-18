@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface BallResult {
@@ -18,15 +17,15 @@ const PlinkoResults: React.FC<PlinkoResultsProps> = ({ results }) => {
   };
 
   return (
-    <div>
-      <h3 className="text-lg font-semibold text-white mb-4">Results</h3>
+    <div className="h-full flex flex-col">
+      <h3 className="text-lg font-semibold text-white mb-2">Results</h3>
       
       {results.length === 0 ? (
-        <div className="text-gray-400 text-center py-8">
+        <div className="text-gray-400 text-center py-8 flex-grow">
           No results yet. Drop some balls!
         </div>
       ) : (
-        <div className="overflow-y-auto max-h-[500px] pr-1">
+        <div className="overflow-y-auto pr-1 flex-grow">
           {results.map(result => (
             <div 
               key={result.id} 

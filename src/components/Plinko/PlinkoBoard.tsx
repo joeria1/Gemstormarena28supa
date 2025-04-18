@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useSoundEffect } from '../../hooks/useSoundEffect';
 
@@ -16,207 +15,251 @@ interface PlinkoBoardProps {
     stuckTime?: number;
     scale?: number;
     growing?: boolean;
+    lastMultiplier?: number;
   }[];
   risk: 'low' | 'medium' | 'high';
+  lastHitMultiplier: number | null;
+  ballRadius: number;
+  boardWidth: number;
+  boardHeight: number;
 }
 
-const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
+const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ 
+  activeBalls, 
+  risk, 
+  lastHitMultiplier, 
+  ballRadius,
+  boardWidth = 600,
+  boardHeight = 750
+}) => {
   // Adjust rows based on risk level
   const rowsByRisk = {
-    low: 8,      // Fewer pegs for low risk
-    medium: 12,  // Medium number for medium risk
-    high: 16     // More pegs for high risk
+    low: 8,      // Fewer rows for low risk
+    medium: 12,  // Medium rows for medium risk
+    high: 16     // More rows for high risk
+  };
+  
+  // Set up pockets/goals by risk level
+  const pocketCountsByRisk = {
+    low: 8,     // 8 goals for low risk
+    medium: 12, // 12 goals for medium risk
+    high: 16    // 16 goals for high risk
   };
   
   const rows = rowsByRisk[risk];
+  const pocketCount = pocketCountsByRisk[risk];
   
-  const riskColors = {
-    low: 'bg-blue-500',
-    medium: 'bg-purple-500',
-    high: 'bg-red-500'
-  };
-  
-  const pegColor = riskColors[risk];
+  // White pegs for all risk levels as shown in reference
+  const pegColor = 'bg-white';
   const ballColor = 'bg-yellow-400';
   const boardRef = useRef<HTMLDivElement>(null);
   const { playSound } = useSoundEffect();
-  const boardWidth = 1000; // Normalized board width to match Game component
-  const boardHeight = 1400; // Normalized board height to match Game component
 
-  // Peg and ball sizes based on risk level
-  const pegSizes = {
-    low: 'w-6 h-6', // Largest pegs
-    medium: 'w-4 h-4', // Medium pegs
-    high: 'w-2.5 h-2.5'  // Smallest pegs
+  // Risk-specific colors for buckets/goals
+  const bucketColors = {
+    low: {
+      high: 'bg-red-600',
+      medium: 'bg-green-600',
+      low: 'bg-orange-500'
+    },
+    medium: {
+      high: 'bg-purple-600',
+      medium: 'bg-blue-600',
+      low: 'bg-orange-500'
+    },
+    high: {
+      high: 'bg-red-600',
+      medium: 'bg-orange-600',
+      low: 'bg-orange-500'
+    }
+  };
+
+  // Calculate peg size based on risk level to match PlinkoGame PEG_RADIUS values
+  const getPegSize = () => {
+    switch (risk) {
+      case 'low': return 'w-6 h-6';     // Larger pegs for low risk
+      case 'medium': return 'w-5 h-5';  // Medium pegs
+      case 'high': return 'w-4 h-4';    // Smaller pegs for high risk
+    }
   };
   
-  const ballSizes = {
-    low: 'w-8 h-8', // Largest balls
-    medium: 'w-6 h-6', // Medium balls
-    high: 'w-4 h-4'  // Smallest balls
-  };
+  const currentPegSize = getPegSize();
   
-  const currentPegSize = pegSizes[risk];
-  const currentBallSize = ballSizes[risk];
-
-  // Peg collision animation refs
+  // Track animated pegs
   const pegRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
   const pocketRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
+  const multiplierRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
+  const activeHitPegs = useRef<Set<string>>(new Set());
 
-  // Set up peg positions for rendering - using row density based on risk
+  // Set up peg positions for rendering - proper triangular arrangement, skipping entire first row
   const pegPositions = [];
-  for (let row = 0; row < rows; row++) {
+  for (let row = 1; row < rows; row++) {
+    // Skip the entire first row by starting from index 1
     const pegsInRow = row + 1;
+    
     for (let col = 0; col < pegsInRow; col++) {
       const pegStyle = {
         left: `${50 - (pegsInRow - 1) * 5 + col * 10}%`,
-        top: `${(row + 1) * (90 / rows)}%` // More evenly distribute pegs based on row count
+        top: `${5 + (row + 1) * (80 / rows)}%`
       };
       pegPositions.push({ row, col, style: pegStyle });
     }
   }
 
-  // Update multipliers to have lowest values in the middle and highest on edges
-  // With proper min values for different risk levels
-  const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number = 10): number[] => {
-    // Base multiplier values based on risk - set min values per risk level
+  // Generate multipliers based on risk level with proper distribution
+  const generateMultipliers = (risk: 'low' | 'medium' | 'high', count: number): number[] => {
+    // Multiplier ranges based on risk
     const baseValues = {
-      low: { min: 0.7, mid: 1.0, max: 9 },
-      medium: { min: 0.4, mid: 1.0, max: 100 },
-      high: { min: 0.2, mid: 1.0, max: 1000 }
+      low: { min: 0.3, mid: 0.9, max: 9 },
+      medium: { min: 0.2, mid: 0.8, max: 50 },
+      high: { min: 0.1, mid: 0.3, max: 1000 }
     };
     
     const { min, mid, max } = baseValues[risk];
     const result: number[] = [];
     
-    // Fill in multipliers, higher on edges, lower in middle
     for (let i = 0; i < count; i++) {
       // Calculate position relative to center (0 = middle, 1 = edge)
       const positionFactor = Math.abs((i - (count - 1) / 2) / ((count - 1) / 2));
       
-      // Calculate multiplier value based on position
-      // Use exponential curve for more dramatic increase at edges
       let value;
-      if (positionFactor < 0.2) {
-        // Center positions - lowest multipliers (house edge)
-        value = min + (mid - min) * (positionFactor / 0.2);
+      if (risk === 'high') {
+        // High risk has extreme values on edges
+        if (positionFactor > 0.96) {
+          value = max;
+        } else if (positionFactor > 0.9) {
+          value = max / 8; // 125x
+        } else if (positionFactor > 0.8) {
+          value = max / 40; // 25x
+        } else if (positionFactor > 0.6) {
+          value = max / 100; // 10x
+        } else if (positionFactor > 0.4) {
+          value = max / 250; // 4x
+        } else if (positionFactor > 0.2) {
+          value = max / 1000; // 1x
+        } else {
+          value = min; // 0.1x (lowest)
+        }
+      } else if (risk === 'medium') {
+        if (positionFactor > 0.9) {
+          value = max; // 50x
+        } else if (positionFactor > 0.75) {
+          value = max / 5; // 10x
+        } else if (positionFactor > 0.5) {
+          value = 2;
+        } else if (positionFactor > 0.25) {
+          value = 0.8;
+        } else {
+          value = min; // 0.2x
+        }
       } else {
-        // Exponential increase for edge positions
-        const expFactor = (positionFactor - 0.2) / 0.8;
-        value = mid + (max - mid) * Math.pow(expFactor, 2.2); // Increased exponent for steeper curve
+        // Low risk
+        if (positionFactor > 0.85) {
+          value = max; // 9x
+        } else if (positionFactor > 0.6) {
+          value = 4;
+        } else if (positionFactor > 0.4) {
+          value = 2;
+        } else if (positionFactor > 0.2) {
+          value = 0.8;
+        } else {
+          value = min; // 0.3x
+        }
       }
       
-      // Round to 1 decimal place
-      result.push(Math.round(value * 10) / 10);
+      // Round to 1 decimal place for cleaner display
+      const roundedValue = Math.round(value * 10) / 10;
+      result.push(roundedValue);
     }
     
     return result;
   };
 
-  // Number of buckets should match risk level - more for high risk, fewer for low
-  const bucketCounts = {
-    low: 8,  // fewer buckets for low risk
-    medium: 10, // medium number for medium risk
-    high: 14   // more buckets for high risk
-  };
+  const multipliers = generateMultipliers(risk, pocketCount);
 
-  const multipliers = {
-    low: generateMultipliers('low', bucketCounts.low),
-    medium: generateMultipliers('medium', bucketCounts.medium),
-    high: generateMultipliers('high', bucketCounts.high)
-  };
-
-  // Animate peg when ball hits it
+  // Light up pegs and animate pockets when hit
   useEffect(() => {
-    // Track which pegs have been animated recently to prevent spamming animations
-    const recentlyAnimatedPegs = new Set<string>();
-    
+    // Reset any previously highlighted pegs
+    Object.keys(pegRefs.current).forEach(pegKey => {
+      const pegElement = pegRefs.current[pegKey];
+      if (pegElement) {
+        // Remove animation classes for all pegs at start of frame
+        pegElement.classList.remove('peg-hit');
+        pegElement.classList.remove('peg-glow');
+        delete pegElement.dataset.active;
+      }
+    });
+
+    // Check if any balls are hitting pegs
     activeBalls.forEach(ball => {
-      // Calculate which pegs are near this ball
-      const ballRow = Math.floor(ball.y / 100) - 1; // Adjust based on board scaling
-      
-      if (ballRow >= 0 && ballRow < rows) {
-        const pegsInRow = ballRow + 1;
-        const pegSpacing = 100; // Normalized spacing
+      // If the ball has a lastHitPeg, animate that peg
+      if (ball.lastHitPeg) {
+        const pegKey = `peg-${ball.lastHitPeg.row}-${ball.lastHitPeg.col}`;
+        const pegElement = pegRefs.current[pegKey];
         
-        // Check the pegs in this row and adjacent rows
-        for (let r = Math.max(0, ballRow - 1); r <= Math.min(rows - 1, ballRow + 1); r++) {
-          const pegsInThisRow = r + 1;
-          const rowStartX = (boardWidth - (pegsInThisRow - 1) * pegSpacing) / 2;
+        if (pegElement) {
+          // Add glow and animation effects
+          pegElement.classList.add('peg-hit');
+          pegElement.classList.add('peg-glow');
           
-          for (let c = 0; c < pegsInThisRow; c++) {
-            const pegX = rowStartX + c * pegSpacing;
-            const pegY = 100 + r * 100; // Based on peg layout
-            const dx = ball.x - pegX;
-            const dy = ball.y - pegY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+          // Play peg hit sound
+          if (!pegElement.dataset.active) {
+            playSound('plinkoPeg');
+            pegElement.dataset.active = 'true';
             
-            // If ball is close to peg, animate the peg
-            if (distance < 30) {
-              const pegKey = `peg-${r}-${c}`;
-              
-              if (!recentlyAnimatedPegs.has(pegKey)) {
-                // Animate this peg
-                const pegElement = pegRefs.current[pegKey];
-                if (pegElement) {
-                  // Add vibration animation class
-                  pegElement.classList.add('peg-vibrate');
-                  
-                  // Play peg hit sound
-                  playSound('plinkoPeg');
-                  
-                  // Remove class after animation completes
-                  setTimeout(() => {
-                    if (pegElement) {
-                      pegElement.classList.remove('peg-vibrate');
-                    }
-                  }, 300);
-                  
-                  // Add to recently animated set to prevent spam
-                  recentlyAnimatedPegs.add(pegKey);
-                  setTimeout(() => {
-                    recentlyAnimatedPegs.delete(pegKey);
-                  }, 150);
-                }
+            // Auto-remove the highlight after a short time
+            setTimeout(() => {
+              if (pegElement) {
+                pegElement.classList.remove('peg-hit');
+                pegElement.classList.remove('peg-glow');
+                delete pegElement.dataset.active;
               }
-            }
+            }, 150); // Very short duration to match fast game pace
           }
         }
       }
     });
 
-    // Animate pockets when balls land in them - enhanced animation
+    // Handle pocket animations
     activeBalls.forEach(ball => {
       if (ball.inPocket && ball.pocketIndex !== undefined) {
         const pocketKey = `pocket-${ball.pocketIndex}`;
         const pocketElement = pocketRefs.current[pocketKey];
+        const multiplierElement = multiplierRefs.current[pocketKey];
         
-        if (pocketElement && !pocketElement.classList.contains('pocket-pulse')) {
-          // Add stronger animation classes
+        if (pocketElement && !pocketElement.dataset.active) {
+          // Add more vibrant highlight to the pocket with enhanced animations
+          pocketElement.classList.add('pocket-active');
           pocketElement.classList.add('pocket-pulse');
-          pocketElement.classList.add('animate-pocket-bounce');
-          pocketElement.classList.add('pocket-vibrate'); // Add vibration effect
+          pocketElement.dataset.active = 'true';
           
-          // Play win sound when ball lands in pocket
+          // Enhanced highlight for multiplier text
+          if (multiplierElement) {
+            multiplierElement.classList.add('multiplier-highlight');
+          }
+          
+          // Play win sound
           playSound('plinkoWin');
           
-          // Remove class after animation completes
+          // Reset pocket animations after longer delay
           setTimeout(() => {
             if (pocketElement) {
+              pocketElement.classList.remove('pocket-active');
               pocketElement.classList.remove('pocket-pulse');
-              pocketElement.classList.remove('animate-pocket-bounce');
-              pocketElement.classList.remove('pocket-vibrate');
+              delete pocketElement.dataset.active;
             }
-          }, 1500); // Extended animation time
+            if (multiplierElement) {
+              multiplierElement.classList.remove('multiplier-highlight');
+            }
+          }, 1000); // Increased from 500ms to 1000ms for more visible effect
         }
       }
     });
   }, [activeBalls, rows, playSound]);
 
-  // Generate pegs grid - increased container width to prevent cut-off pegs
+  // Render pegs in triangular arrangement
   const renderPegs = () => {
     return pegPositions.map(({ row, col, style }) => {
-      // Add a unique key for each peg for ball collision animation
       const pegKey = `peg-${row}-${col}`;
       
       return (
@@ -225,81 +268,98 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
           key={pegKey}
           data-row={row}
           data-col={col}
-          className={`absolute ${currentPegSize} rounded-full ${pegColor} transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150`} 
+          className={`absolute ${currentPegSize} rounded-full ${pegColor} transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150 shadow-md`} 
           style={style}
         />
       );
     });
   };
 
-  // Render active balls with realistic physics and animation effects
+  // Render balls with improved animations
   const renderBalls = () => {
     return activeBalls.map(ball => {
-      // Convert the normalized positions to percentages for rendering
+      // Convert normalized positions to percentages
       const ballX = (ball.x / boardWidth) * 100;
       const ballY = (ball.y / boardHeight) * 100;
       
-      // Calculate ball rotation based on horizontal velocity for added realism
+      // Calculate ball rotation based on velocity
       const rotation = ball.vx * 10;
       
-      // Calculate ball scale with growth animation if present
+      // Ball scale animation
       const ballScale = ball.scale !== undefined ? ball.scale : 1;
       
       const ballStyle = {
         left: `${ballX}%`,
         top: `${ballY}%`,
+        width: `${ballRadius * 2}px`,
+        height: `${ballRadius * 2}px`,
         transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${ballScale})`,
-        transition: ball.growing ? 'transform 0.15s ease-out' : 'transform 0.1s linear',
+        transition: ball.growing ? 'transform 0.15s ease-out' : 'transform 0.05s linear',
+        boxShadow: '0 0 5px rgba(255, 255, 0, 0.5)',
         opacity: ballScale < 0.3 ? 0.7 : 1
       };
-      
-      // Apply special effects for balls that have entered a pocket
-      const ballClasses = `absolute ${currentBallSize} rounded-full ${ballColor} shadow-lg z-10 ${
-        ball.inPocket ? 'animate-pocket-entry' : ''
-      }`;
       
       return (
         <div 
           key={`ball-${ball.id}`} 
-          className={ballClasses}
+          className={`absolute rounded-full ${ballColor} shadow-lg z-10`}
           style={ballStyle}
         />
       );
     });
   };
 
-  // Render multiplier buckets at the bottom with enhanced animations
+  // Render multiplier buckets with enhanced styling and animations
   const renderMultiplierBuckets = () => {
-    const currentMultipliers = multipliers[risk];
-    
-    return currentMultipliers.map((multiplier, index) => {
-      // Bucket size based on risk
-      const bucketHeight = risk === 'low' ? 'h-16' : risk === 'medium' ? 'h-12' : 'h-8';
+    return multipliers.map((multiplier, index) => {
+      // Determine text and background colors based on multiplier value
+      const getMultiplierCategory = (value: number) => {
+        if (risk === 'high') {
+          if (value >= 10) return 'high';
+          if (value >= 1) return 'medium';
+          return 'low';
+        } else if (risk === 'medium') {
+          if (value >= 5) return 'high';
+          if (value >= 1) return 'medium';
+          return 'low';
+        } else {
+          if (value >= 4) return 'high';
+          if (value >= 1) return 'medium';
+          return 'low';
+        }
+      };
       
-      // Text size based on risk
-      const textSize = risk === 'low' ? 'text-lg' : risk === 'medium' ? 'text-base' : 'text-xs';
+      const category = getMultiplierCategory(multiplier);
+      const bgColor = bucketColors[risk][category];
       
-      // Highlight the bucket if any ball is in it
-      const isActive = activeBalls.some(ball => 
-        ball.inPocket && ball.pocketIndex === index
-      );
+      // Text styling based on multiplier
+      const textColor = 
+        multiplier >= 100 ? 'text-yellow-300' :
+        multiplier >= 10 ? 'text-yellow-400' :
+        multiplier >= 1 ? 'text-white' :
+        'text-gray-200';
+      
+      // Text size based on multiplier length
+      const textSize = 
+        multiplier >= 100 ? 'text-xs' :
+        'text-sm';
       
       return (
         <div 
           key={`bucket-${index}`} 
-          className={`flex flex-col items-center justify-center ${bucketHeight} text-white font-bold transition-all ${
-            isActive ? 'scale-y-110' : ''
-          }`}
-          style={{ width: `${100 / currentMultipliers.length}%` }}
+          className="flex flex-col items-center justify-center h-14"
+          style={{ width: `${100 / pocketCount}%` }}
         >
           <div 
             ref={el => pocketRefs.current[`pocket-${index}`] = el}
-            className={`w-full h-3 ${riskColors[risk]} rounded-t-md transition-all ${
-              isActive ? 'animate-pocket-bounce h-4 brightness-150' : ''
-            }`}
-          ></div>
-          <div className={`mt-1 ${textSize} ${isActive ? 'text-yellow-400 animate-bounce' : ''}`}>
-            {multiplier}x
+            className={`w-full h-10 ${bgColor} rounded-md transition-all duration-300 flex items-center justify-center`}
+          >
+            <div 
+              ref={el => multiplierRefs.current[`pocket-${index}`] = el}
+              className={`${textSize} font-bold ${textColor} transition-transform duration-300`}
+            >
+              {multiplier}x
+            </div>
           </div>
         </div>
       );
@@ -307,103 +367,71 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({ activeBalls, risk }) => {
   };
 
   return (
-    <div className="relative w-full" style={{ paddingTop: '85%' }} ref={boardRef}>
-      <div className="absolute inset-0 bg-gray-900 overflow-hidden px-2">
-        {/* Pegs */}
-        {renderPegs()}
-        
-        {/* Balls */}
-        {renderBalls()}
+    <div className="relative w-full h-full border-2 border-gray-700 rounded-lg overflow-hidden">
+      <div className="absolute inset-0 bg-gray-900 overflow-hidden px-2 flex flex-col">
+        <div className="flex-grow relative">
+          {/* Pegs */}
+          {renderPegs()}
+          
+          {/* Balls */}
+          {renderBalls()}
+        </div>
         
         {/* Multiplier buckets at the bottom */}
-        <div className="absolute bottom-0 left-0 right-0 flex">
+        <div className="flex mb-2">
           {renderMultiplierBuckets()}
         </div>
       </div>
       
       <style>
         {`
-        @keyframes bounce {
-          0% { transform: scale(1) translate(-50%, -50%); }
-          50% { transform: scale(1.2) translate(-50%, -50%); }
-          100% { transform: scale(1) translate(-50%, -50%); }
+        .peg-glow {
+          box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+          z-index: 5;
         }
         
-        @keyframes pocket-entry {
-          0% { opacity: 1; transform: scale(1) translate(-50%, -50%); }
-          50% { opacity: 1; transform: scale(1.4) translate(-50%, -50%); }
-          100% { opacity: 0; transform: scale(0.8) translate(-50%, -50%); }
+        .peg-hit {
+          animation: hit-pulse 0.15s ease-out;
+          background-color: #ffffaa;
         }
         
-        .peg-pulse {
-          animation: pulse 0.3s cubic-bezier(0.4, 0, 0.6, 1);
-        }
-        
-        @keyframes pulse {
-          0% { transform: scale(1) translate(-50%, -50%); }
-          50% { transform: scale(2) translate(-50%, -50%); }
-          100% { transform: scale(1) translate(-50%, -50%); }
-        }
-        
-        .peg-vibrate {
-          animation: vibrate 0.3s cubic-bezier(0.4, 0, 0.6, 1);
-        }
-        
-        @keyframes vibrate {
-          0% { transform: translate(-50%, -50%) scale(1.2); box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
-          10% { transform: translate(-52%, -48%) scale(1.3); box-shadow: 0 0 8px rgba(255, 255, 255, 0.5); }
-          20% { transform: translate(-48%, -52%) scale(1.3); }
-          30% { transform: translate(-51%, -49%) scale(1.2); box-shadow: 0 0 4px rgba(255, 255, 255, 0.3); }
-          40% { transform: translate(-49%, -51%) scale(1.2); }
-          50% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 6px rgba(255, 255, 255, 0.2); }
-          60% { transform: translate(-49.5%, -50.5%) scale(1.1); }
-          70% { transform: translate(-50.5%, -49.5%) scale(1.1); }
-          80% { transform: translate(-50.2%, -49.8%) scale(1.05); box-shadow: 0 0 2px rgba(255, 255, 255, 0.1); }
-          100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+        @keyframes hit-pulse {
+          0% { transform: translate(-50%, -50%) scale(1.0); background-color: white; }
+          50% { transform: translate(-50%, -50%) scale(1.3); background-color: #ffffaa; }
+          100% { transform: translate(-50%, -50%) scale(1.0); background-color: white; }
         }
         
         .pocket-pulse {
-          animation: pocket-pulse 1s cubic-bezier(0.4, 0, 0.6, 1);
+          animation: pocket-pulse-animation 0.8s ease-out;
           filter: brightness(1.5);
+          z-index: 20;
         }
         
-        @keyframes pocket-pulse {
-          0% { transform: scaleY(1); }
-          25% { transform: scaleY(2); }
-          50% { transform: scaleY(1.5); }
-          75% { transform: scaleY(1.8); }
-          100% { transform: scaleY(1); }
-        }
-
-        @keyframes pocket-bounce {
-          0% { transform: translateY(0); }
-          20% { transform: translateY(-10px); }
-          40% { transform: translateY(0); }
-          60% { transform: translateY(-6px); }
-          80% { transform: translateY(-2px); }
-          100% { transform: translateY(0); }
-        }
-
-        .animate-pocket-bounce {
-          animation: pocket-bounce 0.7s cubic-bezier(0.4, 0, 0.6, 1) 2;
+        @keyframes pocket-pulse-animation {
+          0% { transform: scaleY(1); filter: brightness(1); }
+          40% { transform: scaleY(1.2); filter: brightness(1.8); }
+          70% { transform: scaleY(1.1); filter: brightness(1.5); }
+          100% { transform: scaleY(1); filter: brightness(1.2); }
         }
         
-        @keyframes pocket-vibrate {
-          0% { transform: translateX(0); }
-          10% { transform: translateX(-3px); }
-          20% { transform: translateX(3px); }
-          30% { transform: translateX(-2px); }
-          40% { transform: translateX(2px); }
-          50% { transform: translateX(-1px); }
-          60% { transform: translateX(1px); }
-          70% { transform: translateX(-1px); }
-          80% { transform: translateX(1px); }
-          90% { transform: translateX(-1px); }
-          100% { transform: translateX(0); }
+        .multiplier-highlight {
+          animation: multiplier-pop 0.8s ease-out;
+          color: white;
+          text-shadow: 0 0 12px rgba(255, 255, 255, 1);
+          font-weight: bold;
         }
         
-        .pocket-vibrate {
-          animation: pocket-vibrate 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) 2;
+        @keyframes multiplier-pop {
+          0% { transform: scale(1); }
+          40% { transform: scale(1.5); }
+          70% { transform: scale(1.3); }
+          100% { transform: scale(1); }
+        }
+        
+        .multiplier-highlight-simple {
+          color: white;
+          text-shadow: 0 0 5px rgba(255, 255, 255, 0.6);
+          font-weight: bold;
         }
         `}
       </style>

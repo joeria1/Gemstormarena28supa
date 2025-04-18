@@ -1,4 +1,3 @@
-
 import React, { useState, useContext } from 'react';
 import { UserContext } from '../context/UserContext';
 import { Card } from '../components/ui/card';
@@ -7,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { motion } from 'framer-motion';
 import { Gift, Trophy, DollarSign, Clock, Check, ChevronRight, Calendar, User, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import DailyFreeCase from '../components/Rewards/DailyFreeCase';
 
 const Rewards = () => {
   const { user, updateUser } = useContext(UserContext);
@@ -93,6 +93,16 @@ const Rewards = () => {
       <div className="flex items-center mb-8">
         <Gift className="w-8 h-8 text-green-500 mr-2" />
         <h1 className="text-2xl font-bold">Rewards</h1>
+      </div>
+      
+      {/* Daily Free Case Section */}
+      <div className="mb-8">
+        <Card className="bg-gray-900 border-none shadow-lg p-6">
+          <h2 className="text-xl font-bold mb-4">Your Daily Free Case</h2>
+          <div className="flex justify-center">
+            <DailyFreeCase />
+          </div>
+        </Card>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-7 gap-6">

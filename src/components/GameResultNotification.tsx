@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { playSound } from '../utils/soundEffects';
-import { SOUNDS } from '../utils/soundEffects';
+import { getSoundPath } from '../utils/soundConfig';
 
 interface GameResultProps {
   success: boolean;
@@ -16,9 +15,14 @@ interface GameResultProps {
 export const showGameResult = ({ success, message, multiplier, amount, duration = 5000 }: GameResultProps) => {
   // Play appropriate sound
   if (success) {
-    playSound(SOUNDS.CASH_OUT);
+    // Show balance change notification for successful games
+    if (amount && amount > 0 && window.showBalanceChange) {
+      window.showBalanceChange(amount);
+    } else {
+      playSound(getSoundPath('cashout'));
+    }
   } else {
-    playSound(SOUNDS.MINE_HIT);
+    playSound(getSoundPath('lose'));
   }
 
   const toastMessage = (

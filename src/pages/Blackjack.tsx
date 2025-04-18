@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import EnhancedBlackjackGame from '../components/Blackjack/EnhancedBlackjackGame';
@@ -46,16 +45,13 @@ const Blackjack = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white p-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white p-4">
       <Helmet>
         <title>Blackjack | DUMP.FUN</title>
       </Helmet>
       
       {selectedTable === null ? (
-        <div className="container mx-auto py-8">
-          <h1 className="text-4xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-600">
-            Blackjack Tables
-          </h1>
+        <div className="container mx-auto py-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {tables.map((table) => (
               <div
@@ -110,7 +106,7 @@ const Blackjack = () => {
             <div className="mb-6 lg:mb-0">
               <button
                 onClick={() => setSelectedTable(null)}
-                className="flex items-center mb-6 px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition duration-300"
+                className="flex items-center mb-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition duration-300"
               >
                 <svg
                   className="w-5 h-5 mr-2" 
@@ -123,8 +119,8 @@ const Blackjack = () => {
                 </svg>
                 Back to Tables
               </button>
-              <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-xl border border-gray-700 p-6 mb-6">
-                <h2 className="text-2xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-600">
+              <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-xl border border-gray-700 p-4 mb-4">
+                <h2 className="text-xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-600">
                   {tables.find((t) => t.id === selectedTable)?.name}
                 </h2>
                 <div className="flex justify-between mb-4">
@@ -141,13 +137,8 @@ const Blackjack = () => {
                 </div>
               </div>
             </div>
-            <div className="flex-1 w-full">
-              <div className={`${tables.find((t) => t.id === selectedTable)?.backgroundColor} rounded-t-xl p-6 shadow-lg`}>
-                <h1 className="text-3xl md:text-4xl font-bold text-center mb-4 text-white drop-shadow-lg">
-                  Blackjack
-                </h1>
-              </div>
-              <div className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-b-xl shadow-lg border border-gray-700">
+            <div className="flex-1 w-full max-w-4xl mx-auto">
+              <div className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl shadow-lg border border-gray-700">
                 <EnhancedBlackjackGame 
                   minBet={tables.find((t) => t.id === selectedTable)?.minBet || 10}
                   maxBet={tables.find((t) => t.id === selectedTable)?.maxBet || 100}

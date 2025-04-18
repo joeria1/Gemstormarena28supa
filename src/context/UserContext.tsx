@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext } from 'react';
 
 interface UserContextType {
@@ -61,6 +60,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       ...prevUser,
       balance: prevUser.balance + amount
     }));
+
+    // Trigger balance notification for positive balance changes
+    if (amount > 0 && window.showBalanceChange) {
+      window.showBalanceChange(amount);
+    }
   };
 
   const addBet = (amount: number) => {
@@ -117,3 +121,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const useUser = () => useContext(UserContext);
+
+// Add TypeScript interface for the global window object
+declare global {
+  interface Window {
+    showBalanceChange?: (amount: number) => void;
+  }
+}

@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import Home from './pages/Home';
 import EnhancedHome from './pages/EnhancedHome';
 import Blackjack from './pages/Blackjack';
 import CaseBattles from './pages/CaseBattles';
@@ -25,6 +23,8 @@ import LightningEffect from './components/GameEffects/LightningEffect';
 import { SoundProvider } from './components/ui/sound-context';
 import SoundManager from './components/SoundManager';
 import Plinko from './pages/Plinko';
+import BalanceChangeManager from './components/BalanceChangeManager';
+import SoundConfigPage from './components/SoundConfigPage';
 
 const App = () => {
   const [theme, setTheme] = useState('dark');
@@ -52,30 +52,41 @@ const App = () => {
       <UserProvider>
         <ChatProvider>
           <SoundProvider>
-            <Navbar />
+            {/* App container with transition for content shifting */}
+            <div id="app-container" className="min-h-screen bg-black text-white">
+              <Navbar />
+              
+              {/* Page content container */}
+              <div id="page-content" className="min-h-[calc(100vh-64px)]">
+                <Routes>
+                  <Route path="/" element={<EnhancedHome />} />
+                  <Route path="/blackjack" element={<Blackjack />} />
+                  <Route path="/case-battles" element={<CaseBattles />} />
+                  <Route path="/cases" element={<Cases />} />
+                  <Route path="/crash" element={<Crash />} />
+                  <Route path="/mines" element={<Mines />} />
+                  <Route path="/affiliates" element={<Affiliates />} />
+                  <Route path="/horse-racing" element={<HorseRacing />} />
+                  <Route path="/rewards" element={<Rewards />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/tower" element={<Tower />} />
+                  <Route path="/rake-back" element={<RakeBack />} />
+                  <Route path="/plinko" element={<Plinko />} />
+                  <Route path="/sound-config" element={<SoundConfigPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </div>
+              
+              {/* Chat wrapper */}
+              <div id="chat-wrapper">
+                <ChatContainer />
+              </div>
+            </div>
             
-            <Routes>
-              <Route path="/" element={<EnhancedHome />} />
-              <Route path="/home-old" element={<Home />} />
-              <Route path="/blackjack" element={<Blackjack />} />
-              <Route path="/case-battles" element={<CaseBattles />} />
-              <Route path="/cases" element={<Cases />} />
-              <Route path="/crash" element={<Crash />} />
-              <Route path="/mines" element={<Mines />} />
-              <Route path="/affiliates" element={<Affiliates />} />
-              <Route path="/horse-racing" element={<HorseRacing />} />
-              <Route path="/rewards" element={<Rewards />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/tower" element={<Tower />} />
-              <Route path="/rake-back" element={<RakeBack />} />
-              <Route path="/plinko" element={<Plinko />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            
-            <ChatContainer />
             <ChatToggle />
             <SoundManager />
             <Toaster richColors closeButton />
+            <BalanceChangeManager />
             
             {/* Lightning effect for case battles */}
             <LightningEffect 

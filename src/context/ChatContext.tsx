@@ -1,7 +1,7 @@
-
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { CloudRain } from 'lucide-react';
+import { useUser } from './UserContext';
 
 // Message interface
 export interface ChatMessage {
@@ -15,6 +15,12 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+// Rain participant interface
+export interface RainParticipant {
+  userId: string;
+  username: string;
+}
+
 // Rain status type
 type RainStatus = 'inactive' | 'active' | 'countdown';
 
@@ -25,11 +31,15 @@ interface ChatContextType {
   messages: ChatMessage[];
   rainTimeRemaining: number;
   rainStatus: RainStatus;
+  nextRainTimeRemaining: number;
   sendMessage: (message: ChatMessage) => void;
   toggleChat: () => void;
   setRainActive: (active: boolean) => void;
-  claimRain: () => void;
+  joinRain: (userId: string, username: string) => boolean;
+  hasJoinedRain: (userId: string) => boolean;
   rainAmount: number;
+  rainParticipants: RainParticipant[];
+  distributeRainRewards: () => { participants: RainParticipant[], rewardPerParticipant: number } | null;
 }
 
 // Create context with default values
@@ -38,12 +48,16 @@ export const ChatContext = createContext<ChatContextType>({
   isRainActive: false,
   rainStatus: 'inactive',
   rainTimeRemaining: 0,
+  nextRainTimeRemaining: 0,
   rainAmount: 100,
   messages: [],
+  rainParticipants: [],
   sendMessage: () => {},
   toggleChat: () => {},
   setRainActive: () => {},
-  claimRain: () => {},
+  joinRain: () => false,
+  hasJoinedRain: () => false,
+  distributeRainRewards: () => null,
 });
 
 // Provider component
@@ -55,12 +69,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [rainTimeRemaining, setRainTimeRemaining] = useState(120); // 2 minutes in seconds
   const [rainAmount, setRainAmount] = useState(100);
   const [nextRainTime, setNextRainTime] = useState(0);
+  const [nextRainTimeRemaining, setNextRainTimeRemaining] = useState(30 * 60); // 30 minutes in seconds
+  const [rainParticipants, setRainParticipants] = useState<RainParticipant[]>([]);
   const raintTimerRef = useRef<NodeJS.Timeout | null>(null);
   const nextRainTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const nextRainCountdownRef = useRef<NodeJS.Timeout | null>(null);
   
   // Load saved messages on mount
   useEffect(() => {
     try {
+      // Load chat state from localStorage
+      const savedChatOpen = localStorage.getItem('chatOpen');
+      if (savedChatOpen) {
+        setIsChatOpen(savedChatOpen === 'true');
+      }
+      
       const savedMessages = localStorage.getItem('chatMessages');
       if (savedMessages) {
         setMessages(JSON.parse(savedMessages));
@@ -90,13 +113,41 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       if (raintTimerRef.current) clearInterval(raintTimerRef.current);
       if (nextRainTimerRef.current) clearTimeout(nextRainTimerRef.current);
+      if (nextRainCountdownRef.current) clearInterval(nextRainCountdownRef.current);
     };
   }, []);
+
+  // Start the next rain countdown timer
+  useEffect(() => {
+    // Start a countdown timer that updates every second
+    nextRainCountdownRef.current = setInterval(() => {
+      const currentTime = Date.now();
+      if (nextRainTime > 0) {
+        const timeLeft = Math.max(0, Math.floor((nextRainTime - currentTime) / 1000));
+        setNextRainTimeRemaining(timeLeft);
+      }
+    }, 1000);
+
+    return () => {
+      if (nextRainCountdownRef.current) clearInterval(nextRainCountdownRef.current);
+    };
+  }, [nextRainTime]);
   
   // Save messages to localStorage when they change
   useEffect(() => {
     localStorage.setItem('chatMessages', JSON.stringify(messages));
   }, [messages]);
+  
+  // Save chat open state to localStorage
+  useEffect(() => {
+    localStorage.setItem('chatOpen', isChatOpen.toString());
+    // Add a class to the document body to handle layout adjustments
+    if (isChatOpen) {
+      document.body.classList.add('chat-open');
+    } else {
+      document.body.classList.remove('chat-open');
+    }
+  }, [isChatOpen]);
   
   // Handle rain timer
   useEffect(() => {
@@ -118,9 +169,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [rainStatus]);
   
-  // Toggle chat visibility
+  // Toggle chat visibility - make sure class is toggled immediately
   const toggleChat = () => {
-    setIsChatOpen(prev => !prev);
+    const newIsOpen = !isChatOpen;
+    setIsChatOpen(newIsOpen);
+    
+    // Update body class immediately
+    if (newIsOpen) {
+      document.body.classList.add('chat-open');
+    } else {
+      document.body.classList.remove('chat-open');
+    }
   };
   
   // Start rain event
@@ -128,6 +187,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRainStatus('active');
     setIsRainActive(true);
     setRainTimeRemaining(120); // 2 minutes
+    setRainParticipants([]); // Reset participants list
     
     // Generate random rain amount (50-500)
     const amount = Math.floor(Math.random() * 450) + 50;
@@ -136,7 +196,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // System message
     sendMessage({
       id: Date.now().toString(),
-      text: `☔ RAIN EVENT STARTED! ${amount} gems up for grabs! You have 2 minutes to claim. ☔`,
+      text: `☔ RAIN EVENT STARTED! ${amount} gems up for grabs! You have 2 minutes to join. Rewards will be split among all participants. ☔`,
       user: {
         id: 'system',
         name: 'System',
@@ -147,7 +207,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Notify users
     toast('Rain event started!', {
-      description: `${amount} gems are up for grabs! You have 2 minutes to claim.`,
+      description: `${amount} gems are up for grabs! You have 2 minutes to join.`,
       icon: <CloudRain className="text-blue-500" />
     });
     
@@ -157,38 +217,79 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
-  // End rain event
+  // Distribute rain rewards to participants
+  const distributeRainRewards = (): { participants: RainParticipant[], rewardPerParticipant: number } | null => {
+    if (rainParticipants.length > 0) {
+      // This function is called by the component that has access to UserContext
+      // We're returning the calculated share for each participant
+      const rewardPerParticipant = Math.floor(rainAmount / rainParticipants.length);
+      return { participants: [...rainParticipants], rewardPerParticipant };
+    }
+    return null;
+  };
+  
+  // End rain event and distribute rewards
   const endRainEvent = () => {
     setRainStatus('inactive');
     setIsRainActive(false);
     
-    // System message
-    sendMessage({
-      id: Date.now().toString(),
-      text: `☔ RAIN EVENT ENDED! All claims have been processed. Next rain in 15 minutes. ☔`,
-      user: {
-        id: 'system',
-        name: 'System',
-        avatar: '/placeholder.svg'
-      },
-      timestamp: new Date().toISOString()
-    });
+    // Distribute rewards if there are participants
+    if (rainParticipants.length > 0) {
+      const rewardPerParticipant = Math.floor(rainAmount / rainParticipants.length);
+      
+      // System message
+      sendMessage({
+        id: Date.now().toString(),
+        text: `☔ RAIN EVENT ENDED! ${rainParticipants.length} participants each received ${rewardPerParticipant} gems. Next rain in 30 minutes. ☔`,
+        user: {
+          id: 'system',
+          name: 'System',
+          avatar: '/placeholder.svg'
+        },
+        timestamp: new Date().toISOString()
+      });
+      
+      // List participants
+      sendMessage({
+        id: Date.now().toString() + '1',
+        text: `Rain participants: ${rainParticipants.map(p => p.username).join(', ')}`,
+        user: {
+          id: 'system',
+          name: 'System',
+          avatar: '/placeholder.svg'
+        },
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      // No participants
+      sendMessage({
+        id: Date.now().toString(),
+        text: `☔ RAIN EVENT ENDED! No participants joined this rain. Next rain in 30 minutes. ☔`,
+        user: {
+          id: 'system',
+          name: 'System',
+          avatar: '/placeholder.svg'
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
     
     // Schedule next rain
     scheduleNextRain();
   };
   
-  // Schedule next rain event (every 15 minutes)
+  // Schedule next rain event (every 30 minutes)
   const scheduleNextRain = () => {
     // Clear existing timer if any
     if (nextRainTimerRef.current) {
       clearTimeout(nextRainTimerRef.current);
     }
     
-    // Calculate time until next rain (15 minutes from now)
-    const nextRainDelay = 15 * 60 * 1000; // 15 minutes in milliseconds
+    // Calculate time until next rain (30 minutes from now)
+    const nextRainDelay = 30 * 60 * 1000; // 30 minutes in milliseconds
     const nextRainTimeStamp = Date.now() + nextRainDelay;
     setNextRainTime(nextRainTimeStamp);
+    setNextRainTimeRemaining(30 * 60); // 30 minutes in seconds
     
     // Schedule next rain
     nextRainTimerRef.current = setTimeout(() => {
@@ -205,10 +306,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
-  // Claim rain
-  const claimRain = () => {
-    // To be implemented with user context
-    toast.success('You claimed rain gems!');
+  // Join rain (replaces claimRain)
+  const joinRain = (userId: string, username: string): boolean => {
+    // Check if user already joined
+    if (!hasJoinedRain(userId)) {
+      setRainParticipants(prev => [...prev, { userId, username }]);
+      return true;
+    }
+    return false;
+  };
+  
+  // Check if user has joined rain
+  const hasJoinedRain = (userId: string) => {
+    return rainParticipants.some(participant => participant.userId === userId);
   };
   
   // Send a new message
@@ -222,12 +332,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isRainActive,
       rainStatus,
       rainTimeRemaining, 
+      nextRainTimeRemaining,
       rainAmount,
       messages, 
+      rainParticipants,
       sendMessage, 
       toggleChat, 
       setRainActive,
-      claimRain
+      joinRain,
+      hasJoinedRain,
+      distributeRainRewards
     }}>
       {children}
     </ChatContext.Provider>

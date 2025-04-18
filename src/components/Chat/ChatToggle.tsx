@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { MessageSquare, MessageSquareOff, CloudRain } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -10,7 +9,7 @@ interface ChatToggleProps {
 }
 
 const ChatToggle: React.FC<ChatToggleProps> = ({ isOpen, onToggle }) => {
-  const { isRainActive, rainTimeRemaining, toggleChat } = useChat();
+  const { isRainActive, rainTimeRemaining, toggleChat, isChatOpen } = useChat();
   
   // If not provided via props, we'll use internal state or context
   const handleToggle = () => {
@@ -21,6 +20,9 @@ const ChatToggle: React.FC<ChatToggleProps> = ({ isOpen, onToggle }) => {
     }
   };
   
+  // Use context's isChatOpen if isOpen prop is not provided
+  const chatIsOpen = isOpen !== undefined ? isOpen : isChatOpen;
+  
   return (
     <Button 
       onClick={handleToggle} 
@@ -28,8 +30,9 @@ const ChatToggle: React.FC<ChatToggleProps> = ({ isOpen, onToggle }) => {
       className="fixed right-4 bottom-4 z-50 bg-blue-950 text-white shadow-lg hover:bg-blue-900 scale-110 border-2 border-blue-800/50"
       size="lg"
       type="button"
+      aria-label={chatIsOpen ? "Close chat" : "Open chat"}
     >
-      {isOpen ? (
+      {chatIsOpen ? (
         <MessageSquareOff className="h-8 w-8 text-white" />
       ) : (
         <>
