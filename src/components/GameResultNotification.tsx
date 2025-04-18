@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { playSound } from '../utils/soundEffects';
 import { getSoundPath } from '../utils/soundConfig';
+import { playCashoutSound } from '../utils/sounds';
 
 interface GameResultProps {
   success: boolean;
@@ -19,7 +20,8 @@ export const showGameResult = ({ success, message, multiplier, amount, duration 
     if (amount && amount > 0 && window.showBalanceChange) {
       window.showBalanceChange(amount);
     } else {
-      playSound(getSoundPath('cashout'));
+      // Use our direct cashout sound function for success
+      playCashoutSound();
     }
   } else {
     playSound(getSoundPath('lose'));

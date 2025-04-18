@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSound } from './ui/sound-context';
 import { getSoundPath } from '../utils/soundConfig';
+import { playCashoutSound } from '../utils/sounds';
 
 // Simple utility function to generate unique IDs (replace with uuid later)
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -52,10 +53,9 @@ export const BalanceChangeManager = () => {
     
     setNotifications(prev => [...prev, newNotification]);
     
-    // Play sound when notification appears
-    const soundPath = getSoundPath('balance-change');
-    playSound(soundPath);
-  }, [playSound, updatePosition]);
+    // Play cashout sound directly when notification appears
+    playCashoutSound();
+  }, [updatePosition]);
 
   // Remove notifications after they expire
   useEffect(() => {

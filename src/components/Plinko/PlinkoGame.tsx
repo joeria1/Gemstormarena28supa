@@ -281,8 +281,8 @@ const PlinkoGame: React.FC = () => {
               
               const dx = testX - pegX;
               const dy = testY - pegY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
               if (distance < ballRadius + pegRadius) {
                 // Collision detected!
                 collisionOccurred = true;
@@ -312,9 +312,9 @@ const PlinkoGame: React.FC = () => {
                 // Add randomness (but less than before)
                 ball.vx += (Math.random() - 0.5) * 0.4;
                 
-                // Play collision sound
-                playSound('plinkoPeg');
-                break;
+                // Note: Sound is now handled in the PlinkoBoard component
+                
+                break; // Exit the loop after handling collision
               }
             }
             

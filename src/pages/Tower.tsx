@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SOUNDS, playSound } from '../utils/soundEffects';
 import PulseAnimation from '../components/GameEffects/PulseAnimation';
 import LightningEffect from '../components/GameEffects/LightningEffect';
+import { playCashoutSound } from '../utils/sounds';
+import { playGameSound } from '../utils/gameSounds';
 
 enum DifficultyLevel {
   EASY = 'easy',
@@ -104,6 +106,9 @@ const Tower: React.FC = () => {
     if (currentTowerLevel.bombs.includes(col)) {
       // Game over - hit a bomb
       playSound(SOUNDS.TOWER_WRONG);
+      // Also use direct sound method for more reliable playback
+      playGameSound('towerFail', 0.6);
+      
       setShowLightning(true);
       setLastBombHit({ level: currentLevel, tileIndex: col });
       
@@ -122,6 +127,8 @@ const Tower: React.FC = () => {
     } else {
       // Safe tile
       playSound(SOUNDS.TOWER_CORRECT);
+      // Also use direct sound method for more reliable playback
+      playGameSound('towerSuccess', 0.5);
       
       // In Easy mode, proceed to the next level after hitting ANY safe tile
       if (difficulty === DifficultyLevel.EASY) {
@@ -129,7 +136,8 @@ const Tower: React.FC = () => {
         if (currentLevel + 1 >= maxLevel) {
           // Game won
           const finalMultiplier = calculateMultiplier(currentLevel + 1);
-          playSound(SOUNDS.CASH_OUT);
+          // Use direct cashout sound
+          playCashoutSound();
           showGameResult({
             success: true,
             message: "Tower conquered!",
@@ -154,7 +162,8 @@ const Tower: React.FC = () => {
           if (currentLevel + 1 >= maxLevel) {
             // Game won
             const finalMultiplier = calculateMultiplier(currentLevel + 1);
-            playSound(SOUNDS.CASH_OUT);
+            // Use direct cashout sound
+            playCashoutSound();
             showGameResult({
               success: true,
               message: "Tower conquered!",
@@ -183,7 +192,8 @@ const Tower: React.FC = () => {
     if (!gameActive || currentLevel === 0) return;
     
     const winAmount = bet * multiplier;
-    playSound(SOUNDS.CASH_OUT);
+    // Use direct cashout sound
+    playCashoutSound();
     showGameResult({
       success: true,
       message: `Cashed out at level ${currentLevel + 1}!`,

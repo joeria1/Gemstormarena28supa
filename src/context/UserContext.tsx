@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext } from 'react';
+import { playCashoutSound } from '../utils/sounds';
 
 interface UserContextType {
   user: {
@@ -62,8 +63,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }));
 
     // Trigger balance notification for positive balance changes
-    if (amount > 0 && window.showBalanceChange) {
-      window.showBalanceChange(amount);
+    if (amount > 0) {
+      // Play cashout sound directly
+      playCashoutSound();
+      
+      // Show balance notification if available
+      if (window.showBalanceChange) {
+        window.showBalanceChange(amount);
+      }
     }
   };
 

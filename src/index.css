@@ -205,3 +205,65 @@ body {
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: rgba(59, 130, 246, 0.6);
 }
+
+/* Animations for the Crash Game */
+@keyframes fadeOut {
+  0% {
+    opacity: 0.8;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.5);
+  }
+}
+
+@keyframes flickerFire {
+  0% {
+    opacity: 0.7;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-5px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.8);
+  }
+}
+
+@keyframes spark {
+  0% {
+    opacity: 0.9;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.5) rotate(45deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-15px) scale(1) rotate(90deg);
+  }
+  75% {
+    opacity: 0.6;
+    transform: translateY(-20px) scale(0.8) rotate(180deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-25px) scale(0.2) rotate(360deg);
+  }
+}
+
+.animate-fadeOut {
+  animation: fadeOut 2s ease-out forwards;
+}
+
+.animate-flickerFire {
+  animation: flickerFire 0.3s ease-out infinite;
+}
+
+.animate-spark {
+  animation: spark 1s ease-out infinite;
+}

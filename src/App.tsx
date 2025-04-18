@@ -25,6 +25,7 @@ import SoundManager from './components/SoundManager';
 import Plinko from './pages/Plinko';
 import BalanceChangeManager from './components/BalanceChangeManager';
 import SoundConfigPage from './components/SoundConfigPage';
+import SoundTester from './components/SoundTester';
 
 const App = () => {
   const [theme, setTheme] = useState('dark');
@@ -73,6 +74,7 @@ const App = () => {
                   <Route path="/rake-back" element={<RakeBack />} />
                   <Route path="/plinko" element={<Plinko />} />
                   <Route path="/sound-config" element={<SoundConfigPage />} />
+                  <Route path="/sound-tester" element={<SoundTester />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>

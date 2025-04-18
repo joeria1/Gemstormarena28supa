@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useToast } from '../ui/use-toast';
@@ -23,6 +23,11 @@ interface BlackjackHand {
   doubleDown: boolean;
   stand: boolean;
 }
+
+// This reference exists outside of the component and will never be cleared by React
+const globalDoubledCards = {
+  storage: {} as Record<string, PlayingCard[]>
+};
 
 // Function to generate a fresh deck of cards
 const generateDeck = (): PlayingCard[] => {
@@ -125,13 +130,17 @@ const MultiHandBlackjack: React.FC = () => {
   const [gamePhase, setGamePhase] = useState<'betting' | 'playing' | 'dealer' | 'results'>('betting');
   const [betAmount, setBetAmount] = useState<number>(10);
   const [activeHandCount, setActiveHandCount] = useState<number>(1);
-
+  
   // Initialize the game
   const initializeGame = () => {
     setDeck(generateDeck());
     setDealerHand([]);
     setPlayerHands([]);
     setGamePhase('betting');
+    // Clear the global storage when starting a new game
+    Object.keys(globalDoubledCards.storage).forEach(key => {
+      delete globalDoubledCards.storage[key];
+    });
   };
 
   // Add a new player hand
@@ -269,10 +278,17 @@ const MultiHandBlackjack: React.FC = () => {
     const newDeck = [...deck];
     const newCard = { ...newDeck.pop()!, hidden: false };
     
+    // Store the entire hand in our global storage
+    const completeHand = [...currentHand.cards, newCard];
+    const gameId = Date.now().toString(); // Use unique ID for this game
+    const handKey = `hand_${currentHandIndex}_${gameId}`;
+    globalDoubledCards.storage[handKey] = [...completeHand];
+    
+    // Update component state
     const updatedHands = [...playerHands];
     updatedHands[currentHandIndex] = {
       ...currentHand,
-      cards: [...currentHand.cards, newCard],
+      cards: completeHand,
       bet: currentHand.bet * 2,
       doubleDown: true,
       stand: true
@@ -282,7 +298,7 @@ const MultiHandBlackjack: React.FC = () => {
     setPlayerHands(updatedHands);
     
     // Check for bust
-    const newHandValue = calculateHandValue([...currentHand.cards, newCard]);
+    const newHandValue = calculateHandValue(completeHand);
     if (newHandValue > 21) {
       handleBust();
     } else {
@@ -319,122 +335,95 @@ const MultiHandBlackjack: React.FC = () => {
     }
   };
   
-  // Dealer's play
-  useEffect(() => {
-    if (gamePhase !== 'dealer') return;
+  // Rendering function to handle doubled-down hands properly
+  const renderHandCards = (hand: BlackjackHand, handIndex: number) => {
+    // Create a unique key pattern for this hand
+    const handKeyPattern = `hand_${handIndex}_`;
     
-    // Reveal dealer's hidden card
-    setDealerHand(prev => prev.map(card => ({ ...card, hidden: false })));
-    
-    // Check if there are any hands still in play
-    const activeHands = playerHands.filter(hand => !hand.settled);
-    if (activeHands.length === 0) {
-      setGamePhase('results');
-      return;
+    // If this is a doubled-down hand, look for matching keys in global storage
+    if (hand.doubleDown) {
+      const matchingKey = Object.keys(globalDoubledCards.storage).find(key => 
+        key.startsWith(handKeyPattern)
+      );
+      
+      if (matchingKey && globalDoubledCards.storage[matchingKey]?.length === 3) {
+        // Use the cards from global storage to ensure all three cards are displayed
+        return globalDoubledCards.storage[matchingKey].map((card, cardIndex) => (
+          <PlayingCardComponent 
+            key={`player-${handIndex}-${cardIndex}-global`} 
+            card={card} 
+          />
+        ));
+      }
     }
     
-    // Dealer draws until 17 or higher
-    const dealerPlay = async () => {
-      let currentDealerHand = dealerHand.map(card => ({ ...card, hidden: false }));
-      let currentDeck = [...deck];
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      while (calculateHandValue(currentDealerHand) < 17) {
-        const newCard = { ...currentDeck.pop()!, hidden: false };
-        currentDealerHand = [...currentDealerHand, newCard];
-        
-        setDealerHand(currentDealerHand);
-        setDeck(currentDeck);
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      
-      setGamePhase('results');
-    };
-    
-    dealerPlay();
-  }, [gamePhase, dealerHand, deck, playerHands]);
-  
-  // Calculate results when dealer is done
-  useEffect(() => {
-    if (gamePhase !== 'results') return;
-    
-    const dealerValue = calculateHandValue(dealerHand);
-    const dealerBusted = dealerValue > 21;
-    
-    const updatedHands = playerHands.map(hand => {
-      if (hand.settled) return hand;
-      
-      const handValue = calculateHandValue(hand.cards);
-      
-      // Check for blackjack
-      const isBlackjack = hand.cards.length === 2 && handValue === 21;
-      const dealerBlackjack = dealerHand.length === 2 && dealerValue === 21;
-      
-      if (isBlackjack) {
-        if (dealerBlackjack) {
-          return { ...hand, result: 'push' as const, settled: true };
-        } else {
-          return { ...hand, result: 'blackjack' as const, settled: true };
-        }
-      }
-      
-      if (dealerBusted) {
-        return { ...hand, result: 'won' as const, settled: true };
-      }
-      
-      if (handValue > dealerValue) {
-        return { ...hand, result: 'won' as const, settled: true };
-      } else if (handValue === dealerValue) {
-        return { ...hand, result: 'push' as const, settled: true };
-      } else {
-        return { ...hand, result: 'lost' as const, settled: true };
-      }
-    });
-    
-    setPlayerHands(updatedHands);
-    
-    // Calculate winnings
-    let totalWinnings = 0;
-    
-    updatedHands.forEach(hand => {
-      if (hand.result === 'won') {
-        totalWinnings += hand.bet * 2;
-      } else if (hand.result === 'blackjack') {
-        totalWinnings += hand.bet * 2.5;
-      } else if (hand.result === 'push') {
-        totalWinnings += hand.bet;
-      }
-    });
-    
-    if (totalWinnings > 0) {
-      updateBalance(totalWinnings);
-      
-      toast({
-        title: "Winnings",
-        description: `You won $${totalWinnings.toFixed(2)}!`,
-      });
+    // If this is a doubled-down hand missing its third card
+    if (hand.doubleDown && hand.cards.length < 3) {
+      return (
+        <>
+          {/* Render the cards we have */}
+          {hand.cards.map((card, cardIndex) => (
+            <PlayingCardComponent 
+              key={`player-${handIndex}-${cardIndex}`} 
+              card={card} 
+            />
+          ))}
+          
+          {/* Add a placeholder card for the doubled-down hand */}
+          <div className="w-20 h-28 bg-gradient-to-br from-gray-300 to-white rounded-md m-1 flex items-center justify-center border border-gray-300">
+            <span className="text-gray-400 font-bold text-sm">Card missing</span>
+          </div>
+        </>
+      );
     }
-  }, [gamePhase, dealerHand, playerHands, updateBalance, toast]);
-  
-  // Function to get hand status text
-  const getHandStatusText = (hand: BlackjackHand) => {
-    const handValue = calculateHandValue(hand.cards);
     
-    if (hand.result === 'playing') {
-      return `Value: ${handValue}`;
-    } else if (hand.result === 'blackjack') {
-      return 'Blackjack!';
-    } else if (hand.result === 'won') {
-      return 'Won!';
-    } else if (hand.result === 'lost') {
-      return 'Lost';
-    } else if (hand.result === 'push') {
-      return 'Push';
-    }
+    // Normal rendering for other hands
+    return hand.cards.map((card, cardIndex) => (
+      <PlayingCardComponent 
+        key={`player-${handIndex}-${cardIndex}`} 
+        card={card} 
+      />
+    ));
   };
-  
+
+  // Helper function to get the correct hand value
+  const getHandValue = (hand: BlackjackHand, handIndex: number): number => {
+    // If this is a doubled down hand, check if we have cards in global storage
+    if (hand.doubleDown) {
+      // Look for matching keys in the global storage
+      const handKeyPattern = `hand_${handIndex}_`;
+      const matchingKey = Object.keys(globalDoubledCards.storage).find(key => 
+        key.startsWith(handKeyPattern)
+      );
+      
+      if (matchingKey && globalDoubledCards.storage[matchingKey]) {
+        return calculateHandValue(globalDoubledCards.storage[matchingKey]);
+      }
+    }
+    
+    // Otherwise just calculate from the hand cards
+    return calculateHandValue(hand.cards);
+  };
+
+  // Helper function to get the status text for a hand
+  const getHandStatusText = (hand: BlackjackHand, handIndex: number): string => {
+    // If the hand is settled, show the result
+    if (hand.settled) {
+      if (hand.result === 'blackjack') return "Blackjack!";
+      if (hand.result === 'won') return "Won!";
+      if (hand.result === 'lost') return "Lost!";
+      if (hand.result === 'push') return "Push!";
+    }
+    
+    const value = getHandValue(hand, handIndex);
+    
+    if (value > 21) return "Bust!";
+    if (hand.doubleDown) return `Doubled: ${value}`;
+    if (hand.cards.length === 2 && value === 21) return "Blackjack!";
+    
+    return value.toString();
+  };
+
   // Get hand CSS class based on status
   const getHandStatusClass = (hand: BlackjackHand, isCurrentHand: boolean) => {
     if (gamePhase !== 'playing') return '';
@@ -456,6 +445,125 @@ const MultiHandBlackjack: React.FC = () => {
     }
     return '';
   };
+
+  // Update dealer effect
+  useEffect(() => {
+    if (gamePhase !== 'dealer') return;
+    
+    // Reveal dealer's hidden card
+    setDealerHand(prev => prev.map(card => ({ ...card, hidden: false })));
+    
+    // Check if there are any hands still in play
+    const activeHands = playerHands.filter(hand => !hand.settled);
+    if (activeHands.length === 0) {
+      // Add a timeout before changing state to ensure all updates are processed
+      setTimeout(() => {
+        setGamePhase('results');
+      }, 50);
+      return;
+    }
+    
+    // Dealer draws until 17 or higher
+    const dealerPlay = async () => {
+      let currentDealerHand = dealerHand.map(card => ({ ...card, hidden: false }));
+      let currentDeck = [...deck];
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      while (calculateHandValue(currentDealerHand) < 17) {
+        const newCard = { ...currentDeck.pop()!, hidden: false };
+        currentDealerHand = [...currentDealerHand, newCard];
+        
+        // Use complete copies
+        setDealerHand([...currentDealerHand]);
+        setDeck([...currentDeck]);
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Add a timeout before changing state to ensure all updates are processed
+      setTimeout(() => {
+        // This prevents mutation of state during phase change
+        setPlayerHands(hands => hands.map(hand => ({
+          ...hand,
+          cards: [...hand.cards] // Ensure cards are deep copied
+        })));
+        
+        setTimeout(() => {
+          setGamePhase('results');
+        }, 50);
+      }, 100);
+    };
+    
+    dealerPlay();
+  }, [gamePhase, dealerHand, deck, playerHands]);
+
+  // Calculate results when dealer is done
+  useEffect(() => {
+    if (gamePhase !== 'results') return;
+    
+    // Process with a short delay to ensure all rendering is complete
+    setTimeout(() => {
+      const dealerValue = calculateHandValue(dealerHand);
+      const dealerBusted = dealerValue > 21;
+      
+      const updatedHands = playerHands.map((hand, handIndex) => {
+        if (hand.settled) return hand;
+        
+        // Get the correct hand value using our helper
+        const handValue = getHandValue(hand, handIndex);
+        
+        // Check for blackjack
+        const isBlackjack = !hand.doubleDown && hand.cards.length === 2 && handValue === 21;
+        const dealerBlackjack = dealerHand.length === 2 && dealerValue === 21;
+        
+        if (isBlackjack) {
+          if (dealerBlackjack) {
+            return { ...hand, result: 'push' as const, settled: true };
+          } else {
+            return { ...hand, result: 'blackjack' as const, settled: true };
+          }
+        }
+        
+        if (dealerBusted) {
+          return { ...hand, result: 'won' as const, settled: true };
+        }
+        
+        if (handValue > dealerValue) {
+          return { ...hand, result: 'won' as const, settled: true };
+        } else if (handValue === dealerValue) {
+          return { ...hand, result: 'push' as const, settled: true };
+        } else {
+          return { ...hand, result: 'lost' as const, settled: true };
+        }
+      });
+      
+      // Force a state update to trigger a rerender
+      setPlayerHands([...updatedHands]);
+      
+      // Calculate winnings
+      let totalWinnings = 0;
+      
+      updatedHands.forEach(hand => {
+        if (hand.result === 'won') {
+          totalWinnings += hand.bet * 2;
+        } else if (hand.result === 'blackjack') {
+          totalWinnings += hand.bet * 2.5;
+        } else if (hand.result === 'push') {
+          totalWinnings += hand.bet;
+        }
+      });
+      
+      if (totalWinnings > 0) {
+        updateBalance(totalWinnings);
+        
+        toast({
+          title: "Winnings",
+          description: `You won $${totalWinnings.toFixed(2)}!`,
+        });
+      }
+    }, 300); // Add a delay to ensure all state updates are completed
+  }, [gamePhase]);
 
   return (
     <div className="bg-gray-900 p-4 rounded-lg max-w-5xl mx-auto my-8">
@@ -480,14 +588,12 @@ const MultiHandBlackjack: React.FC = () => {
                 className={`bg-gray-800 p-4 rounded-lg flex flex-col items-center ${getHandStatusClass(hand, handIndex === currentHandIndex)}`}
               >
                 <div className="flex flex-wrap justify-center mb-2">
-                  {hand.cards.map((card, cardIndex) => (
-                    <PlayingCardComponent key={`player-${handIndex}-${cardIndex}`} card={card} />
-                  ))}
+                  {renderHandCards(hand, handIndex)}
                 </div>
                 <div className="mt-2 flex flex-col items-center">
                   <span className="text-white">Bet: ${hand.bet.toFixed(2)}</span>
                   <span className={`text-white ${getResultColorClass(hand)}`}>
-                    {getHandStatusText(hand)}
+                    {getHandStatusText(hand, handIndex)}
                   </span>
                 </div>
               </div>

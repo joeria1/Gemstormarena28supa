@@ -1,6 +1,6 @@
-
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { enhancedPlaySound } from '../../utils/soundTestUtility';
 
 interface LightningEffectProps {
   isVisible: boolean;
@@ -12,6 +12,10 @@ const LightningEffect: React.FC<LightningEffectProps> = ({ isVisible, onComplete
   
   useEffect(() => {
     if (isVisible) {
+      // Play lightning sound directly
+      enhancedPlaySound('/sounds/lightning.mp3', 0.6);
+      console.log("Lightning effect triggered, playing sound directly");
+      
       const newPaths = [];
       // Generate 3-5 random lightning paths
       const count = Math.floor(Math.random() * 3) + 3;

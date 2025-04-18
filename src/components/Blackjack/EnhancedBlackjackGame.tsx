@@ -8,11 +8,13 @@ import ItemGlowEffect from '../GameEffects/ItemGlowEffect';
 import { Gift, DollarSign, RotateCcw, Sparkles, Shield, User, ChevronUp, Hash, Scissors, Clock } from 'lucide-react';
 import PulseAnimation from '../GameEffects/PulseAnimation';
 import LightningEffect from '../GameEffects/LightningEffect';
+import { enhancedPlaySound } from '../../utils/soundTestUtility';
 
 interface CardType {
   suit: string;
   value: string;
   hidden: boolean;
+  id?: string;
 }
 
 interface BlackjackHand {
@@ -43,7 +45,17 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
   const [totalWon, setTotalWon] = useState(0);
   const [timerCount, setTimerCount] = useState<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [deckAnimation, setDeckAnimation] = useState(false);
+  const [cardsDealt, setCardsDealt] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState(false);
   
+  // Store doubled-down cards by hand index
+  const [doubledDownCards, setDoubledDownCards] = useState<{[handIndex: number]: CardType}>({}); 
+  
+  // Still keep a ref for immediate access during callbacks
+  const cardStorageRef = useRef<{[handIndex: number]: CardType}>({});
+  const handIndexRef = useRef<number>(0);
+
   const MAX_HANDS = 3;
   const AUTO_STAND_TIME = 12; // Change from 7 to 12 seconds
 
@@ -69,11 +81,19 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     }
   };
 
+  // Create a function to generate unique IDs for cards
+  const generateCardId = () => {
+    return `card_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  };
+
   const createDeck = () => {
     let deck: CardType[] = [];
     for (let suit of suits) {
       for (let value of values) {
-        deck.push({ suit, value, hidden: false });
+        const cardId = generateCardId();
+        const card = { suit, value, hidden: false, id: cardId };
+        // No need to store regular deck cards in the ref
+        deck.push(card);
       }
     }
     return shuffleDeck(deck);
@@ -106,50 +126,171 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
       return;
     }
 
+    // Set cardsDealt to false at the start of dealing
+    setCardsDealt(false);
+
     updateBalance(-totalBetAmount);
     setBalance(prev => prev - totalBetAmount);
     
+    // Play shuffle sound at start
+    enhancedPlaySound('/sounds/card-shuffle.mp3', 0.5);
+    
+    // Animate the deck
+    setDeckAnimation(true);
+    setTimeout(() => setDeckAnimation(false), 500);
+    
+    // Reset the card storage reference
+    cardStorageRef.current = {};
+    
+    // Create a shuffled deck with IDs
     const deck = createDeck();
     
-    const newDealerHand = [
-      { ...deck.pop()!, hidden: false },
-      { ...deck.pop()!, hidden: true }
-    ];
+    // Initialize empty hands
+    const newDealerHand: CardType[] = [];
+    const initialHands: BlackjackHand[] = Array(activeHandCount).fill(null).map(() => ({
+      cards: [],
+      bet: bet,
+      result: 'playing',
+      doubledDown: false,
+      stand: false
+    }));
     
-    const initialHands: BlackjackHand[] = [];
-    
-    for (let i = 0; i < activeHandCount; i++) {
-      initialHands.push({
-        cards: [
-          { ...deck.pop()!, hidden: false }, 
-          { ...deck.pop()!, hidden: false }
-        ],
-        bet: bet,
-        result: 'playing',
-        doubledDown: false,
-        stand: false
-      });
-    }
-    
+    // Set initial empty state
     setDealerHand(newDealerHand);
     setPlayerHands(initialHands);
-    setCurrentHandIndex(0);
     setGameState('playing');
     setTotalWon(0);
     
-    initialHands.forEach((hand, index) => {
-      if (calculateHandValue(hand.cards) === 21) {
-        const updatedHands = [...initialHands];
+    // Create copies of hands that we'll update throughout the sequence
+    let updatedPlayerHands = [...initialHands];
+    let updatedDealerHand = [...newDealerHand];
+    
+    // Sequential dealing animation with improved timing
+    const dealSequentially = async () => {
+      // First card to each player - slightly longer delays
+      for (let i = 0; i < activeHandCount; i++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setDeckAnimation(true);
+        setTimeout(() => setDeckAnimation(false), 200);
         
-        if (calculateHandValue([newDealerHand[0], {...newDealerHand[1], hidden: false}]) === 21) {
-          updatedHands[index] = {...hand, result: 'push'};
-        } else {
-          updatedHands[index] = {...hand, result: 'blackjack'};
-        }
+        enhancedPlaySound('/sounds/card-deal.mp3', 0.4);
         
-        setPlayerHands(updatedHands);
+        // Update the specific hand with new card
+        updatedPlayerHands[i] = {
+          ...updatedPlayerHands[i],
+          cards: [...updatedPlayerHands[i].cards, { ...deck.pop()!, hidden: false }]
+        };
+        
+        // Update state with all hands
+        setPlayerHands([...updatedPlayerHands]);
       }
-    });
+      
+      // First card to dealer
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setDeckAnimation(true);
+      setTimeout(() => setDeckAnimation(false), 200);
+      
+      enhancedPlaySound('/sounds/card-deal.mp3', 0.4);
+      updatedDealerHand = [{ ...deck.pop()!, hidden: false }];
+      setDealerHand([...updatedDealerHand]);
+      
+      // Second card to each player
+      for (let i = 0; i < activeHandCount; i++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setDeckAnimation(true);
+        setTimeout(() => setDeckAnimation(false), 200);
+        
+        enhancedPlaySound('/sounds/card-deal.mp3', 0.4);
+        
+        // Update the specific hand with new card
+        updatedPlayerHands[i] = {
+          ...updatedPlayerHands[i],
+          cards: [...updatedPlayerHands[i].cards, { ...deck.pop()!, hidden: false }]
+        };
+        
+        // Update state with all hands
+        setPlayerHands([...updatedPlayerHands]);
+      }
+      
+      // Second card to dealer (hidden)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setDeckAnimation(true);
+      setTimeout(() => setDeckAnimation(false), 200);
+      
+      enhancedPlaySound('/sounds/card-deal.mp3', 0.4);
+      updatedDealerHand = [...updatedDealerHand, { ...deck.pop()!, hidden: true }];
+      setDealerHand([...updatedDealerHand]);
+      
+      // Check for blackjacks after all cards are dealt
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      // Find the first hand without blackjack to set as current
+      let nextHandIndex = 0;
+      
+      for (let i = 0; i < activeHandCount; i++) {
+        const currentPlayerHand = updatedPlayerHands[i];
+        const dealerValue = calculateHandValue([updatedDealerHand[0], { ...updatedDealerHand[1], hidden: false }]);
+        const playerValue = calculateHandValue(currentPlayerHand.cards);
+        
+        if (playerValue === 21) {
+          // Player has blackjack
+          if (dealerValue === 21) {
+            // Dealer also has blackjack - push
+            updatedPlayerHands[i] = { 
+              ...currentPlayerHand, 
+              result: 'push',
+              stand: true // Automatically stand on blackjack
+            };
+          } else {
+            // Player wins with blackjack
+            updatedPlayerHands[i] = { 
+              ...currentPlayerHand, 
+              result: 'blackjack',
+              stand: true // Automatically stand on blackjack
+            };
+            enhancedPlaySound('/sounds/win.mp3', 0.5);
+          }
+          
+          // If this is the first hand, find the next hand without blackjack
+          if (i === nextHandIndex) {
+            // Find next playable hand
+            nextHandIndex = findNextPlayableHandIndex(updatedPlayerHands, i);
+          }
+        }
+      }
+      
+      setPlayerHands([...updatedPlayerHands]);
+      setCurrentHandIndex(nextHandIndex);
+      
+      // Set cardsDealt to true when the dealing sequence is complete
+      setCardsDealt(true);
+      
+      // Check if all hands have blackjack - if so, go to dealer's turn
+      const allHandsFinished = updatedPlayerHands.every(hand => 
+        hand.result !== 'playing' || hand.stand
+      );
+      
+      if (allHandsFinished) {
+        // All hands are blackjack or finished - move to dealer's turn
+        setTimeout(() => {
+          setGameState('dealerTurn');
+          dealerPlay();
+        }, 1000);
+      }
+    };
+    
+    // Start the sequential dealing process
+    dealSequentially();
+  };
+
+  // Helper function to find the next playable hand
+  const findNextPlayableHandIndex = (hands: BlackjackHand[], currentIndex: number): number => {
+    for (let i = currentIndex + 1; i < hands.length; i++) {
+      if (!hands[i].stand && hands[i].result === 'playing') {
+        return i;
+      }
+    }
+    return -1; // If no more playable hands, return -1 instead of current index
   };
 
   const calculateHandValue = (hand: CardType[]) => {
@@ -193,10 +334,30 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
       timerRef.current = setInterval(() => {
         setTimerCount(prev => {
           if (prev === null || prev <= 1) {
-            // Time's up, auto-stand
+            // Time's up, auto-stand for current hand only
             clearInterval(timerRef.current!);
             if (gameState === 'playing') {
-              stand();
+              // Create a copy of the current hands
+              const updatedHands = [...playerHands];
+              updatedHands[currentHandIndex] = {
+                ...updatedHands[currentHandIndex],
+                stand: true
+              };
+              setPlayerHands(updatedHands);
+              
+              // Move to next hand or dealer's turn
+              if (currentHandIndex < playerHands.length - 1) {
+                setCurrentHandIndex(currentHandIndex + 1);
+              } else {
+                const allHandsFinished = updatedHands.every(hand => 
+                  hand.result !== 'playing' || hand.stand
+                );
+                
+                if (allHandsFinished) {
+                  setGameState('dealerTurn');
+                  setTimeout(dealerPlay, 500);
+                }
+              }
             }
             return null;
           }
@@ -235,9 +396,28 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
   };
 
   const hit = () => {
-    if (gameState !== 'playing' || currentHandIndex >= playerHands.length) return;
+    if (gameState !== 'playing' || currentHandIndex >= playerHands.length || !cardsDealt || actionInProgress) return;
     
-    if (playerHands[currentHandIndex].stand) {
+    setActionInProgress(true);
+    console.log("Hit button clicked");
+    
+    const currentHand = playerHands[currentHandIndex];
+    
+    // Skip if hand is already standing or has blackjack
+    if (currentHand.stand || currentHand.result === 'blackjack' || calculateHandValue(currentHand.cards) === 21) {
+      console.log("Skipping hit for hand that's already standing, has blackjack, or is at 21");
+      
+      // Find next playable hand
+      const nextHandIndex = findNextPlayableHandIndex(playerHands, currentHandIndex);
+      setActionInProgress(false);
+      
+      if (nextHandIndex > -1) {
+        setCurrentHandIndex(nextHandIndex);
+      } else {
+        // If no more playable hands, go to dealer turn
+        setGameState('dealerTurn');
+        setTimeout(() => dealerPlay(), 300);
+      }
       return;
     }
     
@@ -246,42 +426,84 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     const deck = createDeck();
     const newCard = deck.pop()!;
     
+    // Animate deck and play card hit sound
+    setDeckAnimation(true);
+    setTimeout(() => setDeckAnimation(false), 200);
+    enhancedPlaySound('/sounds/card-hit.mp3', 0.4);
+    
+    // Create a copy of player hands for updating
     const updatedHands = [...playerHands];
-    const currentHand = {...updatedHands[currentHandIndex]};
+    const updatedHand = {...updatedHands[currentHandIndex]};
     
-    currentHand.cards = [...currentHand.cards, newCard];
+    // Add the new card
+    updatedHand.cards = [...updatedHand.cards, newCard];
+    updatedHands[currentHandIndex] = updatedHand;
     
-    const handValue = calculateHandValue(currentHand.cards);
+    // Calculate the new hand value
+    const handValue = calculateHandValue(updatedHand.cards);
+    
+    // Handle bust (over 21)
     if (handValue > 21) {
-      currentHand.result = 'lose';
-      currentHand.stand = true;
+      console.log("Player busted with", handValue);
+      updatedHand.result = 'lose';
+      updatedHand.stand = true;
+      updatedHands[currentHandIndex] = updatedHand;
       
-      updatedHands[currentHandIndex] = currentHand;
+      // Play lose sound
+      enhancedPlaySound('/sounds/lose.mp3', 0.3);
+      
+      // Update the state with the busted hand
       setPlayerHands(updatedHands);
       
-      if (currentHandIndex < playerHands.length - 1) {
-        setCurrentHandIndex(currentHandIndex + 1);
+      // Find next playable hand
+      const nextHandIndex = findNextPlayableHandIndex(updatedHands, currentHandIndex);
+      
+      if (nextHandIndex > -1) {
+        setActionInProgress(false);
+        setCurrentHandIndex(nextHandIndex);
       } else {
-        const allHandsFinished = updatedHands.every(hand => 
-          hand.result !== 'playing' || hand.stand
-        );
-        
-        if (allHandsFinished) {
-          setGameState('gameOver');
-          calculateResults();
-        } else {
-          setGameState('dealerTurn');
-          dealerPlay();
-        }
+        // If no more playable hands, go to dealer turn
+        setActionInProgress(false);
+        setGameState('dealerTurn');
+        setTimeout(() => dealerPlay(), 300);
       }
-    } else {
-      updatedHands[currentHandIndex] = currentHand;
+    } 
+    // Handle 21 (auto-stand)
+    else if (handValue === 21) {
+      console.log("Player reached 21, auto-standing");
+      updatedHand.stand = true;
+      updatedHands[currentHandIndex] = updatedHand;
+      
+      // Update the state with the hand at 21
       setPlayerHands(updatedHands);
+      
+      // Find next playable hand
+      const nextHandIndex = findNextPlayableHandIndex(updatedHands, currentHandIndex);
+      
+      if (nextHandIndex > -1) {
+        setActionInProgress(false);
+        setCurrentHandIndex(nextHandIndex);
+      } else {
+        // If no more playable hands, go to dealer turn
+        setActionInProgress(false);
+        setGameState('dealerTurn');
+        setTimeout(() => dealerPlay(), 300);
+      }
+    } 
+    // Hand is still in play
+    else {
+      console.log("Player hit and now has", handValue);
+      // Update the state with the current hand
+      setPlayerHands(updatedHands);
+      setActionInProgress(false);
     }
   };
 
   const stand = () => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || !cardsDealt || actionInProgress) return;
+    
+    setActionInProgress(true);
+    console.log("Stand button clicked");
     
     // Clear the timer when standing
     if (timerRef.current) {
@@ -289,286 +511,401 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
       setTimerCount(null);
     }
     
+    // Play a button click sound when standing
+    enhancedPlaySound('/sounds/button-click.mp3', 0.2);
+    
     const updatedHands = [...playerHands];
     updatedHands[currentHandIndex] = {
       ...updatedHands[currentHandIndex],
       stand: true
     };
     
+    console.log("Setting player hand to stand=true", updatedHands[currentHandIndex]);
+    
+    // First update the state
     setPlayerHands(updatedHands);
     
-    if (currentHandIndex < playerHands.length - 1) {
-      setCurrentHandIndex(currentHandIndex + 1);
+    // Check if this is the last hand or if all hands are finished
+    const isLastHand = currentHandIndex === playerHands.length - 1;
+    const allHandsFinished = updatedHands.every(hand => 
+      hand.result !== 'playing' || hand.stand
+    );
+    
+    console.log("Is last hand:", isLastHand, "All hands finished:", allHandsFinished);
+    
+    // If this is the last hand or all hands are finished, go directly to dealer turn
+    if (isLastHand || allHandsFinished) {
+      console.log("Moving to dealer turn directly");
+      setActionInProgress(false);
+      setGameState('dealerTurn');
+      setTimeout(() => dealerPlay(), 300);
     } else {
-      const allHandsFinished = updatedHands.every(hand => 
-        hand.result !== 'playing' || hand.stand
-      );
+      // Otherwise move to next hand
+      console.log("Moving to next hand");
+      setActionInProgress(false);
       
-      if (allHandsFinished) {
+      // Find the next playable hand
+      const nextHandIndex = findNextPlayableHandIndex(updatedHands, currentHandIndex);
+      if (nextHandIndex > -1) {
+        setCurrentHandIndex(nextHandIndex);
+      } else {
+        // If no more playable hands, go to dealer turn
         setGameState('dealerTurn');
-        dealerPlay();
+        setTimeout(() => dealerPlay(), 300);
       }
     }
   };
 
-  // Function to handle dealer's hidden card reveal
-  const revealDealerHiddenCard = () => {
-    // Create a new array with the hidden property set to false for all cards
-    const revealedHand = dealerHand.map(card => ({
+  // Modified calculateResults to better handle doubled-down cards
+  const calculateResults = (finalDealerHand = dealerHand) => {
+    console.log("Calculating results for all hands");
+    console.log("Player hands count:", playerHands.length);
+    console.log("Doubled down cards:", doubledDownCards);
+    
+    // Get the dealer value once
+    const dealerValue = calculateHandValue(finalDealerHand);
+    const dealerBusted = dealerValue > 21;
+    
+    console.log("Dealer final value:", dealerValue, "Dealer busted:", dealerBusted);
+    
+    // Fix all doubled-down hands first to ensure they have all their cards
+    const fixedHands = playerHands.map((hand, idx) => {
+      if (hand.doubledDown && hand.cards.length < 3) {
+        // Try to get the doubled card for this hand
+        const doubledCard = doubledDownCards[idx] || cardStorageRef.current[idx];
+        
+        if (doubledCard) {
+          console.log(`Fixed hand ${idx+1} by adding doubled card:`, doubledCard);
+          return {
+            ...hand,
+            cards: [...hand.cards, doubledCard]
+          };
+        }
+      }
+      return hand;
+    });
+    
+    // Update hands with fixed versions before calculating results
+    setPlayerHands(fixedHands);
+    
+    // Give a little time for the state update to process
+    setTimeout(() => {
+      let totalWinnings = 0;
+      let anyWin = false;
+      let anyLoss = false;
+      
+      // Calculate results for each hand
+      const resultHands = fixedHands.map((hand, idx) => {
+        // Make a fresh copy of the cards
+        const cardsCopy = hand.cards.map(card => ({ ...card }));
+        
+        // Ensure doubled-down hands have all their cards
+        if (hand.doubledDown && cardsCopy.length < 3) {
+          const doubledCard = doubledDownCards[idx] || cardStorageRef.current[idx];
+          if (doubledCard) {
+            cardsCopy.push({ ...doubledCard });
+          }
+        }
+        
+        // If hand already has a result, keep it
+        if (hand.result === 'blackjack') {
+          const winAmount = hand.bet * 2.5;
+          totalWinnings += winAmount;
+          anyWin = true;
+          return { ...hand, cards: cardsCopy, result: 'blackjack' as const };
+        }
+        
+        if (hand.result === 'lose') {
+          anyLoss = true;
+          return { ...hand, cards: cardsCopy, result: 'lose' as const };
+        }
+        
+        if (hand.result === 'push') {
+          totalWinnings += hand.bet;
+          return { ...hand, cards: cardsCopy, result: 'push' as const };
+        }
+        
+        // Calculate the hand value
+        const handValue = calculateHandValue(cardsCopy);
+        
+        // Determine the result
+        let result: BlackjackHand['result'] = 'playing';
+        
+        if (handValue > 21) {
+          // Player busted
+          result = 'lose';
+          anyLoss = true;
+        } else if (dealerBusted) {
+          // Dealer busted, player didn't
+          result = 'win';
+          totalWinnings += hand.bet * 2;
+          anyWin = true;
+        } else if (handValue > dealerValue) {
+          // Player has higher value
+          result = 'win';
+          totalWinnings += hand.bet * 2;
+          anyWin = true;
+        } else if (handValue < dealerValue) {
+          // Dealer has higher value
+          result = 'lose';
+          anyLoss = true;
+        } else {
+          // Push
+          result = 'push';
+          totalWinnings += hand.bet;
+        }
+        
+        return {
+          ...hand, 
+          result, 
+          cards: cardsCopy
+        };
+      });
+      
+      // Play appropriate sounds based on overall game outcome
+      if (anyWin && !anyLoss) {
+        // All hands won
+        enhancedPlaySound('/sounds/win.mp3', 0.5);
+      } else if (anyWin && anyLoss) {
+        // Mixed results
+        setTimeout(() => enhancedPlaySound('/sounds/win.mp3', 0.3), 300);
+      } else if (anyLoss && !anyWin) {
+        // All hands lost
+        enhancedPlaySound('/sounds/lose.mp3', 0.4);
+      }
+      
+      // Update the state
+      setGameState('gameOver');
+      setPlayerHands(resultHands);
+      
+      // Update player balance
+      if (totalWinnings > 0) {
+        updateBalance(totalWinnings);
+        setBalance(prev => prev + totalWinnings);
+        setTotalWon(totalWinnings);
+        
+        // Show win animation if significant win
+        const totalBet = fixedHands.reduce((sum, hand) => sum + hand.bet, 0);
+        if (totalWinnings >= totalBet * 1.5) {
+          setShowAnimation(true);
+          setTimeout(() => setShowAnimation(false), 3000);
+        }
+      }
+    }, 300);
+  };
+
+  // Function to store a doubled-down card specifically for a hand
+  const storeDoubledDownCard = (card: CardType, handIndex: number) => {
+    if (!card.id) return;
+    
+    console.log(`Storing doubled-down card for hand ${handIndex}:`, card);
+    
+    // Store in both ref and state, indexed by hand index
+    cardStorageRef.current[handIndex] = { ...card };
+    setDoubledDownCards(prev => ({
+      ...prev,
+      [handIndex]: { ...card }
+    }));
+  };
+
+  // Helper function to preserve doubled down cards
+  const preserveDoubledDownCards = () => {
+    console.log("Preserving doubled down cards");
+    
+    setPlayerHands(prevHands => {
+      return prevHands.map((hand, idx) => {
+        if (hand.doubledDown) {
+          // For doubled down hands, check if we have all cards
+          if (hand.cards.length < 3) {
+            // Try to get the doubled card from our storage
+            const doubledCard = doubledDownCards[idx] || cardStorageRef.current[idx];
+            
+            if (doubledCard) {
+              console.log(`Adding doubled card back to hand ${idx+1}:`, doubledCard);
+              return {
+                ...hand,
+                cards: [...hand.cards, doubledCard]
+              };
+            }
+          }
+        }
+        
+        return hand;
+      });
+    });
+  };
+
+  // Dealer play function
+  const dealerPlay = () => {
+    console.log("Dealer play function called", { gameState, playerHandsCount: playerHands.length });
+    
+    if (gameState !== 'dealerTurn') {
+      console.log("Warning: dealerPlay called when not in dealer turn state");
+      setGameState('dealerTurn');
+    }
+    
+    // Ensure doubled-down cards are preserved before dealer plays
+    preserveDoubledDownCards();
+    
+    // First make visible any hidden dealer cards
+    const revealedDealerHand = dealerHand.map(card => ({
       ...card,
       hidden: false
     }));
     
-    setDealerHand(revealedHand);
-  };
-
-  const doubleDown = () => {
-    if (gameState !== 'playing' || playerHands[currentHandIndex].cards.length !== 2) return;
-    
-    // Clear the timer when doubling down
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      setTimerCount(null);
+    // Play card flip sound when revealing
+    if (dealerHand.some(card => card.hidden)) {
+      enhancedPlaySound('/sounds/card-deal.mp3', 0.4);
+      console.log("Revealed dealer's hidden card");
     }
     
-    const doubleAmount = playerHands[currentHandIndex].bet;
+    // Update the dealer's hand to show all cards
+    setDealerHand(revealedDealerHand);
     
-    if (balance < doubleAmount) {
-      toast("Insufficient funds", {
-        description: "You don't have enough to double down",
-        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
-      });
-      return;
-    }
-    
-    updateBalance(-doubleAmount);
-    setBalance(prev => prev - doubleAmount);
-    
-    // Create a separate deck for drawing a card
-    const deck = createDeck();
-    const newCard = deck.pop()!;
-    
-    const updatedHands = [...playerHands];
-    const currentHand = {...updatedHands[currentHandIndex]};
-    
-    // Add the new card to the current hand
-    currentHand.cards = [...currentHand.cards, newCard];
-    currentHand.bet = currentHand.bet * 2;
-    currentHand.doubledDown = true;
-    currentHand.stand = true;
-    
-    // Check for bust
-    const handValue = calculateHandValue(currentHand.cards);
-    if (handValue > 21) {
-      currentHand.result = 'lose';
-    }
-    
-    updatedHands[currentHandIndex] = currentHand;
-    setPlayerHands(updatedHands);
-    
-    // Give player more time to see the new card - increase to 3 seconds
-    setTimeout(() => {
-      if (currentHandIndex < playerHands.length - 1) {
-        setCurrentHandIndex(currentHandIndex + 1);
-      } else {
-        // First reveal dealer card regardless of outcome
-        revealDealerHiddenCard();
-        
-        // Check if all hands are busted or finished
-        const allHandsFinished = updatedHands.every(hand => 
-          hand.result === 'lose' || hand.result === 'blackjack' || hand.result === 'push' || 
-          (hand.stand && calculateHandValue(hand.cards) <= 21)
-        );
-        
-        // Add a delay to ensure dealer card is visible
-        setTimeout(() => {
-          if (allHandsFinished) {
-            // If some hands aren't busted, dealer needs to play
-            const someHandsNotBusted = updatedHands.some(hand => 
-              hand.stand && hand.result !== 'lose' && hand.result !== 'blackjack' && hand.result !== 'push'
-            );
-            
-            if (someHandsNotBusted) {
-              setGameState('dealerTurn');
-              dealerPlay();
-            } else {
-              setGameState('gameOver');
-              calculateResults();
-            }
-          } else {
-            setGameState('dealerTurn');
-            dealerPlay();
-          }
-        }, 1500);
-      }
-    }, 3000);
-  };
-
-  const dealerPlay = () => {
-    // First reveal dealer's hidden card
-    revealDealerHiddenCard();
-    
-    // Check if all hands have already been settled
-    const allHandsSettled = playerHands.every(hand => 
-      hand.result !== 'playing'
-    );
-    
-    if (allHandsSettled) {
-      // Give time to see dealer's revealed card
-      setTimeout(() => {
-        setGameState('gameOver');
-        calculateResults(dealerHand);
-      }, 1500);
-      return;
-    }
-    
-    // First pause to allow player to see the revealed hidden card
-    setTimeout(() => {
-      const currentDealerValue = calculateHandValue(dealerHand);
+    // Handle dealer drawing cards
+    const dealerDrawCards = () => {
+      let currentHand = [...revealedDealerHand];
+      let currentDeck = createDeck();
       
-      // If dealer already has 17 or more after revealing hidden card, no need to draw
-      if (currentDealerValue >= 17) {
-        setTimeout(() => {
-          setGameState('gameOver');
-          calculateResults(dealerHand);
-        }, 1000);
-        return;
-      }
-      
-      // Otherwise, start drawing cards until dealer reaches 17 or busts
-      const drawDealerCards = () => {
-        const deck = createDeck();
-        let newDealerHand = [...dealerHand.map(card => ({...card, hidden: false}))];
-        let dealerValue = calculateHandValue(newDealerHand);
+      const drawNextCard = () => {
+        // Preserve doubled-down cards on each dealer action
+        preserveDoubledDownCards();
         
-        const drawCard = () => {
-          if (dealerValue < 17) {
-            // Draw a new card and ensure it's visible
-            const newCard = { ...deck.pop()!, hidden: false };
-            newDealerHand = [...newDealerHand, newCard];
-            dealerValue = calculateHandValue(newDealerHand);
-            
-            // Update dealer hand with all visible cards
-            setDealerHand(newDealerHand);
-            
-            // Allow time to see each new card
-            setTimeout(() => {
-              drawCard();
-            }, 1000);
-          } else {
-            // Dealer is done drawing - show results
-            setTimeout(() => {
-              setGameState('gameOver');
-              calculateResults(newDealerHand);
-            }, 1000);
-          }
-        };
+        const value = calculateHandValue(currentHand);
+        console.log("Dealer current value:", value);
         
-        // Start the card drawing sequence
-        drawCard();
+        if (value < 17) {
+          // Dealer must hit
+          console.log("Dealer must hit");
+          
+          // Animate deck and play sound
+          setDeckAnimation(true);
+          setTimeout(() => setDeckAnimation(false), 200);
+          enhancedPlaySound('/sounds/card-hit.mp3', 0.4);
+          
+          // Draw a card and add it to dealer's hand
+          const newCard = { ...currentDeck.pop()!, hidden: false };
+          currentHand = [...currentHand, newCard];
+          
+          // Update dealer's hand
+          setDealerHand(currentHand);
+          
+          // Preserve cards again after dealer draws
+          preserveDoubledDownCards();
+          
+          // Continue drawing after a delay
+          setTimeout(drawNextCard, 700);
+        } else {
+          // Dealer stands, game is over
+          console.log("Dealer stands with", value);
+          
+          // Final preservation before showing results
+          setTimeout(() => {
+            preserveDoubledDownCards();
+            
+            setTimeout(() => {
+              calculateResults(currentHand);
+            }, 300);
+          }, 300);
+        }
       };
       
-      // Start drawing cards
-      drawDealerCards();
-    }, 1500); // Pause 1.5 seconds after revealing hidden card before drawing more
+      // Start drawing cards after a delay
+      setTimeout(drawNextCard, 600);
+    };
+    
+    // Start dealer's process
+    setTimeout(() => {
+      dealerDrawCards();
+    }, 300);
   };
 
-  const calculateResults = (finalDealerHand = dealerHand) => {
-    // Make sure no dealer cards are hidden before calculating results
-    const visibleDealerHand = finalDealerHand.map(card => ({...card, hidden: false}));
-    setDealerHand(visibleDealerHand);
-    
-    const dealerValue = calculateHandValue(visibleDealerHand);
-    const dealerBusted = dealerValue > 21;
-    
-    let winAmount = 0;
-    
-    const updatedHands = playerHands.map(hand => {
-      if (hand.result !== null && hand.result !== 'playing') {
-        // If hand already has a result (like blackjack or already bust), keep it
-        if (hand.result === 'blackjack') {
-          winAmount += hand.bet * 2.5;
-        } else if (hand.result === 'win') {
-          winAmount += hand.bet * 2;
-        } else if (hand.result === 'push') {
-          winAmount += hand.bet;
+  // Add effect to monitor and fix any issues with doubled down cards
+  useEffect(() => {
+    // Force fixes only during dealer turn and game over
+    if (gameState === 'dealerTurn' || gameState === 'gameOver') {
+      // Check for doubled down hands with missing 3rd card
+      const doubledDownHands = playerHands.filter(hand => hand.doubledDown);
+      
+      if (doubledDownHands.length > 0) {
+        let needsFix = false;
+        
+        doubledDownHands.forEach(hand => {
+          if (hand.cards.length < 3) {
+            console.warn("Found doubled down hand with missing 3rd card!");
+            needsFix = true;
+          }
+        });
+        
+        if (needsFix) {
+          console.log("Fixing doubled down hands with missing cards");
+          preserveDoubledDownCards();
         }
-        return hand;
-      }
-      
-      const handValue = calculateHandValue(hand.cards);
-      
-      // Skip busted hands, they already have result 'lose'
-      if (handValue > 21) {
-        return { ...hand, result: 'lose' as const };
-      }
-      
-      let result: BlackjackHand['result'] = 'playing';
-      
-      if (dealerBusted) {
-        // Dealer busted, player wins if not busted
-        result = 'win';
-        winAmount += hand.bet * 2;
-      } else if (handValue > dealerValue) {
-        // Player has higher value than dealer
-        result = 'win';
-        winAmount += hand.bet * 2;
-      } else if (handValue === dealerValue) {
-        // Same value is a push
-        result = 'push';
-        winAmount += hand.bet;
-      } else {
-        // Dealer has higher value
-        result = 'lose';
-      }
-      
-      return { ...hand, result };
-    });
-    
-    setPlayerHands(updatedHands);
-    
-    if (winAmount > 0) {
-      updateBalance(winAmount);
-      setBalance(prev => prev + winAmount);
-      setTotalWon(winAmount);
-      
-      setShowAnimation(true);
-      if (winAmount > bet * 3) {
-        setShowLightning(true);
-      }
-      
-      // Check if there were any push results to include in the message
-      const pushHands = updatedHands.filter(hand => hand.result === 'push');
-      
-      if (pushHands.length > 0) {
-        // If there are push hands, include that in the toast message
-        const pushAmount = pushHands.reduce((total, hand) => total + hand.bet, 0);
-        
-        toast("Result", {
-          description: `You won ${winAmount - pushAmount} gems + ${pushAmount} returned from push!`,
-          style: { backgroundColor: 'rgb(34, 197, 94)', color: 'white' }
-        });
-      } else {
-        toast("Win!", {
-          description: `You won ${winAmount} gems!`,
-          style: { backgroundColor: 'rgb(34, 197, 94)', color: 'white' }
-        });
-      }
-    } else {
-      // Check if there were any push results to include in the message
-      const pushHands = updatedHands.filter(hand => hand.result === 'push');
-      
-      if (pushHands.length > 0) {
-        // If only push hands, show a neutral toast
-        const pushAmount = pushHands.reduce((total, hand) => total + hand.bet, 0);
-        
-        toast("Push", {
-          description: `${pushAmount} gems returned to you.`,
-          style: { backgroundColor: 'rgb(59, 130, 246)', color: 'white' }
-        });
       }
     }
+  }, [gameState, playerHands]);
+
+  // Add an additional effect specifically for the game over state
+  useEffect(() => {
+    if (gameState === 'gameOver') {
+      // Set up periodic card preservation during game over state
+      const preservationInterval = setInterval(() => {
+        // Check if we have any doubled down hands that need fixing
+        const doubledDownHands = playerHands.filter(hand => hand.doubledDown);
+        
+        if (doubledDownHands.some(hand => hand.cards.length < 3)) {
+          console.log("Game over state: fixing cards for doubled down hands");
+          preserveDoubledDownCards();
+        }
+      }, 500); // Check every 500ms
+      
+      // Clean up interval
+      return () => clearInterval(preservationInterval);
+    }
+  }, [gameState]);
+
+  // Function to get the final hand cards for display
+  const getFinalHandCards = (hand: BlackjackHand, handIndex: number) => {
+    // Special handling for doubled down hands
+    if (hand.doubledDown && hand.cards.length < 3) {
+      const cardsCopy = [...hand.cards];
+      
+      // Try to get the doubled card from our storage
+      const doubledCard = doubledDownCards[handIndex] || cardStorageRef.current[handIndex];
+      
+      if (doubledCard) {
+        console.log(`Adding doubled card to display for hand ${handIndex+1}:`, doubledCard);
+        cardsCopy.push({ ...doubledCard });
+      }
+      
+      return cardsCopy;
+    }
+    
+    return hand.cards;
   };
+
+  // Add special effect to monitor and fix doubled-down cards during game over
+  useEffect(() => {
+    if (gameState === 'gameOver') {
+      const fixInterval = setInterval(() => {
+        let needsFix = false;
+        
+        // Check each hand
+        playerHands.forEach((hand, idx) => {
+          if (hand.doubledDown && hand.cards.length < 3) {
+            needsFix = true;
+          }
+        });
+        
+        if (needsFix) {
+          console.log("Game over state: fixing doubled-down cards");
+          preserveDoubledDownCards();
+        }
+      }, 300);
+      
+      return () => clearInterval(fixInterval);
+    }
+  }, [gameState, playerHands]);
 
   const newGame = () => {
     setPlayerHands([]);
@@ -645,7 +982,9 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
   
   // Add split function
   const splitHand = () => {
-    if (gameState !== 'playing' || !canSplitHand(playerHands[currentHandIndex])) return;
+    if (gameState !== 'playing' || !canSplitHand(playerHands[currentHandIndex]) || !cardsDealt || actionInProgress) return;
+    
+    setActionInProgress(true);
     
     resetTimer();
     
@@ -656,6 +995,7 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
         description: "You need more gems to split this hand",
         style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
       });
+      setActionInProgress(false);
       return;
     }
     
@@ -691,15 +1031,15 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     updatedHands[currentHandIndex] = firstHand;
     updatedHands.splice(currentHandIndex + 1, 0, secondHand);
     
-    setPlayerHands(updatedHands);
-    
     // Check for blackjacks on the new hands
     if (calculateHandValue(firstHand.cards) === 21) {
       updatedHands[currentHandIndex].result = 'blackjack';
+      updatedHands[currentHandIndex].stand = true;
     }
     
     if (calculateHandValue(secondHand.cards) === 21) {
       updatedHands[currentHandIndex + 1].result = 'blackjack';
+      updatedHands[currentHandIndex + 1].stand = true;
     }
     
     setPlayerHands(updatedHands);
@@ -708,6 +1048,29 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
       description: "You've split your hand into two separate hands",
       style: { backgroundColor: 'rgb(59, 130, 246)', color: 'white' }
     });
+    
+    // Check if the current hand has blackjack and needs to move to the next hand
+    if (updatedHands[currentHandIndex].result === 'blackjack' || updatedHands[currentHandIndex].stand) {
+      // Find next playable hand, which should be the second hand we just created
+      const nextHandIndex = findNextPlayableHandIndex(updatedHands, currentHandIndex);
+      
+      if (nextHandIndex > -1) {
+        setTimeout(() => {
+          setActionInProgress(false);
+          setCurrentHandIndex(nextHandIndex);
+        }, 500);
+      } else {
+        // If no playable hands, go to dealer turn (unlikely after a split)
+        setTimeout(() => {
+          setActionInProgress(false);
+          setGameState('dealerTurn');
+          dealerPlay();
+        }, 500);
+      }
+    } else {
+      // Current hand is still playable
+      setActionInProgress(false);
+    }
   };
 
   // Add a function to determine the bet increment based on minBet
@@ -716,6 +1079,167 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
     if (minBet >= 100) return 100; // High Roller
     if (minBet >= 50) return 50;   // Standard Table
     return 10;                     // Beginner Table
+  };
+
+  // Add this function near other utility functions
+  const countCards = (hands) => {
+    let total = 0;
+    hands.forEach(hand => {
+      total += hand.cards.length;
+    });
+    return total;
+  };
+
+  // Add this useEffect after other useEffects
+  useEffect(() => {
+    if (playerHands.length > 0) {
+      // Count all player cards
+      const totalCards = countCards(playerHands);
+      
+      // Check for doubled down hands
+      const doubledDownHands = playerHands.filter(hand => hand.doubledDown);
+      if (doubledDownHands.length > 0) {
+        console.log(`Game state: ${gameState}, Total player cards: ${totalCards}`);
+        doubledDownHands.forEach((hand, idx) => {
+          console.log(`Doubled hand ${idx}: Cards: ${hand.cards.length}, Card[2]: ${
+            hand.cards[2] ? `${hand.cards[2].value}${hand.cards[2].suit}` : 'missing!'
+          }`);
+        });
+      }
+    }
+  }, [playerHands, gameState]);
+
+  // Add the missing doubleDown function
+  const doubleDown = () => {
+    if (gameState !== 'playing' || playerHands[currentHandIndex].cards.length !== 2 || !cardsDealt || actionInProgress) return;
+    
+    setActionInProgress(true);
+    console.log("Double down clicked on hand", currentHandIndex+1, "of", playerHands.length);
+    
+    // Clear the timer when doubling down
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      setTimerCount(null);
+    }
+    
+    const doubleAmount = playerHands[currentHandIndex].bet;
+    
+    if (balance < doubleAmount) {
+      toast("Insufficient funds", {
+        description: "You don't have enough to double down",
+        style: { backgroundColor: 'rgb(239, 68, 68)', color: 'white' }
+      });
+      setActionInProgress(false);
+      return;
+    }
+    
+    updateBalance(-doubleAmount);
+    setBalance(prev => prev - doubleAmount);
+    
+    // Play button sound
+    enhancedPlaySound('/sounds/button-click.mp3', 0.2);
+    
+    // Animate deck and play card sound immediately
+    setDeckAnimation(true);
+    setTimeout(() => setDeckAnimation(false), 200);
+    enhancedPlaySound('/sounds/card-hit.mp3', 0.4);
+    
+    // Create the new card with a unique ID
+    const newCardId = generateCardId();
+    const randomValue = values[Math.floor(Math.random() * values.length)];
+    const randomSuit = suits[Math.floor(Math.random() * suits.length)];
+    
+    const newCard: CardType = {
+      suit: randomSuit,
+      value: randomValue,
+      hidden: false,
+      id: newCardId
+    };
+    
+    // Store the card for this specific hand
+    storeDoubledDownCard(newCard, currentHandIndex);
+    
+    // Remember which hand we're doubling down on
+    handIndexRef.current = currentHandIndex;
+    
+    console.log("Drew card for double down on hand", currentHandIndex+1, ":", newCard);
+    
+    // Create deep copies of all hands
+    const updatedHands = playerHands.map(hand => ({
+      ...hand,
+      cards: hand.cards.map(card => ({ ...card }))
+    }));
+    
+    // Update the current hand with the new card and doubled bet
+    updatedHands[currentHandIndex] = {
+      ...updatedHands[currentHandIndex],
+      cards: [...updatedHands[currentHandIndex].cards, { ...newCard }],
+      bet: updatedHands[currentHandIndex].bet * 2,
+      doubledDown: true,
+      stand: true
+    };
+
+    // Debug log the updated hand
+    console.log(`Updated hand ${currentHandIndex+1} after double down:`, 
+      `Cards: ${updatedHands[currentHandIndex].cards.length},`,
+      `Values: ${updatedHands[currentHandIndex].cards.map(c => `${c.value}${c.suit}`).join(', ')},`,
+      `IDs: ${updatedHands[currentHandIndex].cards.map(c => c.id || 'no-id').join(', ')}`);
+    
+    // Check for bust
+    const handValue = calculateHandValue(updatedHands[currentHandIndex].cards);
+    console.log("Hand value after double down:", handValue);
+    
+    if (handValue > 21) {
+      updatedHands[currentHandIndex].result = 'lose';
+      // Play lose sound
+      enhancedPlaySound('/sounds/lose.mp3', 0.3);
+    }
+    
+    // Update the player hands state
+    setPlayerHands(updatedHands);
+    
+    // Move to next hand or dealer's turn
+    const nextHandIndex = findNextPlayableHandIndex(updatedHands, currentHandIndex);
+    
+    setTimeout(() => {
+      if (nextHandIndex > -1) {
+        // Move to next hand after a delay
+        setTimeout(() => {
+          setActionInProgress(false);
+          setCurrentHandIndex(nextHandIndex);
+        }, 700);
+      } else {
+        // If no more playable hands, go to dealer turn
+        setTimeout(() => {
+          // First reveal dealer card
+          revealDealerHiddenCard();
+          
+          setTimeout(() => {
+            setActionInProgress(false);
+            setGameState('dealerTurn');
+            
+            // Add a delay before dealer play
+            setTimeout(() => {
+              dealerPlay();
+            }, 300);
+          }, 300);
+        }, 700);
+      }
+    }, 300);
+  };
+
+  // Also add the missing revealDealerHiddenCard function
+  const revealDealerHiddenCard = () => {
+    console.log("Revealing dealer hidden card");
+    
+    // Play card flip sound
+    enhancedPlaySound('/sounds/card-deal.mp3', 0.4);
+    
+    // Update dealer hand with all cards revealed
+    setDealerHand(prev => prev.map(card => ({
+      ...card,
+      hidden: false
+    })));
   };
 
   return (
@@ -816,12 +1340,27 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
                     style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
                   >
                     <div className="w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoIGQ9Ik0wIDIwQzAgOC45NTQzMSA4Ljk1NDMxIDAgMjAgMEMzMS4wNDU3IDAgNDAgOC45NTQzMSA0MCAyMEM0MCAzMS4wNDU3IDMxLjA0NTcgNDAgMjAgNDBDOC45NTQzMSA0MCAwIDMxLjA0NTcgMCAyMFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmYiIG9wYWNpdHk9IjAuMiIvPgogICAgPHBhdGggZD0iTTIwIDVMMjAgMjBMMzUgMjAiIHN0cm9rZT0iI2ZmZmYiIG9wYWNpdHk9IjAuMyIgc3Ryb2tlLXdpZHRoPSIyLjUiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4=')] bg-center opacity-30"></div>
-                    <div className="font-bold text-3xl">?</div>
                   </Card>
                 )}
               </motion.div>
             ))}
           </div>
+          
+          {/* Deck display - moved from absolute positioning to being part of the container */}
+          <motion.div
+            animate={{
+              scale: deckAnimation ? 0.95 : 1,
+              rotate: deckAnimation ? 5 : 0,
+            }}
+            transition={{ duration: 0.2 }}
+            className="relative ml-16"
+          >
+            <div className="w-20 h-32 bg-gradient-to-br from-blue-800 to-blue-600 rounded-lg border-2 border-blue-500 shadow-lg transform rotate-6 absolute -top-1 -left-1"></div>
+            <div className="w-20 h-32 bg-gradient-to-br from-blue-800 to-blue-600 rounded-lg border-2 border-blue-500 shadow-lg transform rotate-3 absolute -top-0.5 -left-0.5"></div>
+            <Card className="w-20 h-32 flex items-center justify-center bg-gradient-to-br from-blue-800 to-blue-600 text-white border-2 border-blue-500 shadow-lg relative">
+              <div className="w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoIGQ9Ik0wIDIwQzAgOC45NTQzMSA4Ljk1NDMxIDAgMjAgMEMzMS4wNDU3IDAgNDAgOC45NTQzMSA0MCAyMEM0MCAzMS4wNDU3IDMxLjA0NTcgNDAgMjAgNDBDOC45NTQzMSA0MCAwIDMxLjA0NTcgMCAyMFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmYiIG9wYWNpdHk9IjAuMiIvPgogICAgPHBhdGggZD0iTTIwIDVMMjAgMjBMMzUgMjAiIHN0cm9rZT0iI2ZmZmYiIG9wYWNpdHk9IjAuMyIgc3Ryb2tlLXdpZHRoPSIyLjUiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4=')] bg-center opacity-30"></div>
+            </Card>
+          </motion.div>
         </div>
       </motion.div>
       
@@ -878,43 +1417,65 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
                 
                 <div className="relative flex justify-center">
                   <div className="flex justify-center flex-wrap gap-1 mt-6">
-                    {hand.cards.map((card, cardIndex) => (
-                      <ItemGlowEffect 
-                        key={cardIndex}
-                        isActive={gameState === 'gameOver' && hand.result === 'win'}
-                        color="rgba(0, 255, 0, 0.5)"
-                      >
-                        <motion.div
-                          initial={{ y: 50, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ duration: 0.5, delay: cardIndex * 0.1 + 0.2 }}
+                    {/* Use getFinalHandCards to properly render doubled-down hands */}
+                    {getFinalHandCards(hand, handIndex).map((card, cardIndex) => {
+                      // This is a doubled down card if it's the 3rd card (index 2) in a doubled hand
+                      const isDoubledDownCard = hand.doubledDown && cardIndex === 2;
+                      
+                      return (
+                        <ItemGlowEffect 
+                          key={`card-${handIndex}-${cardIndex}-${card.id || 'noId'}`}
+                          isActive={(gameState === 'gameOver' && hand.result === 'win') || isDoubledDownCard}
+                          color={isDoubledDownCard ? "rgba(0, 255, 128, 0.6)" : "rgba(0, 255, 0, 0.5)"}
                         >
-                          <Card className="w-20 h-32 flex flex-col items-center justify-center text-xl font-bold bg-white shadow-xl border-2">
-                            <div className={`absolute top-2 left-2 ${getCardColor(card.suit)}`}>
-                              <div>{card.value}</div>
-                            </div>
-                            <div className={`text-3xl ${getCardColor(card.suit)}`}>
-                              {card.suit}
-                            </div>
-                            <div className={`absolute bottom-2 right-2 ${getCardColor(card.suit)}`}>
-                              <div>{card.value}</div>
-                            </div>
-                          </Card>
-                        </motion.div>
-                      </ItemGlowEffect>
-                    ))}
+                          <motion.div
+                            initial={{ y: 50, opacity: 0 }}
+                            animate={{ 
+                              y: 0, 
+                              opacity: 1,
+                              scale: isDoubledDownCard ? [1, 1.05, 1] : 1,
+                              transition: {
+                                scale: { repeat: gameState === 'gameOver' ? 0 : 3, duration: 0.8 }
+                              }
+                            }}
+                            transition={{ duration: 0.5, delay: cardIndex * 0.1 + 0.2 }}
+                            className={`relative ${isDoubledDownCard ? 'ring-2 ring-green-500 shadow-lg shadow-green-800/40' : ''}`}
+                            data-doubled={hand.doubledDown}
+                            data-cardindex={cardIndex}
+                            data-handindex={handIndex}
+                          >
+                            <Card className="w-20 h-32 flex flex-col items-center justify-center text-xl font-bold bg-white shadow-xl border-2">
+                              <div className={`absolute top-2 left-2 ${getCardColor(card.suit)}`}>
+                                <div>{card.value}</div>
+                              </div>
+                              <div className={`text-3xl ${getCardColor(card.suit)}`}>
+                                {card.suit}
+                              </div>
+                              <div className={`absolute bottom-2 right-2 ${getCardColor(card.suit)}`}>
+                                <div>{card.value}</div>
+                              </div>
+                            </Card>
+                            {isDoubledDownCard && (
+                              <div className="absolute -top-2 -right-2 bg-green-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md border-2 border-white z-10">
+                                2x
+                              </div>
+                            )}
+                          </motion.div>
+                        </ItemGlowEffect>
+                      );
+                    })}
                   </div>
                 </div>
                 
                 <div className="mt-2 flex justify-between items-center">
                   <div className={`font-bold ${
-                    calculateHandValue(hand.cards) > 21 
+                    calculateHandValue(getFinalHandCards(hand, handIndex)) > 21 
                       ? 'text-red-400' 
-                      : calculateHandValue(hand.cards) === 21 
+                      : calculateHandValue(getFinalHandCards(hand, handIndex)) === 21 
                         ? 'text-green-400' 
                         : 'text-white'
                   }`}>
-                    Value: {calculateHandValue(hand.cards)}
+                    Value: {calculateHandValue(getFinalHandCards(hand, handIndex))}
                   </div>
                   
                   {hand.result && hand.result !== 'playing' && (
@@ -1000,29 +1561,31 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
         
         {gameState === 'playing' && currentHandIndex < playerHands.length && (
           <div className="grid grid-cols-4 gap-2 w-full max-w-xl bg-black/30 p-4 rounded-xl backdrop-blur-sm border border-gray-700/50">
-            <PulseAnimation isActive={true} intensity="low" className="col-span-1">
+            <PulseAnimation isActive={cardsDealt} intensity="low" className="col-span-1">
               <Button 
                 onClick={hit}
+                disabled={!cardsDealt || playerHands[currentHandIndex].stand || actionInProgress}
                 className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-bold py-3 rounded-lg border border-blue-400/30"
               >
-                Hit
+                {actionInProgress ? 'Processing...' : 'Hit'}
               </Button>
             </PulseAnimation>
             
             <Button 
               onClick={stand}
+              disabled={!cardsDealt || playerHands[currentHandIndex].stand || actionInProgress}
               className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold py-3 rounded-lg border border-red-400/30 col-span-1"
             >
-              Stand
+              {actionInProgress ? 'Processing...' : 'Stand'}
             </Button>
             
             <Button 
               onClick={doubleDown}
-              disabled={playerHands[currentHandIndex].cards.length > 2 || balance < playerHands[currentHandIndex].bet || playerHands[currentHandIndex].stand}
+              disabled={!cardsDealt || playerHands[currentHandIndex].cards.length > 2 || balance < playerHands[currentHandIndex].bet || playerHands[currentHandIndex].stand || actionInProgress}
               className="w-full bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white font-bold py-3 rounded-lg border border-purple-400/30 col-span-1 relative overflow-hidden"
             >
-              <span className="relative z-10">Double</span>
-              {playerHands[currentHandIndex].cards.length === 2 && balance >= playerHands[currentHandIndex].bet && !playerHands[currentHandIndex].stand && (
+              <span className="relative z-10">{actionInProgress ? 'Processing...' : 'Double'}</span>
+              {cardsDealt && playerHands[currentHandIndex].cards.length === 2 && balance >= playerHands[currentHandIndex].bet && !playerHands[currentHandIndex].stand && !actionInProgress && (
                 <span className="absolute inset-0 flex items-center justify-center">
                   <span className="absolute h-10 w-10 bg-purple-400/20 rounded-full animate-ping"></span>
                 </span>
@@ -1031,12 +1594,12 @@ const EnhancedBlackjackGame = ({ minBet, maxBet }: EnhancedBlackjackGameProps) =
             
             <Button 
               onClick={splitHand}
-              disabled={!canSplitHand(playerHands[currentHandIndex]) || balance < playerHands[currentHandIndex].bet}
+              disabled={!cardsDealt || !canSplitHand(playerHands[currentHandIndex]) || balance < playerHands[currentHandIndex].bet || actionInProgress}
               className="w-full bg-gradient-to-r from-amber-600 to-amber-800 hover:from-amber-700 hover:to-amber-900 text-white font-bold py-3 rounded-lg border border-amber-400/30 col-span-1 relative overflow-hidden"
             >
               <Scissors className="mr-1 h-4 w-4" />
-              <span className="relative z-10">Split</span>
-              {canSplitHand(playerHands[currentHandIndex]) && balance >= playerHands[currentHandIndex].bet && (
+              <span className="relative z-10">{actionInProgress ? 'Processing...' : 'Split'}</span>
+              {cardsDealt && canSplitHand(playerHands[currentHandIndex]) && balance >= playerHands[currentHandIndex].bet && !actionInProgress && (
                 <span className="absolute inset-0 flex items-center justify-center">
                   <span className="absolute h-10 w-10 bg-amber-400/20 rounded-full animate-ping"></span>
                 </span>

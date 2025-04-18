@@ -1,6 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { playCashoutSound } from '../../utils/sounds';
+import { enhancedPlaySound } from '../../utils/soundTestUtility';
 
 interface MinesTile {
   id: number;
@@ -245,6 +246,10 @@ const EnhancedMinesGame: React.FC = () => {
       // Game over - hit a mine
       setGameStarted(false);
       setTiles(updatedTiles);
+      
+      // Play explosion sound when mine is hit
+      enhancedPlaySound('/sounds/mine-explosion.mp3', 0.5);
+      
       toast.error("BOOM! You hit a mine!");
       
       // Reveal all mines
@@ -263,6 +268,9 @@ const EnhancedMinesGame: React.FC = () => {
     // Successful click - update game state
     const newRevealedCount = revealedTiles + 1;
     setRevealedTiles(newRevealedCount);
+    
+    // Play click sound for safe tile
+    enhancedPlaySound('/sounds/mine-click.mp3', 0.3);
     
     // Calculate new potential winnings
     const multiplier = calculateMultiplier(minesCount, newRevealedCount);
@@ -297,10 +305,13 @@ const EnhancedMinesGame: React.FC = () => {
   };
 
   const cashout = () => {
-    if (!gameStarted || revealedTiles === 0) return;
+    if (revealedTiles === 0) return;
     
     setBalance((prev) => prev + cashoutAmount);
     setGameStarted(false);
+    
+    // Use the dedicated cashout sound function
+    playCashoutSound();
     toast.success(`Cashed out $${cashoutAmount.toFixed(2)}!`);
   };
 

@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { playGameSound } from '../utils/gameSounds';
 import { useSound } from './ui/sound-context';
@@ -57,9 +56,15 @@ const SoundIntegration: React.FC = () => {
       });
 
       // Horse Racing
-      document.querySelectorAll('.race-start-button').forEach(button => {
+      document.querySelectorAll('.race-start-trigger, [data-sound="race-start"]').forEach(button => {
         button.addEventListener('click', () => {
           playGameSound('raceStart', volume);
+        });
+      });
+
+      document.querySelectorAll('.race-in-progress, [data-sound="race-galloping"]').forEach(element => {
+        element.addEventListener('mouseenter', () => {
+          playGameSound('raceGalloping', volume);
         });
       });
 

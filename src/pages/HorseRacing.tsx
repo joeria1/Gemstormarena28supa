@@ -8,6 +8,8 @@ import { Card } from '../components/ui/card';
 import { Trophy, DollarSign, User, Clock, History } from 'lucide-react';
 import HorseIcon from '../components/HorseRacing/HorseIcon';
 import PulseAnimation from '../components/GameEffects/PulseAnimation';
+import { enhancedPlaySound, playControlledSound, stopControlledSound } from '../utils/soundTestUtility';
+import { playOrderFilledSound } from '../utils/sounds';
 
 // Define our horses
 const horses = [
@@ -297,6 +299,9 @@ const HorseRacing = () => {
     if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
     if (nextRaceTimerRef.current) clearInterval(nextRaceTimerRef.current);
     if (finishedTimerRef.current) clearTimeout(finishedTimerRef.current);
+    
+    // Also stop any playing sounds
+    stopControlledSound('race-galloping');
   };
   
   // Sync UI with global race state when tab becomes visible again
@@ -456,6 +461,11 @@ const HorseRacing = () => {
   
   // Start the race - fixed position calculation
   const startRace = () => {
+    if (isRacing) return;
+    
+    // Play race start sound when race begins
+    enhancedPlaySound('/sounds/race-start.mp3', 0.7);
+    
     // Show gun effect
     setShowGunEffect(true);
     setTimeout(() => setShowGunEffect(false), 1500);
@@ -463,6 +473,11 @@ const HorseRacing = () => {
     // Set racing state
     setIsRacing(true);
     setRaceResults([]);
+    
+    // Play galloping sound with control
+    setTimeout(() => {
+      playControlledSound('race-galloping', '/sounds/race-galloping.mp3', 0.5, true);
+    }, 100);
     
     // Clear any existing race
     if (raceTimerRef.current) {
@@ -504,6 +519,9 @@ const HorseRacing = () => {
           clearInterval(raceTimerRef.current);
           raceTimerRef.current = null;
         }
+        
+        // Stop the galloping sound
+        stopControlledSound('race-galloping');
         
         // Make one final update to horse positions to ensure we capture exact positions
         // This is done by directly calculating the positions rather than using setState
@@ -594,9 +612,13 @@ const HorseRacing = () => {
               // Calculate and update winnings
               const winAmount = Math.round(betAmount * horse.odds * 100) / 100;
               updateUser({ ...user, balance: user.balance + winAmount });
+              // Play win sound
+              enhancedPlaySound('/sounds/win.mp3', 0.5);
               toast.success(`You won $${winAmount.toFixed(2)}!`);
             }
           } else {
+            // Play lose sound
+            enhancedPlaySound('/sounds/lose.mp3', 0.4);
             toast.error(`${horses.find(h => h.id === selectedHorse)?.name} didn't win. Better luck next time!`);
           }
         }
@@ -652,6 +674,9 @@ const HorseRacing = () => {
       toast.error("Insufficient balance");
       return;
     }
+    
+    // Play order filled sound
+    playOrderFilledSound();
     
     // Deduct the bet amount from balance
     updateUser({ ...user, balance: user.balance - betAmount });

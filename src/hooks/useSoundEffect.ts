@@ -1,7 +1,7 @@
-
 import { useCallback } from 'react';
 import { useSound } from '../components/ui/sound-context';
 import { playGameSound, forcePlaySound } from '../utils/gameSounds';
+import { playCashoutSound } from '../utils/sounds';
 
 export const useSoundEffect = () => {
   const { isMuted, volume } = useSound();
@@ -24,15 +24,21 @@ export const useSoundEffect = () => {
     }
   }, [isMuted, volume]);
   
-  const playCashoutSound = useCallback(() => {
+  const playCashoutSoundEffect = useCallback(() => {
     if (!isMuted) {
-      playGameSound('cashout', volume);
+      // Use our direct cashout function instead of the game sound system
+      playCashoutSound();
     }
-  }, [isMuted, volume]);
+  }, [isMuted]);
   
   const playSound = useCallback((soundName: string) => {
     if (!isMuted) {
-      playGameSound(soundName as any, volume);
+      // Special case for cashout sound
+      if (soundName === 'cashout' || soundName === '/sounds/cashout.mp3') {
+        playCashoutSound();
+      } else {
+        playGameSound(soundName as any, volume);
+      }
     }
   }, [isMuted, volume]);
   
@@ -45,7 +51,7 @@ export const useSoundEffect = () => {
     playButtonSound,
     playWinSound,
     playLoseSound,
-    playCashoutSound,
+    playCashoutSound: playCashoutSoundEffect,
     playSound,
     forceSound
   };

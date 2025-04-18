@@ -90,6 +90,8 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
   const pocketRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
   const multiplierRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
   const activeHitPegs = useRef<Set<string>>(new Set());
+  // Track the last hit peg for each ball to ensure sound plays once per hit
+  const lastHitPegRefs = useRef<{[key: number]: string}>({});
 
   // Set up peg positions for rendering - proper triangular arrangement, skipping entire first row
   const pegPositions = [];
@@ -197,26 +199,36 @@ const PlinkoBoard: React.FC<PlinkoBoardProps> = ({
         const pegKey = `peg-${ball.lastHitPeg.row}-${ball.lastHitPeg.col}`;
         const pegElement = pegRefs.current[pegKey];
         
-        if (pegElement) {
+        // Keep track of the last peg hit by this ball
+        const lastPegKey = lastHitPegRefs.current[ball.id];
+        
+        // Only play sound and animate if this is a new peg hit for this ball
+        if (pegElement && pegKey !== lastPegKey) {
           // Add glow and animation effects
           pegElement.classList.add('peg-hit');
           pegElement.classList.add('peg-glow');
           
-          // Play peg hit sound
-          if (!pegElement.dataset.active) {
-            playSound('plinkoPeg');
-            pegElement.dataset.active = 'true';
-            
-            // Auto-remove the highlight after a short time
-            setTimeout(() => {
-              if (pegElement) {
-                pegElement.classList.remove('peg-hit');
-                pegElement.classList.remove('peg-glow');
-                delete pegElement.dataset.active;
-              }
-            }, 150); // Very short duration to match fast game pace
-          }
+          // Play peg hit sound - only once per new peg hit
+          playSound('plinkoPeg');
+          
+          // Mark this peg as the last one hit by this ball
+          lastHitPegRefs.current[ball.id] = pegKey;
+          
+          // Auto-remove the highlight after a short time
+          setTimeout(() => {
+            if (pegElement) {
+              pegElement.classList.remove('peg-hit');
+              pegElement.classList.remove('peg-glow');
+            }
+          }, 150); // Very short duration to match fast game pace
         }
+      }
+    });
+
+    // Remove tracking for balls that no longer exist
+    Object.keys(lastHitPegRefs.current).forEach(ballId => {
+      if (!activeBalls.some(ball => ball.id === Number(ballId))) {
+        delete lastHitPegRefs.current[Number(ballId)];
       }
     });
 

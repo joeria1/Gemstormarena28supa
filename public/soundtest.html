@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .button.red { background-color: #f44336; }
+        .button.blue { background-color: #2196F3; }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #ddd;
+        }
+        .success { border-left-color: #4CAF50; }
+        .error { border-left-color: #f44336; }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sound Test Page</h1>
+
+    <div class="test-container">
+        <h2>Test Race Start Sound</h2>
+        <button class="button blue" onclick="playSound('/sounds/race-start.mp3', 'start-status')">Play Race Start</button>
+        <div id="start-status" class="status">Status: Ready to play</div>
+        <audio controls src="/sounds/race-start.mp3"></audio>
+    </div>
+
+    <div class="test-container">
+        <h2>Test Race Galloping Sound</h2>
+        <button class="button green" onclick="playSound('/sounds/race-galloping.mp3', 'galloping-status')">Play Galloping</button>
+        <div id="galloping-status" class="status">Status: Ready to play</div>
+        <audio controls src="/sounds/race-galloping.mp3"></audio>
+    </div>
+
+    <div class="test-container">
+        <h2>Test Browser Audio</h2>
+        <button class="button red" onclick="playTestBeep()">Play Test Beep</button>
+        <div id="beep-status" class="status">Status: Ready to test browser audio</div>
+    </div>
+
+    <script>
+        function playSound(url, statusId) {
+            const statusElement = document.getElementById(statusId);
+            statusElement.textContent = "Status: Attempting to play...";
+            statusElement.className = "status";
+            
+            try {
+                const audio = new Audio(url);
+                audio.oncanplaythrough = () => {
+                    statusElement.textContent = "Status: Sound loaded, playing now";
+                };
+                
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            statusElement.textContent = "Status: Sound played successfully!";
+                            statusElement.className = "status success";
+                        })
+                        .catch(error => {
+                            statusElement.textContent = `Status: Error playing sound: ${error.message}`;
+                            statusElement.className = "status error";
+                            console.error("Error playing sound:", error);
+                        });
+                }
+            } catch (error) {
+                statusElement.textContent = `Status: Exception: ${error.message}`;
+                statusElement.className = "status error";
+                console.error("Exception playing sound:", error);
+            }
+        }
+
+        function playTestBeep() {
+            const statusElement = document.getElementById('beep-status');
+            statusElement.textContent = "Status: Attempting to play test beep...";
+            statusElement.className = "status";
+            
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+                oscillator.connect(audioContext.destination);
+                oscillator.start();
+                
+                setTimeout(() => {
+                    oscillator.stop();
+                    statusElement.textContent = "Status: Test beep played successfully!";
+                    statusElement.className = "status success";
+                }, 300);
+            } catch (error) {
+                statusElement.textContent = `Status: Error playing test beep: ${error.message}`;
+                statusElement.className = "status error";
+                console.error("Error playing test beep:", error);
+            }
+        }
+    </script>
+</body>
+</html> 

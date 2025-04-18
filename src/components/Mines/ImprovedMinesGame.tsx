@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +5,8 @@ import { Bomb, RefreshCw, DollarSign } from "lucide-react";
 import { useSoundEffect } from '@/hooks/useSoundEffect';
 import { toast } from 'sonner';
 import { useUser } from '@/context/UserContext';
+import { playCashoutSound } from '@/utils/sounds';
+import { enhancedPlaySound } from '@/utils/soundTestUtility';
 
 interface Tile {
   id: number;
@@ -163,7 +164,10 @@ const ImprovedMinesInterface = () => {
       newTiles[index].revealed = true;
       setTiles(newTiles);
       setGameOver(true);
-      playSound('mineExplosion');
+      
+      // Use direct sound function for more reliable playback
+      enhancedPlaySound('/sounds/mine-explosion.mp3', 0.5);
+      
       toast.error("Game over! You hit a mine!");
       
       // Reveal all mines
@@ -198,7 +202,9 @@ const ImprovedMinesInterface = () => {
       setSafeRevealedCount(newSafeRevealedCount);
       setRemainingTiles(remainingTiles - 1);
       setTiles(newTiles);
-      playSound('mineClick');
+      
+      // Play safe tile click sound directly
+      enhancedPlaySound('/sounds/mine-click.mp3', 0.3);
       
       // Check if all safe tiles are revealed
       if (newSafeRevealedCount === 25 - mines) {
@@ -225,7 +231,8 @@ const ImprovedMinesInterface = () => {
     });
     setTiles(newTiles);
     
-    playSound('gameWin');
+    // Use the dedicated cashout sound function
+    playCashoutSound();
     toast.success(`You cashed out $${winnings.toFixed(2)}!`);
   };
 

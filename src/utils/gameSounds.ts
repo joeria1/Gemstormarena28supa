@@ -1,4 +1,3 @@
-
 // Game sounds for various interactions
 const gameSoundPaths = {
   // Mines game
@@ -16,6 +15,7 @@ const gameSoundPaths = {
   
   // Horse Racing
   raceStart: '/sounds/race-start.mp3',
+  raceGalloping: '/sounds/race-galloping.mp3',
   
   // Lightning Effect
   lightning: '/sounds/lightning.mp3',
@@ -36,7 +36,8 @@ const gameSoundPaths = {
   buttonClick: '/sounds/button-click.mp3',
   win: '/sounds/win.mp3',
   lose: '/sounds/lose.mp3',
-  cashout: '/sounds/win.mp3' // Adding cashout sound (using win sound)
+  cashout: '/sounds/cashout.mp3', // Now using the proper cashout sound file
+  orderFilled: '/sounds/order-filled.mp3' // For bet placements in crash and horse racing
 };
 
 // Preload sound files with enhanced error handling

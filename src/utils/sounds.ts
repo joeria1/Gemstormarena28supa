@@ -1,60 +1,56 @@
-
 // Sound effects for the case slider
+import { enhancedPlaySound } from './soundTestUtility';
+
 export const playTickSound = () => {
-  const audio = new Audio('/sounds/tick.mp3');
-  audio.volume = 0.1;
-  audio.play().catch(error => {
-    console.error("Error playing tick sound:", error);
-  });
+  enhancedPlaySound('/sounds/tick.mp3', 0.1);
 };
 
 // General play function for soundEffects.ts
 export const play = (sound: string) => {
-  const audio = new Audio(`/sounds/${sound}.mp3`);
-  audio.volume = 0.2;
-  audio.play().catch(error => {
-    console.error(`Error playing ${sound} sound:`, error);
-  });
+  enhancedPlaySound(`/sounds/${sound}.mp3`, 0.2);
 };
 
 // Direct sound function for immediate use
 export const playSound = (url: string, volume: number = 0.5) => {
-  const audio = new Audio(url);
-  audio.volume = volume;
-  audio.play().catch(error => {
-    console.error("Error playing sound:", error);
-  });
+  enhancedPlaySound(url, volume);
 };
 
 export const playStopSound = () => {
-  const audio = new Audio('/sounds/win.mp3');
-  audio.volume = 0.2;
-  audio.play().catch(error => {
-    console.error("Error playing stop sound:", error);
-  });
+  enhancedPlaySound('/sounds/win.mp3', 0.2);
 };
 
 // Additional sound effects
 export const playButtonSound = () => {
-  const audio = new Audio('/sounds/button-click.mp3');
-  audio.volume = 0.1;
-  audio.play().catch(error => {
-    console.error("Error playing button sound:", error);
-  });
+  enhancedPlaySound('/sounds/button-click.mp3', 0.1);
 };
 
 export const playWinSound = () => {
-  const audio = new Audio('/sounds/big-win.mp3');
-  audio.volume = 0.3;
-  audio.play().catch(error => {
-    console.error("Error playing win sound:", error);
-  });
+  enhancedPlaySound('/sounds/big-win.mp3', 0.3);
 };
 
 export const playLoseSound = () => {
-  const audio = new Audio('/sounds/lose.mp3');
-  audio.volume = 0.2;
-  audio.play().catch(error => {
-    console.error("Error playing lose sound:", error);
-  });
+  enhancedPlaySound('/sounds/lose.mp3', 0.2);
+};
+
+// Add explicit cashout sound with higher volume
+export const playCashoutSound = () => {
+  console.log("Attempting to play cashout sound...");
+  enhancedPlaySound('/sounds/cashout.mp3', 0.6)
+    .then(success => {
+      if (success) {
+        console.log("Cashout sound played successfully!");
+      } else {
+        console.error("Failed to play cashout sound");
+      }
+    });
+};
+
+// Play order filled sound for bet placements
+export const playOrderFilledSound = () => {
+  enhancedPlaySound('/sounds/order-filled.mp3', 0.4)
+    .then(success => {
+      if (!success) {
+        console.error("Failed to play order-filled sound");
+      }
+    });
 };
